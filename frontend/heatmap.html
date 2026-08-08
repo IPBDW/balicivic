@@ -1,0 +1,630 @@
+﻿<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Peta Sebaran - BaliCivic AI</title>
+    <link rel="icon" type="image/png" href="./assets/BaliCivic_App_Icon_1_.png" />
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="config.js"></script>
+
+    <!-- Fonts & Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        /* Custom Scrollbar */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: rgba(156, 163, 175, 0.5);
+            border-radius: 20px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: rgba(156, 163, 175, 0.8);
+        }
+
+        /* Checkbox Animation */
+        .checkbox-wrapper input:checked+.checkbox-box {
+            background-color: currentColor;
+            border-color: currentColor;
+        }
+
+        .checkbox-wrapper input:checked+.checkbox-box i {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        /* Mobile Optimization for Leaflet */
+        .leaflet-control-zoom {
+            border: none !important;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1) !important;
+        }
+
+        .leaflet-control-zoom a {
+            background-color: rgba(255, 255, 255, 0.9) !important;
+            backdrop-filter: blur(4px);
+            color: #1e293b !important;
+            border-radius: 8px !important;
+            margin-bottom: 4px !important;
+        }
+    </style>
+</head>
+
+<body class="bg-bgPage text-textDark h-screen flex flex-col overflow-hidden">
+
+    <!-- Navbar -->
+    <header
+        class="absolute top-0 z-[1000] w-full border-b border-white/30 bg-white/80 backdrop-blur-xl transition-all duration-300 shadow-sm">
+        <div class="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+
+            <div class="flex items-center gap-3">
+                <a href="/" class="block transform transition-transform hover:scale-105"
+                    aria-label="BaliCivic AI - Beranda">
+                    <img src="./assets/BaliCivic_App_Icon_1_.png" alt="BaliCivic AI"
+                        class="h-9 w-9 rounded-xl object-cover shadow-lg shadow-primary/20 ring-1 ring-white/50">
+                </a>
+                <div class="flex flex-col">
+                    <span class="font-display font-bold tracking-tight text-lg text-textDark">BaliCivic AI</span>
+                    <span class="text-[10px] font-medium text-primary leading-none">Heatmap</span>
+                </div>
+            </div>
+
+            <!-- Desktop Menu -->
+            <div class="hidden md:flex items-center space-x-1">
+                <a href="index.html"
+                    class="px-4 py-2 text-sm font-medium text-textSecondary hover:text-primary hover:bg-primary/5 rounded-lg transition-all">Beranda</a>
+                <a href="dashboard.html"
+                    class="px-4 py-2 text-sm font-medium text-textSecondary hover:text-primary hover:bg-primary/5 rounded-lg transition-all">Dashboard</a>
+                <a href="heatmap.html"
+                    class="px-4 py-2 text-sm font-bold text-primary bg-primary/5 rounded-lg transition-all">Heatmap</a>
+                <a href="all-reports.html"
+                    class="px-4 py-2 text-sm font-medium text-textSecondary hover:text-primary hover:bg-primary/5 rounded-lg transition-all">Semua
+                    Laporan</a>
+                <a href="help.html"
+                    class="px-4 py-2 text-sm font-medium text-textSecondary hover:text-primary hover:bg-primary/5 rounded-lg transition-all">Bantuan</a>
+                <a href="report.html"
+                    class="ml-4 px-5 py-2.5 text-sm font-bold text-white bg-gradient-to-r from-primary to-primaryHover rounded-xl hover:shadow-lg hover:shadow-primary/30 transition-all transform hover:-translate-y-0.5">
+                    <i class="fas fa-plus-circle mr-2"></i>Lapor
+                </a>
+            </div>
+
+            <!-- Mobile Help Button -->
+            <a href="help.html" class="md:hidden p-2 text-textSecondary hover:text-primary transition-colors">
+                <i class="fas fa-question-circle text-xl"></i>
+            </a>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <div class="relative flex-1 w-full h-full pt-16">
+
+        <!-- Map Container -->
+        <div id="heatmap-map" class="absolute inset-0 z-0 bg-gray-100"></div>
+
+        <!-- Filter Toggle Button -->
+        <button id="btn-toggle-sidebar"
+            class="fixed md:absolute bottom-24 md:bottom-6 right-6 z-[1500] md:z-[400] bg-white/90 backdrop-blur-md p-4 rounded-full shadow-lg border border-white/50 text-primary hover:bg-white hover:scale-110 transition-all duration-300 group">
+            <i class="fas fa-filter text-xl group-hover:rotate-12 transition-transform duration-300"></i>
+        </button>
+
+        <!-- Mobile Backdrop -->
+        <div id="mobile-backdrop"
+            class="fixed inset-0 bg-black/20 z-[1900] hidden opacity-0 transition-opacity duration-300 md:hidden"></div>
+
+        <!-- Floating Sidebar / Popup (Bottom Right on Desktop, Bottom Sheet on Mobile) -->
+        <aside id="sidebar-panel"
+            class="fixed md:absolute bottom-0 md:bottom-20 left-0 md:left-auto md:right-6 z-[2000] md:z-[500] w-full md:w-80 max-h-[80vh] md:max-h-[calc(100vh-150px)] flex flex-col transition-all duration-300 transform translate-y-full md:translate-y-10 opacity-100 md:opacity-0 md:invisible rounded-t-3xl md:rounded-2xl shadow-[0_-4px_20px_rgba(0,0,0,0.1)] md:shadow-[0_8px_30px_rgb(0,0,0,0.12)]">
+
+            <!-- Unified Card Container -->
+            <div
+                class="flex flex-col h-full pointer-events-auto bg-white/95 backdrop-blur-xl md:rounded-2xl border-t md:border border-white/50 overflow-hidden">
+
+                <!-- Header & Stats -->
+                <div class="p-5 border-b border-gray-100 bg-white/50">
+                    <!-- Drag Handle for Mobile -->
+                    <div class="w-12 h-1.5 bg-gray-300 rounded-full mx-auto mb-4 md:hidden"></div>
+
+                    <div class="flex items-center justify-between mb-4 sm:hidden">
+                        <h2 class="text-lg font-bold text-textDark">Filter Peta</h2>
+                        <button id="btn-close-sidebar"
+                            class="p-2 text-textSecondary hover:text-red-500 transition-colors">
+                            <i class="fas fa-times text-xl"></i>
+                        </button>
+                    </div>
+
+                    <h2 class="text-[10px] font-bold text-textSecondary uppercase tracking-widest mb-1">Total Data
+                        Points</h2>
+                    <div class="flex items-baseline gap-2">
+                        <span id="total-points" class="text-3xl font-display font-bold text-textDark">0</span>
+                        <span class="text-xs text-textSecondary font-medium">laporan terdeteksi</span>
+                    </div>
+                </div>
+
+                <!-- Scrollable Content -->
+                <div class="p-5 overflow-y-auto custom-scrollbar flex-1 min-h-0">
+
+                    <div class="flex items-center justify-between mb-6">
+                        <h3 class="font-bold text-textDark flex items-center gap-2 text-sm">
+                            <i class="fas fa-filter text-primary"></i> Filter Data
+                        </h3>
+                        <button id="btn-reset"
+                            class="text-[10px] font-bold text-red-500 hover:text-red-700 hover:bg-red-50 px-2 py-1 rounded transition-colors uppercase tracking-wider">
+                            Reset
+                        </button>
+                    </div>
+
+                    <!-- Category Filter -->
+                    <div class="mb-6 space-y-3">
+                        <label
+                            class="text-[10px] font-bold text-textSecondary uppercase tracking-widest block mb-2">Kategori
+                            Masalah</label>
+
+                        <label
+                            class="flex items-center justify-between p-2 rounded-lg hover:bg-black/5 cursor-pointer transition-colors group checkbox-wrapper">
+                            <div class="flex items-center gap-3">
+                                <div class="relative flex items-center">
+                                    <input type="checkbox" id="cb-jalan_bolong" data-class="jalan_bolong" checked
+                                        class="peer hidden">
+                                    <div
+                                        class="checkbox-box w-4 h-4 rounded border border-gray-300 flex items-center justify-center transition-all text-red-500 group-hover:border-red-400">
+                                        <i
+                                            class="fas fa-check text-[10px] text-white opacity-0 transform scale-50 transition-all duration-200"></i>
+                                    </div>
+                                </div>
+                                <span class="text-sm font-medium text-gray-700 group-hover:text-gray-900">Jalan
+                                    Bolong</span>
+                            </div>
+                            <span class="w-2.5 h-2.5 rounded-full bg-red-500 shadow-sm"></span>
+                        </label>
+
+                        <label
+                            class="flex items-center justify-between p-2 rounded-lg hover:bg-black/5 cursor-pointer transition-colors group checkbox-wrapper">
+                            <div class="flex items-center gap-3">
+                                <div class="relative flex items-center">
+                                    <input type="checkbox" id="cb-genangan_air" data-class="genangan_air" checked
+                                        class="peer hidden">
+                                    <div
+                                        class="checkbox-box w-4 h-4 rounded border border-gray-300 flex items-center justify-center transition-all text-sky-500 group-hover:border-sky-400">
+                                        <i
+                                            class="fas fa-check text-[10px] text-white opacity-0 transform scale-50 transition-all duration-200"></i>
+                                    </div>
+                                </div>
+                                <span class="text-sm font-medium text-gray-700 group-hover:text-gray-900">Genangan
+                                    Air</span>
+                            </div>
+                            <span class="w-2.5 h-2.5 rounded-full bg-sky-500 shadow-sm"></span>
+                        </label>
+
+                        <label
+                            class="flex items-center justify-between p-2 rounded-lg hover:bg-black/5 cursor-pointer transition-colors group checkbox-wrapper">
+                            <div class="flex items-center gap-3">
+                                <div class="relative flex items-center">
+                                    <input type="checkbox" id="cb-sampah_liar" data-class="sampah_liar" checked
+                                        class="peer hidden">
+                                    <div
+                                        class="checkbox-box w-4 h-4 rounded border border-gray-300 flex items-center justify-center transition-all text-orange-500 group-hover:border-orange-400">
+                                        <i
+                                            class="fas fa-check text-[10px] text-white opacity-0 transform scale-50 transition-all duration-200"></i>
+                                    </div>
+                                </div>
+                                <span class="text-sm font-medium text-gray-700 group-hover:text-gray-900">Sampah
+                                    Liar</span>
+                            </div>
+                            <span class="w-2.5 h-2.5 rounded-full bg-orange-500 shadow-sm"></span>
+                        </label>
+
+                        <label
+                            class="flex items-center justify-between p-2 rounded-lg hover:bg-black/5 cursor-pointer transition-colors group checkbox-wrapper">
+                            <div class="flex items-center gap-3">
+                                <div class="relative flex items-center">
+                                    <input type="checkbox" id="cb-kabel_semrawut" data-class="kabel_semrawut" checked
+                                        class="peer hidden">
+                                    <div
+                                        class="checkbox-box w-4 h-4 rounded border border-gray-300 flex items-center justify-center transition-all text-gray-800 group-hover:border-gray-600">
+                                        <i
+                                            class="fas fa-check text-[10px] text-white opacity-0 transform scale-50 transition-all duration-200"></i>
+                                    </div>
+                                </div>
+                                <span class="text-sm font-medium text-gray-700 group-hover:text-gray-900">Kabel
+                                    Semrawut</span>
+                            </div>
+                            <span class="w-2.5 h-2.5 rounded-full bg-gray-800 shadow-sm"></span>
+                        </label>
+                    </div>
+
+                    <!-- Status Filter -->
+                    <div class="mb-6">
+                        <label
+                            class="text-[10px] font-bold text-textSecondary uppercase tracking-widest block mb-3">Status
+                            Laporan</label>
+                        <div class="flex p-1 bg-gray-100 rounded-xl">
+                            <button
+                                class="btn-toggle flex-1 py-1.5 text-[10px] font-bold rounded-lg transition-all text-textSecondary hover:text-textDark active shadow-sm bg-white text-primary"
+                                data-status="" id="btn-status-all">SEMUA</button>
+                            <button
+                                class="btn-toggle flex-1 py-1.5 text-[10px] font-bold rounded-lg transition-all text-textSecondary hover:text-textDark"
+                                data-status="PENDING" id="btn-status-pending">PENDING</button>
+                            <button
+                                class="btn-toggle flex-1 py-1.5 text-[10px] font-bold rounded-lg transition-all text-textSecondary hover:text-textDark"
+                                data-status="OPEN" id="btn-status-open">OPEN</button>
+                            <button
+                                class="btn-toggle flex-1 py-1.5 text-[10px] font-bold rounded-lg transition-all text-textSecondary hover:text-textDark"
+                                data-status="DONE" id="btn-status-DONE">SELESAI</button>
+                        </div>
+                    </div>
+
+                    <!-- Legend -->
+                    <div>
+                        <h4 class="text-[10px] font-bold text-textSecondary uppercase tracking-widest mb-2">Intensitas
+                            Heatmap</h4>
+                        <div
+                            class="h-2 w-full rounded-full bg-gradient-to-r from-blue-500 via-yellow-400 to-red-500 mb-1">
+                        </div>
+                        <div class="flex justify-between text-[10px] font-medium text-textSecondary">
+                            <span>Rendah</span>
+                            <span>Tinggi</span>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+        </aside>
+
+    </div>
+
+    <!-- Bottom Nav Mobile -->
+    <nav
+        class="md:hidden fixed bottom-0 left-0 w-full bg-white/90 backdrop-blur-md border-t border-slate-200 z-50 px-4 py-3 flex justify-around items-center shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+        <a href="heatmap.html" class="flex flex-col items-center gap-1 text-primary transition-colors">
+            <div class="absolute -top-6 bg-primary p-3 rounded-full shadow-lg shadow-primary/30 border-4 border-white">
+                <i class="fas fa-map-marked-alt text-white text-xl"></i>
+            </div>
+            <span class="text-[10px] font-bold mt-6">Heatmap</span>
+        </a>
+        <a href="report.html"
+            class="flex flex-col items-center gap-1 text-slate-400 hover:text-primary transition-colors">
+            <i class="fas fa-plus-circle text-xl"></i>
+            <span class="text-[10px] font-medium">Lapor</span>
+        </a>
+        <a href="dashboard.html"
+            class="flex flex-col items-center gap-1 text-slate-400 hover:text-primary transition-colors">
+            <i class="fas fa-chart-pie text-xl"></i>
+            <span class="text-[10px] font-medium">Dashboard</span>
+        </a>
+        <a href="all-reports.html"
+            class="flex flex-col items-center gap-1 text-slate-400 hover:text-primary transition-colors">
+            <i class="fas fa-list text-xl"></i>
+            <span class="text-[10px] font-medium">Laporan</span>
+        </a>
+    </nav>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+    <!-- Leaflet.heat plugin -->
+    <script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
+
+    <script>
+        // ------------------------
+        // INIT MAP
+        // ------------------------
+        const defaultCenter = [-8.4095, 115.1889]; // tengah Bali
+        const defaultZoom = 10;
+        const DETAIL_ZOOM_THRESHOLD = 12;          // batas zoom detail
+
+        const map = L.map("heatmap-map", {
+            zoomControl: false,
+            attributionControl: false
+        }).setView(defaultCenter, defaultZoom);
+
+        // Add Zoom Control (Adjusted for Mobile Nav)
+        L.control.zoom({
+            position: 'bottomleft'
+        }).addTo(map);
+
+        // Adjust Zoom Control Position via CSS for Mobile
+        const zoomControlContainer = document.querySelector('.leaflet-bottom.leaflet-left');
+        if (zoomControlContainer) {
+            zoomControlContainer.style.marginBottom = '80px'; // Space for bottom nav
+            zoomControlContainer.classList.add('md:mb-0'); // Reset on desktop
+        }
+
+        L.tileLayer(
+            "https://cartodb-basemaps-a.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png",
+            { maxZoom: 19, attribution: '&copy; OpenStreetMap contributors' }
+        ).addTo(map);
+
+        let heatLayer = null;
+        let markersLayer = L.layerGroup().addTo(map);
+
+        // ------------------------
+        // FILTER LOGIC
+        // ------------------------
+
+        function getSelectedClasses() {
+            const boxes = document.querySelectorAll("input[type=checkbox][data-class]");
+            const active = [];
+            boxes.forEach((cb) => {
+                if (cb.checked) active.push(cb.dataset.class);
+            });
+            return active;
+        }
+
+        function getSelectedStatus() {
+            const activeBtn = document.querySelector(".btn-toggle.bg-white");
+            if (!activeBtn) return "";
+            return activeBtn.dataset.status || "";
+        }
+
+        // ------------------------
+        // LOAD DATA & BIKIN LAYER
+        // ------------------------
+
+        async function loadHeatmap() {
+            const classes = getSelectedClasses();
+            const status = getSelectedStatus();
+
+            const url = `${API_BASE}/api/issues`;
+            console.log("Fetching:", url);
+
+            try {
+                const res = await fetch(url);
+                const allData = await res.json();
+
+                let points = allData.filter(p => {
+                    const pClass = p.issue_class || p.class;
+                    const pStatus = p.status;
+
+                    const classMatch = classes.length === 0 || classes.includes(pClass);
+                    const statusMatch = status === "" || pStatus === status;
+
+                    return classMatch && statusMatch;
+                });
+
+                // Animate counter
+                const totalEl = document.getElementById("total-points");
+                let currentTotal = parseInt(totalEl.innerText);
+                if (isNaN(currentTotal)) currentTotal = 0;
+
+                let newTotal = points.length;
+                if (isNaN(newTotal)) newTotal = 0;
+
+                animateValue(totalEl, currentTotal, newTotal, 1000);
+
+                // --- build heat data ---
+                const heatData = points
+                    .filter(p => ((p.latitude || p.lat) && (p.longitude || p.long || p.lon)))
+                    .map((p) => {
+                        const lat = p.latitude || p.lat;
+                        const lon = p.longitude || p.long || p.lon;
+                        const score = p.final_score || p.severity_score || p.score || 0;
+                        const intensity = Math.max(score / 100, 0.2);
+                        return [lat, lon, intensity];
+                    });
+
+                if (heatLayer) {
+                    map.removeLayer(heatLayer);
+                }
+                if (heatData.length > 0) {
+                    heatLayer = L.heatLayer(heatData, {
+                        radius: 25,
+                        blur: 20,
+                        maxZoom: 16,
+                        gradient: {
+                            0.2: 'blue',
+                            0.4: 'cyan',
+                            0.6: 'lime',
+                            0.8: 'yellow',
+                            1.0: 'red'
+                        }
+                    }).addTo(map);
+                } else {
+                    heatLayer = null;
+                }
+
+                // --- build markers layer ---
+                markersLayer.clearLayers();
+
+                points.forEach((p) => {
+                    const pClass = p.issue_class || p.class || "unknown";
+                    const pId = p.id;
+                    const pScore = p.final_score || p.severity_score || p.score || "-";
+                    const pStatus = p.status || "OPEN";
+                    const pLat = p.latitude || p.lat;
+                    const pLon = p.longitude || p.long || p.lon;
+
+                    if (!pLat || !pLon) return;
+
+                    const colorClass =
+                        pClass === "jalan_bolong"
+                            ? "text-red-500"
+                            : pClass === "genangan_air"
+                                ? "text-sky-500"
+                                : pClass === "sampah_liar"
+                                    ? "text-orange-500"
+                                    : "text-gray-700";
+
+                    const iconHtml = `
+                        <div class="relative group cursor-pointer transform transition-transform hover:scale-110 hover:z-50">
+                            <div class="relative z-10 drop-shadow-md">
+                                <i class="fas fa-map-marker-alt text-3xl ${colorClass} drop-shadow-sm"></i>
+                                <div class="absolute top-1.5 left-1/2 -translate-x-1/2 w-2 h-2 bg-white rounded-full shadow-inner"></div>
+                            </div>
+                            <div class="absolute left-1/2 -translate-x-1/2 top-full mt-1 whitespace-nowrap z-20">
+                                <div class="bg-white/95 backdrop-blur-sm border border-gray-200 px-2 py-1 rounded-lg shadow-lg flex flex-col items-center gap-0.5">
+                                    <span class="text-[10px] font-bold text-gray-800 uppercase tracking-wide leading-none">${pClass.replace('_', ' ')}</span>
+                                    <span class="text-[9px] font-mono text-gray-500 leading-none">#${pId}</span>
+                                </div>
+                                <div class="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-white rotate-45 border-t border-l border-gray-200"></div>
+                            </div>
+                        </div>
+                    `;
+
+                    const customIcon = L.divIcon({
+                        html: iconHtml,
+                        className: '',
+                        iconSize: [30, 42],
+                        iconAnchor: [15, 42],
+                        popupAnchor: [0, -45]
+                    });
+
+                    const marker = L.marker([pLat, pLon], { icon: customIcon });
+
+                    const popupHtml = `
+                        <div class="font-sans p-1 min-w-[150px]">
+                            <div class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">${pClass.replace('_', ' ')}</div>
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-sm font-bold text-gray-800">Skor: ${pScore}</span>
+                                <span class="text-[10px] px-2 py-0.5 rounded-full ${pStatus === 'OPEN' ? 'bg-red-100 text-red-600' : pStatus === 'PENDING' ? 'bg-yellow-100 text-yellow-600' : 'bg-green-100 text-green-600'} font-bold">${pStatus}</span>
+                            </div>
+                            <div class="text-[10px] text-gray-400">ID: #${pId}</div>
+                            <div class="mt-2 text-[10px] text-primary font-bold cursor-pointer hover:underline" onclick="window.location.href='detail.html?id=${pId}'">Lihat Detail &rarr;</div>
+                        </div>
+                    `;
+
+                    marker.bindPopup(popupHtml);
+                    markersLayer.addLayer(marker);
+                });
+
+                updateLayerVisibility();
+
+            } catch (err) {
+                console.error("Gagal load heatmap:", err);
+            }
+        }
+
+        function animateValue(obj, start, end, duration) {
+            let startTimestamp = null;
+            const step = (timestamp) => {
+                if (!startTimestamp) startTimestamp = timestamp;
+                const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+                obj.innerHTML = Math.floor(progress * (end - start) + start);
+                if (progress < 1) {
+                    window.requestAnimationFrame(step);
+                }
+            };
+            window.requestAnimationFrame(step);
+        }
+
+        // ------------------------
+        // TOGGLE HEAT vs MARKER
+        // ------------------------
+
+        function updateLayerVisibility() {
+            const z = map.getZoom();
+
+            if (z < DETAIL_ZOOM_THRESHOLD) {
+                if (heatLayer && !map.hasLayer(heatLayer)) map.addLayer(heatLayer);
+                if (markersLayer && map.hasLayer(markersLayer)) map.removeLayer(markersLayer);
+            } else {
+                if (markersLayer && !map.hasLayer(markersLayer)) map.addLayer(markersLayer);
+                if (heatLayer && map.hasLayer(heatLayer)) map.removeLayer(heatLayer);
+            }
+        }
+
+        map.on("zoomend", updateLayerVisibility);
+
+        // ------------------------
+        // EVENT HANDLER
+        // ------------------------
+
+        document
+            .querySelectorAll("input[type=checkbox][data-class]")
+            .forEach((cb) => cb.addEventListener("change", loadHeatmap));
+
+        document.querySelectorAll(".btn-toggle").forEach((btn) => {
+            btn.addEventListener("click", () => {
+                document.querySelectorAll(".btn-toggle").forEach((b) => {
+                    b.classList.remove("bg-white", "text-primary", "shadow-sm");
+                    b.classList.add("text-textSecondary", "hover:text-textDark");
+                });
+
+                btn.classList.remove("text-textSecondary", "hover:text-textDark");
+                btn.classList.add("bg-white", "text-primary", "shadow-sm");
+
+                loadHeatmap();
+            });
+        });
+
+        document.getElementById("btn-reset").addEventListener("click", () => {
+            document
+                .querySelectorAll("input[type=checkbox][data-class]")
+                .forEach((cb) => (cb.checked = true));
+
+            document.querySelectorAll(".btn-toggle").forEach((b) => {
+                b.classList.remove("bg-white", "text-primary", "shadow-sm");
+                b.classList.add("text-textSecondary");
+            });
+            const openBtn = document.getElementById("btn-status-open");
+            openBtn.classList.add("bg-white", "text-primary", "shadow-sm");
+            openBtn.classList.remove("text-textSecondary");
+
+            loadHeatmap();
+        });
+
+        // ------------------------
+        // SIDEBAR TOGGLE LOGIC
+        // ------------------------
+        const sidebarPanel = document.getElementById("sidebar-panel");
+        const btnToggleSidebar = document.getElementById("btn-toggle-sidebar");
+        const btnCloseSidebar = document.getElementById("btn-close-sidebar");
+        const mobileBackdrop = document.getElementById("mobile-backdrop");
+
+        function toggleSidebar() {
+            const isHidden = sidebarPanel.classList.contains("opacity-0") || sidebarPanel.classList.contains("translate-y-full");
+
+            if (isHidden) {
+                sidebarPanel.classList.remove("md:opacity-0", "md:translate-y-10", "md:invisible");
+                sidebarPanel.classList.remove("translate-y-full");
+
+                mobileBackdrop.classList.remove("hidden");
+                setTimeout(() => mobileBackdrop.classList.remove("opacity-0"), 10);
+
+            } else {
+                sidebarPanel.classList.add("md:opacity-0", "md:translate-y-10", "md:invisible");
+                sidebarPanel.classList.add("translate-y-full");
+
+                mobileBackdrop.classList.add("opacity-0");
+                setTimeout(() => mobileBackdrop.classList.add("hidden"), 300);
+            }
+        }
+
+        btnToggleSidebar.addEventListener("click", toggleSidebar);
+        if (btnCloseSidebar) btnCloseSidebar.addEventListener("click", toggleSidebar);
+        if (mobileBackdrop) mobileBackdrop.addEventListener("click", toggleSidebar);
+
+        // ------------------------
+        // INIT
+        // ------------------------
+        window.addEventListener("load", () => {
+            setTimeout(() => {
+                map.invalidateSize();
+                loadHeatmap();
+            }, 300);
+        });
+
+    </script>
+</body>
+
+</html>

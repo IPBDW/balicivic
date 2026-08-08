@@ -1,0 +1,550 @@
+﻿<!DOCTYPE html>
+<html lang="id" class="scroll-smooth">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dashboard Monitoring & Analisis - BaliCivic AI</title>
+    <link rel="canonical" href="https://balicivic.ai/dashboard.html" />
+    <link rel="icon" type="image/png" href="./assets/BaliCivic_App_Icon_1_.png" />
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="config.js"></script>
+
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        /* Animasi hover yang smooth */
+        * {
+            transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        a,
+        button,
+        .card,
+        .btn {
+            transition: all 0.3s ease;
+        }
+
+        /* Hover effect buat card */
+        .card-hover:hover,
+        [class*="rounded"]:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px -4px rgba(0, 0, 0, 0.08);
+        }
+
+        /* Hover effect buat button */
+        button:hover,
+        .btn:hover,
+        a[class*="bg-"]:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px -2px rgba(0, 0, 0, 0.08);
+        }
+
+        button:active,
+        .btn:active {
+            transform: translateY(0px);
+        }
+
+        /* Hover effect buat link */
+        a:not([class*="bg-"]):hover {
+            color: #C94B4B;
+        }
+
+        /* Hover effect buat icon */
+        i:hover {
+            transform: scale(1.05);
+            transition: transform 0.2s ease;
+        }
+
+        /* Focus effect buat input */
+        input:focus,
+        textarea:focus,
+        select:focus {
+            box-shadow: 0 0 0 3px rgba(201, 75, 75, 0.1);
+            transition: all 0.2s ease;
+        }
+
+        /* Matiin hover effect di tabel biar ga berantakan */
+        table,
+        table *,
+        tr,
+        td,
+        th {
+            transform: none !important;
+            box-shadow: none !important;
+        }
+
+        table tr:hover {
+            background-color: rgba(201, 75, 75, 0.02);
+            transition: background-color 0.2s ease;
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #FAFAFA;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #CBD5E1;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #C94B4B;
+        }
+
+        .loader {
+            border-top-color: #C94B4B;
+            -webkit-animation: spinner 1.5s linear infinite;
+            animation: spinner 1.5s linear infinite;
+        }
+
+        @keyframes spinner {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+</head>
+
+<body class="bg-bgPage text-textDark min-h-screen flex flex-col pb-24 md:pb-0">
+
+    <header
+        class="sticky top-0 z-50 w-full border-b border-lightBorder bg-white/90 backdrop-blur-md transition-all duration-300">
+        <div class="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
+
+            <div class="flex items-center gap-2">
+                <a href="/" class="block" aria-label="BaliCivic AI - Beranda">
+                    <img src="./assets/BaliCivic_App_Icon_1_.png" alt="BaliCivic AI"
+                        class="h-8 w-8 rounded-lg object-cover shadow-lg shadow-primary/30" width="32" height="32">
+                </a>
+                <span class="font-bold tracking-tight text-lg text-textDark">BaliCivic AI</span>
+            </div>
+
+            <div class="hidden md:flex items-center space-x-1">
+                <a href="index.html"
+                    class="px-4 py-2 text-sm font-medium text-textSecondary hover:text-primary hover:bg-primary/5 rounded-lg transition-all">Beranda</a>
+                <a href="dashboard.html"
+                    class="px-4 py-2 text-sm font-medium text-textSecondary hover:text-primary hover:bg-primary/5 rounded-lg transition-all">Dashboard</a>
+                <a href="heatmap.html"
+                    class="px-4 py-2 text-sm font-medium text-textSecondary hover:text-primary hover:bg-primary/5 rounded-lg transition-all">Heatmap</a>
+                <a href="all-reports.html"
+                    class="px-4 py-2 text-sm font-bold text-primary bg-primary/5 rounded-lg transition-all">Semua
+                    Laporan</a>
+                <a href="help.html"
+                    class="px-4 py-2 text-sm font-medium text-textSecondary hover:text-primary hover:bg-primary/5 rounded-lg transition-all">Bantuan</a>
+                <a href="report.html"
+                    class="ml-4 px-5 py-2.5 text-sm font-bold text-white bg-gradient-to-r from-primary to-primaryHover rounded-xl hover:shadow-lg hover:shadow-primary/30 transition-all transform hover:-translate-y-0.5">
+                    <i class="fas fa-plus-circle mr-2"></i>Lapor
+                </a>
+            </div>
+
+            <a href="help.html"
+                class="md:hidden p-2.5 text-textSecondary hover:text-primary hover:bg-primary/5 rounded-lg transition-all duration-300 group">
+                <i class="fas fa-question-circle text-base group-hover:scale-110 transition-transform"></i>
+            </a>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 pb-24 pt-8 md:pt-12 animate-fade-in">
+
+        <!-- Breadcrumb -->
+        <nav class="flex mb-4 text-xs text-textSecondary" aria-label="Breadcrumb">
+            <ol class="inline-flex items-center space-x-1 md:space-x-3">
+                <li class="inline-flex items-center">
+                    <a href="dashboard.html" class="inline-flex items-center hover:text-primary transition-colors">
+                        <i class="fas fa-chart-pie mr-2"></i>
+                        Dashboard
+                    </a>
+                </li>
+                <li>
+                    <div class="flex items-center">
+                        <i class="fas fa-chevron-right text-gray-300 mx-1"></i>
+                        <span class="text-textDark font-medium">Semua Laporan</span>
+                    </div>
+                </li>
+            </ol>
+        </nav>
+
+        <!-- Header Section -->
+        <div class="flex flex-col md:flex-row justify-between items-end md:items-center gap-4 mb-8">
+            <div>
+                <h1 class="text-2xl md:text-3xl font-bold text-textDark tracking-tight flex items-center gap-3">
+                    Semua Laporan
+                    <span
+                        class="text-xs font-normal text-textSecondary bg-gray-100 px-2 py-1 rounded-full border border-gray-200"
+                        id="reportCount">0 Laporan</span>
+                </h1>
+                <p class="text-textSecondary text-xs md:text-sm mt-1">
+                    Arsip lengkap laporan masyarakat Bali.
+                </p>
+            </div>
+
+            <!-- Search & Filter (Visual Only for now) -->
+            <div class="flex items-center gap-3 w-full md:w-auto">
+                <div class="relative w-full md:w-64">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <i class="fas fa-search text-gray-400 text-xs"></i>
+                    </div>
+                    <input type="text" id="searchInput"
+                        class="bg-white border border-lightBorder text-gray-900 text-sm rounded-xl focus:ring-primary focus:border-primary block w-full pl-10 p-2.5 shadow-sm transition-all"
+                        placeholder="Cari laporan...">
+                </div>
+                <div
+                    class="bg-white px-4 py-2.5 rounded-xl border border-lightBorder shadow-sm flex items-center gap-2 whitespace-nowrap">
+                    <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                    <span class="text-xs font-bold text-textSecondary">Live</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabel data live -->
+        <div
+            class="bg-white rounded-2xl border border-lightBorder shadow-sm overflow-hidden animate-fade-in-up min-h-[500px] flex flex-col">
+            <div
+                class="p-4 md:p-6 border-b border-lightBorder flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-gray-50/30">
+                <div class="flex items-center gap-2">
+                    <h3 class="text-lg font-bold text-textDark">Daftar Laporan</h3>
+                    <button onclick="fetchRecentIssues()"
+                        class="text-textSecondary hover:text-primary transition-colors p-1 rounded-full hover:bg-primary/10"
+                        title="Refresh Data">
+                        <i class="fas fa-sync-alt text-xs"></i>
+                    </button>
+                </div>
+                <a href="report.html"
+                    class="bg-primary text-white px-4 py-2 rounded-lg text-xs font-bold hover:bg-primaryHover transition-colors flex items-center gap-2 shadow-md shadow-primary/20 w-full md:w-auto justify-center">
+                    <i class="fas fa-plus"></i> Buat Laporan Baru
+                </a>
+            </div>
+
+            <!-- Mobile View (Cards) -->
+            <div id="mobile-list" class="md:hidden space-y-4 p-4 bg-gray-50/50 flex-1">
+                <!-- Cards injected via JS -->
+                <div class="text-center text-gray-400 text-sm py-12 flex flex-col items-center gap-3">
+                    <div class="loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-8 w-8"></div>
+                    <span>Memuat data...</span>
+                </div>
+            </div>
+
+            <!-- Desktop View (Table) -->
+            <div id="desktop-table" class="hidden md:block overflow-x-auto flex-1">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr
+                            class="bg-gray-50 text-xs text-textSecondary uppercase tracking-wider border-b border-lightBorder">
+                            <th class="px-6 py-4 font-semibold">Score</th>
+                            <th class="px-6 py-4 font-semibold">Kategori</th>
+                            <th class="px-6 py-4 font-semibold">Lokasi</th>
+                            <th class="px-6 py-4 font-semibold">Waktu</th>
+                            <th class="px-6 py-4 font-semibold">Status</th>
+                            <th class="px-6 py-4 font-semibold text-right">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody" class="divide-y divide-lightBorder text-sm bg-white">
+                        <!-- Data bakal diisi pake JavaScript -->
+                        <tr>
+                            <td colspan="6" class="px-6 py-12 text-center text-gray-400">
+                                <div class="flex flex-col items-center gap-3">
+                                    <div
+                                        class="loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-8 w-8">
+                                    </div>
+                                    <span>Memuat data...</span>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination (Visual) -->
+            <div class="p-4 border-t border-lightBorder flex justify-between items-center bg-gray-50/30">
+                <span class="text-xs text-textSecondary">Menampilkan semua data</span>
+                <div class="flex gap-2">
+                    <button
+                        class="px-3 py-1 rounded-lg border border-lightBorder bg-white text-textSecondary text-xs hover:bg-gray-50 disabled:opacity-50"
+                        disabled>Previous</button>
+                    <button
+                        class="px-3 py-1 rounded-lg border border-lightBorder bg-white text-textSecondary text-xs hover:bg-gray-50 disabled:opacity-50"
+                        disabled>Next</button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        function showBackendError() {
+            if (document.getElementById('backend-error-toast')) return;
+
+            const toast = document.createElement('div');
+            toast.id = 'backend-error-toast';
+            toast.className = 'fixed top-4 left-1/2 transform -translate-x-1/2 z-[100] w-[90%] max-w-md animate-slide-in-top';
+            toast.innerHTML = `
+    <div
+        class="bg-white/90 backdrop-blur-md border-l-4 border-red-500 shadow-2xl rounded-lg p-4 flex items-center gap-4">
+        <div class="bg-red-100 p-2 rounded-full text-red-600">
+            <i class="fas fa-wifi-slash text-lg"></i>
+        </div>
+        <div>
+            <h3 class="font-bold text-gray-800 text-sm">Koneksi Terputus</h3>
+            <p class="text-xs text-gray-600 mt-0.5">Gagal terhubung ke server. Mohon periksa jaringan anda.</p>
+        </div>
+        <button onclick="this.parentElement.parentElement.remove()"
+            class="ml-auto text-gray-400 hover:text-gray-600 transition-colors">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
+    `;
+            document.body.appendChild(toast);
+
+            // Auto dismiss after 5 seconds
+            setTimeout(() => {
+                if (document.getElementById('backend-error-toast')) {
+                    toast.classList.remove('animate-slide-in-top');
+                    toast.classList.add('animate-slide-out-top');
+                    setTimeout(() => toast.remove(), 500);
+                }
+            }, 5000);
+        }
+
+        // API_BASE is now loaded from config.js
+        let allReports = []; // Store all data for search
+
+        async function fetchRecentIssues() {
+            const mobileList = document.getElementById('mobile-list');
+            const tbody = document.getElementById('tableBody');
+            const reportCount = document.getElementById('reportCount');
+
+            try {
+                const response = await fetch(`${API_BASE}/api/issues`);
+                const data = await response.json();
+                allReports = data; // Save for search
+
+                renderData(data);
+                reportCount.innerText = `${data.length} Laporan`;
+
+            } catch (e) {
+                console.error("Gagal load tabel:", e);
+                mobileList.innerHTML = `
+                <div class="text-center py-12 flex flex-col items-center gap-3">
+                    <div class="bg-red-50 text-red-500 p-4 rounded-full mb-2">
+                        <i class="fas fa-exclamation-triangle text-2xl"></i>
+                    </div>
+                    <h3 class="font-bold text-gray-800">Gagal Memuat Data</h3>
+                    <p class="text-sm text-gray-500">Terjadi kesalahan saat mengambil data laporan.</p>
+                    <button onclick="fetchRecentIssues()" class="mt-2 px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors">
+                        Coba Lagi
+                    </button>
+                </div>
+            `;
+                tbody.innerHTML = `
+                <tr>
+                    <td colspan="6" class="text-center py-12 text-red-500">
+                        <div class="flex flex-col items-center gap-2">
+                            <i class="fas fa-exclamation-circle text-xl"></i>
+                            <span>Gagal memuat data. Periksa koneksi anda.</span>
+                        </div>
+                    </td>
+                </tr>
+            `;
+                showBackendError();
+            }
+        }
+
+        function renderData(data) {
+            const mobileList = document.getElementById('mobile-list');
+            const tbody = document.getElementById('tableBody');
+
+            mobileList.innerHTML = "";
+            tbody.innerHTML = "";
+
+            if (data.length === 0) {
+                const emptyState = `
+                <div class="text-center py-12 flex flex-col items-center gap-3 text-gray-400">
+                    <i class="far fa-folder-open text-4xl mb-2 opacity-50"></i>
+                    <span>Belum ada laporan ditemukan</span>
+                </div>
+            `;
+                mobileList.innerHTML = emptyState;
+                tbody.innerHTML = `<tr><td colspan="6">${emptyState}</td></tr>`;
+                return;
+            }
+
+            data.forEach(item => {
+                // Format Waktu
+                const dateObj = new Date(item.created_at);
+                const timeStr = dateObj.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + " WITA";
+                const dateStr = dateObj.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+
+                // Styling Logic
+                const score = item.final_score;
+                const isHigh = item.final_score > 70;
+                const isMed = item.final_score > 40;
+
+                let scoreClass = isHigh ? "text-red-600 bg-red-50 border-red-100" :
+                    isMed ? "text-amber-600 bg-amber-50 border-amber-100" :
+                        "text-green-600 bg-green-50 border-green-100";
+
+                // Status color logic: PENDING=gray, IN_PROGRESS=orange, DONE=green, ERROR=blue
+                const getStatusColors = (status) => {
+                    const st = String(status || '').toUpperCase();
+                    if (st === 'PENDING' || st === 'OPEN')
+                        return { bg: 'bg-slate-100', text: 'text-slate-600', border: 'border-slate-200', icon: 'fa-clock' };
+                    if (st === 'IN_PROGRESS' || st === 'INPROGRESS')
+                        return { bg: 'bg-amber-100', text: 'text-amber-700', border: 'border-amber-200', icon: 'fa-spinner' };
+                    if (st === 'DONE' || st === 'SELESAI')
+                        return { bg: 'bg-emerald-100', text: 'text-emerald-700', border: 'border-emerald-200', icon: 'fa-check-circle' };
+                    if (st === 'ERROR')
+                        return { bg: 'bg-blue-100', text: 'text-blue-700', border: 'border-blue-200', icon: 'fa-exclamation-circle' };
+                    return { bg: 'bg-slate-100', text: 'text-slate-600', border: 'border-slate-200', icon: 'fa-clock' };
+                };
+                const statusColors = getStatusColors(item.status);
+
+                // --- MOBILE CARD VIEW ---
+                const cardHtml = `
+                <div class="bg-white p-4 rounded-xl border border-lightBorder shadow-sm flex flex-col gap-3 hover:shadow-md transition-all group">
+                    <div class="flex justify-between items-start">
+                        <div class="flex items-center gap-2">
+                            <span class="text-[10px] font-bold px-2.5 py-1 rounded-lg border ${scoreClass} flex items-center gap-1">
+                                <i class="fas fa-tachometer-alt text-[9px]"></i> ${score}
+                            </span>
+                            <span class="text-[10px] font-bold px-2.5 py-1 rounded-full border ${statusColors.bg} ${statusColors.text} ${statusColors.border} flex items-center gap-1">
+                                <i class="fas ${statusColors.icon} text-[9px]"></i> ${item.status}
+                            </span>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-[10px] font-bold text-textDark">${timeStr}</div>
+                            <div class="text-[9px] text-textSecondary">${dateStr}</div>
+                        </div>
+                    </div>
+                    
+                    <div class="py-1">
+                        <h4 class="font-bold text-textDark capitalize text-sm mb-1 flex items-center gap-2">
+                            ${item.issue_class.replace("_", " ")}
+                        </h4>
+                        <div class="flex items-center gap-1.5 text-xs text-textSecondary mt-1">
+                            <i class="fas fa-map-marker-alt text-primary/60 w-4 text-center"></i>
+                            <span class="truncate">${item.kecamatan || "Lokasi Unknown"}</span>
+                        </div>
+                    </div>
+
+                    <button onclick="bukaDetail('${item.id}')" 
+                        class="w-full mt-1 bg-white border border-lightBorder text-textDark hover:bg-primary hover:text-white hover:border-primary transition-all py-2.5 rounded-lg text-xs font-bold flex items-center justify-center gap-2 group-hover:border-primary/30">
+                        Lihat Detail <i class="fas fa-arrow-right group-hover:translate-x-1 transition-transform"></i>
+                    </button>
+                </div>
+            `;
+                mobileList.innerHTML += cardHtml;
+
+                // --- DESKTOP TABLE VIEW ---
+                const rowHtml = `
+                <tr class="hover:bg-gray-50/80 transition-colors group border-b border-lightBorder last:border-0">
+                    <td class="px-6 py-4">
+                        <span class="font-bold px-2.5 py-1 rounded-lg border text-xs ${scoreClass}">
+                            ${score}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4">
+                        <div class="flex items-center gap-3">
+                            <div class="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center text-textSecondary group-hover:bg-white group-hover:shadow-sm transition-all border border-transparent group-hover:border-gray-200">
+                                <i class="fas fa-exclamation-circle"></i>
+                            </div>
+                            <span class="capitalize font-medium text-textDark text-sm">${item.issue_class.replace("_", " ")}</span>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4">
+                        <div class="flex items-center gap-2 text-textSecondary text-xs">
+                            <i class="fas fa-map-marker-alt text-gray-400"></i>
+                            <span class="truncate max-w-[150px] font-medium text-gray-600">${item.kecamatan || "Lokasi Unknown"}</span>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4">
+                        <div class="flex flex-col">
+                            <span class="text-xs font-bold text-textDark">${timeStr}</span>
+                            <span class="text-[10px] text-textSecondary">${dateStr}</span>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4">
+                        <span class="px-2.5 py-1 rounded-full text-[10px] font-bold border flex items-center gap-1.5 w-fit ${statusColors.bg} ${statusColors.text} ${statusColors.border}">
+                            <i class="fas ${statusColors.icon}"></i> ${item.status}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 text-right">
+                        <button onclick="bukaDetail('${item.id}')" 
+                            class="text-textSecondary hover:text-primary hover:bg-primary/5 p-2 rounded-lg transition-all" title="Lihat Detail">
+                            <i class="fas fa-external-link-alt"></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
+                tbody.innerHTML += rowHtml;
+            });
+        }
+
+        // Search Functionality
+        document.getElementById('searchInput').addEventListener('input', (e) => {
+            const keyword = e.target.value.toLowerCase();
+            if (!allReports) return;
+
+            const filtered = allReports.filter(item =>
+                item.issue_class.toLowerCase().includes(keyword) ||
+                (item.kecamatan && item.kecamatan.toLowerCase().includes(keyword)) ||
+                item.status.toLowerCase().includes(keyword)
+            );
+            renderData(filtered);
+        });
+
+        // Fungsi Navigasi ke Halaman Baru
+        function bukaDetail(id) {
+            window.location.href = `detail.html?id=${id}`;
+        }
+
+        // Panggil saat start
+        fetchRecentIssues();
+        // Auto refresh every 30s
+        setInterval(fetchRecentIssues, 30000);
+
+
+    </script>
+
+    <!-- Bottom Nav Mobile -->
+    <nav
+        class="md:hidden fixed bottom-0 left-0 w-full bg-white/90 backdrop-blur-md border-t border-slate-200 z-50 px-4 py-3 flex justify-around items-center shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+        <a href="heatmap.html"
+            class="flex flex-col items-center gap-1 text-slate-400 hover:text-primary transition-colors">
+            <i class="fas fa-map-marked-alt text-xl"></i>
+            <span class="text-[10px] font-medium">Heatmap</span>
+        </a>
+        <a href="report.html"
+            class="flex flex-col items-center gap-1 text-slate-400 hover:text-primary transition-colors">
+            <i class="fas fa-plus-circle text-xl"></i>
+            <span class="text-[10px] font-medium">Lapor</span>
+        </a>
+        <a href="dashboard.html"
+            class="flex flex-col items-center gap-1 text-slate-400 hover:text-primary transition-colors">
+            <i class="fas fa-chart-pie text-xl"></i>
+            <span class="text-[10px] font-medium">Dashboard</span>
+        </a>
+        <a href="all-reports.html" class="flex flex-col items-center gap-1 text-primary transition-colors">
+            <div class="absolute -top-6 bg-primary p-3 rounded-full shadow-lg shadow-primary/30 border-4 border-white">
+                <i class="fas fa-list text-white text-xl"></i>
+            </div>
+            <span class="text-[10px] font-bold mt-6">Laporan</span>
+        </a>
+    </nav>
+</body>
+
+</html>
