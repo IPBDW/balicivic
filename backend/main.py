@@ -1,5 +1,4 @@
 import os
-import shutil
 import uvicorn
 from uuid import uuid4
 from datetime import datetime
@@ -17,6 +16,7 @@ from fastapi import (
     Request,
     Form,
     Query,
+    Header,
 )
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -30,7 +30,7 @@ from dotenv import load_dotenv
 # Pastikan file database.py, models.py, utils.py ada di folder yang sama!
 from database import create_db_and_tables, get_session, engine
 from models import Issue
-from utils import process_analysis
+from utils import process_analysis, TOKEN
 
 # 1. LOAD ENVIRONMENT
 load_dotenv()
@@ -108,10 +108,28 @@ async def analyze_endpoint(
     file_path = f"{UPLOAD_DIR}/{fid}.jpg"
 
     try:
+        # Validasi input di trust boundary: harus gambar & maksimal 10MB
+        if file.content_type and not file.content_type.startswith("image/"):
+            raise HTTPException(status_code=400, detail="File harus berupa gambar (jpg/png)")
+        MAX_UPLOAD = 10 * 1024 * 1024
+        size = 0
         with open(file_path, "wb") as f:
-            shutil.copyfileobj(file.file, f)
+            while chunk := file.file.read(1024 * 1024):
+                size += len(chunk)
+                if size > MAX_UPLOAD:
+                    raise HTTPException(status_code=413, detail="Ukuran file maksimal 10MB")
+                f.write(chunk)
+    except HTTPException:
+        if os.path.exists(file_path):
+            os.remove(file_path)
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Gagal simpan file: {str(e)}")
+
+    if lat is not None and not (-90 <= lat <= 90):
+        raise HTTPException(status_code=400, detail="Latitude tidak valid")
+    if long is not None and not (-180 <= long <= 180):
+        raise HTTPException(status_code=400, detail="Longitude tidak valid")
 
     new_issue = Issue(
         title="Sedang Menganalisis",
@@ -165,12 +183,26 @@ def read_single_issue(issue_id: str, session: Session = Depends(get_session)):
 
 
 @app.put("/api/issues/{issue_id}/status")
-def update_status(issue_id: int, status: str, session: Session = Depends(get_session)):
+def update_status(
+    issue_id: int,
+    status: str,
+    token: str | None = Query(None),
+    x_admin_token: str | None = Header(None),
+    session: Session = Depends(get_session),
+):
     """
     Update status oleh admin (Dinas) & Catat di Timeline.
     Flow: PENDING -> OPEN (Dikerjakan) -> DONE (Selesai)
     """
-    # 1. Cari Data
+    # 1. AUTH — token wajib (query ?token=... atau header X-Admin-Token)
+    if (token or x_admin_token) != TOKEN:
+        raise HTTPException(status_code=401, detail="Token admin tidak valid")
+
+    # 2. Whitelist status (jangan terima string asal)
+    if status not in {"PENDING", "IN_PROGRESS", "DONE", "ERROR"}:
+        raise HTTPException(status_code=422, detail=f"Status '{status}' tidak dikenal")
+
+    # 3. Cari Data
     issue = session.get(Issue, issue_id)
     if not issue:
         raise HTTPException(status_code=404, detail="Laporan tidak ditemukan")
@@ -251,7 +283,7 @@ def get_issue_distribution(session: Session = Depends(get_session)):
         "sampah_liar": len(
             [i for i in all_issues if i.issue_class == "sampah_liar"]
         ),
-        "genangan": len([i for i in all_issues if i.issue_class == "genangan"]),
+        "genangan_air": len([i for i in all_issues if i.issue_class == "genangan_air"]),
         "kabel_semrawut": len(
             [i for i in all_issues if i.issue_class == "kabel_semrawut"]
         ),
@@ -272,9 +304,9 @@ def get_issue_distribution(session: Session = Depends(get_session)):
         },
         {
             "label": "Genangan Air",
-            "percent": round((counts["genangan"] / total) * 100),
-            "color": "#1976d2",
-            "count": counts["genangan"],
+                        "percent": round((counts["genangan_air"] / total) * 100),
+                        "color": "#1976d2",
+                        "count": counts["genangan_air"],
         },
         {
             "label": "Kabel Semrawut",
@@ -320,7 +352,7 @@ def get_top_locations(session: Session = Depends(get_session)):
 
 @app.get("/api/heatmap")
 def get_heatmap_data(
-    status: str | None = Query(None, regex="^(PENDING|OPEN|DONE)$"),
+    status: str | None = Query(None, regex="^(PENDING|IN_PROGRESS|DONE|ERROR)$"),
     classes: str | None = Query(None),   # "aman,genangan_air,jalan_bolong"
     min_score: int = Query(0, ge=0, le=100),
     max_score: int = Query(100, ge=0, le=100),

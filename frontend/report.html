@@ -455,8 +455,8 @@
 
             const formData = new FormData();
             formData.append("file", fileInput.files[0]);
-            formData.append("lat", String(latInput.value));
-            formData.append("long", String(document.getElementById('longInput').value));
+            formData.append("lat", latInput.value || "0");
+                        formData.append("long", document.getElementById('longInput').value || "0");
 
             try {
                 const response = await fetch(`${API_BASE}/api/analyze`, { method: 'POST', body: formData });

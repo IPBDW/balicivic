@@ -422,6 +422,7 @@
             var token = params.get('token');
             var id = params.get('id');
             if (token === VALID_TOKEN && id) {
+                sessionStorage.setItem('adminToken', token);
                 setTimeout(function () {
                     document.getElementById('loading-check').classList.remove('hidden');
                     setTimeout(function () {
@@ -581,7 +582,8 @@
         async function updateStatus(id, newStatus) {
             document.getElementById('action-buttons').style.opacity = '0.5';
             try {
-                var res = await fetch(API_BASE + "/api/issues/" + id + "/status?status=" + newStatus, { method: 'PUT', headers: { 'Content-Type': 'application/json' } });
+                var adminToken = sessionStorage.getItem('adminToken') || '';
+                var res = await fetch(API_BASE + "/api/issues/" + id + "/status?status=" + newStatus + "&token=" + adminToken, { method: 'PUT', headers: { 'Content-Type': 'application/json' } });
                 if (res.ok) {
                     showToast("Berhasil!", "Status diperbarui.");
                     fetchIssueDetail(id);

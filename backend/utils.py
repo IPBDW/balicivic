@@ -2,7 +2,6 @@ import os
 import math
 import json
 import cv2
-import google.generativeai as genai
 from ultralytics import YOLO
 from sqlmodel import Session
 from dotenv import load_dotenv
@@ -19,47 +18,11 @@ from models import Issue
 load_dotenv()
 
 
-# --- GEMINI CONFIG ---
-GOOGLE_API_KEY = os.getenv("GEMINI_API_KEY")
-if GOOGLE_API_KEY:
-    genai.configure(api_key=GOOGLE_API_KEY)
-
-# --- OpenRouter API ---
-OPENROUTER_API_KEY = os.getenv("OpenRouter_API")
-
-# Inisialisasi Client
-client = None
-if OPENROUTER_API_KEY:
-    try:
-        client = OpenAI(
-            base_url="https://openrouter.ai/api/v1",
-            api_key=OPENROUTER_API_KEY,
-        )
-    except Exception as e:
-        print(f"[UTILS] Gagal init OpenAI Client: {e}")
-
-# Fungsi Fallback (Penyelamat jika AI Error)
-def _fallback_llm_result(payload):
-    return {
-        "size_reasoning": {"reason": "AI Offline/Timeout", "size_category": "Tidak Diketahui"},
-        "validation": {
-            "math_score": payload.get('score', 0), 
-            "severity_label_math": payload.get('severity_label', 'LOW'),
-            "consistency_flag": "Perlu Ditinjau"
-        },
-        "public": {
-            "title": "Laporan Infrastruktur", 
-            "message": "Laporan telah diterima sistem. Menunggu verifikasi manual dinas terkait.", 
-            "severity_label": payload.get('severity_label', 'LOW')
-        },
-        "dinas": {
-            "title": "Laporan Masuk (No-AI)", 
-            "summary": "Deteksi objek berhasil, analisis narasi tertunda.", 
-            "technical_report": "Koneksi ke LLM gagal saat inferensi.", 
-            "priority": payload.get('severity_label', 'LOW')
-        }
-    }
-
+# --- LLM Narasi (DeepSeek default; OpenAI-compatible) ---
+# Key di .env: DEEPSEEK_API_KEY. Kalau kosong, coba var lama OpenRouter_API.
+LLM_API_KEY = os.getenv("DEEPSEEK_API_KEY") or os.getenv("OpenRouter_API")
+LLM_BASE_URL = os.getenv("LLM_BASE_URL", "https://api.deepseek.com")
+LLM_MODEL = os.getenv("LLM_MODEL", "deepseek-chat")
 
 # --- Reverse Geocoding ---
 LOCATIONIQ_API_KEY = os.getenv("LOCATIONIQ_API_KEY")
@@ -143,9 +106,13 @@ def get_model():
 
 # --- DETEKSI CONFIG ---
 
+# Nama class kanonik: "genangan_air" (dipakai frontend & dashboard).
+# Kalau model dilatih dengan nama "genangan", alias ini menormalkan otomatis.
+CLASS_ALIASES = {"genangan": "genangan_air"}
+
 CONF_THRESHOLDS = {
     "jalan_bolong": 0.65,
-    "genangan": 0.35,
+    "genangan_air": 0.35,
     "sampah_liar": 0.30,
     "kabel_semrawut": 0.20,
 }
@@ -153,13 +120,13 @@ CONF_THRESHOLDS = {
 SEVERITY_CONFIG = {
     "jalan_bolong":   {"base": 40, "max": 95, "size_factor": 1.5},
     "kabel_semrawut": {"base": 30, "max": 80, "size_factor": 1.2},
-    "genangan":       {"base": 20, "max": 70, "size_factor": 1.0},
+    "genangan_air":   {"base": 20, "max": 70, "size_factor": 1.0},
     "sampah_liar":    {"base": 15, "max": 60, "size_factor": 0.8},
 }
 
 CLASS_LABEL_PUBLIC = {
     "jalan_bolong": "jalan berlubang",
-    "genangan": "genangan air",
+    "genangan_air": "genangan air",
     "sampah_liar": "tumpukan sampah liar",
     "kabel_semrawut": "kabel semrawut",
 }
@@ -400,32 +367,26 @@ def _fallback_llm_result(payload: dict):
     }
 
 
-import json
-from openai import OpenAI
-
-# Pastikan Anda sudah mendefinisikan ini di atas file atau config
-# OPENROUTER_API_KEY = "sk-or-v1-....." 
-
-def ask_gemini_combined(payload: dict):
+def ask_llm_combined(payload: dict):
     """
     Satu fungsi untuk:
     - penalaran ukuran (size_reasoning)
     - validasi konsistensi (validation)
     - output publik (public)
     - output dinas (dinas)
-    Semua dikerjakan oleh LLM via OpenRouter se-detail mungkin.
+    Semua dikerjakan oleh LLM (DeepSeek default) se-detail mungkin.
     """
     
-    # 1. Cek API Key OpenRouter
-    if not OPENROUTER_API_KEY:
-        print("[LLM] API key OpenRouter tidak ditemukan. Pakai fallback.")
+    # 1. Cek API Key
+    if not LLM_API_KEY:
+        print("[LLM] DEEPSEEK_API_KEY tidak ditemukan di .env. Pakai fallback.")
         return _fallback_llm_result(payload)
 
-    # 2. Setup Client OpenAI (untuk OpenRouter)
+    # 2. Setup Client (OpenAI-compatible: DeepSeek / OpenRouter / dll)
     try:
         client = OpenAI(
-            base_url="https://openrouter.ai/api/v1",
-            api_key=OPENROUTER_API_KEY,
+            base_url=LLM_BASE_URL,
+            api_key=LLM_API_KEY,
         )
     except Exception as e:
         print(f"[LLM INIT ERROR] {e}")
@@ -562,11 +523,10 @@ ATURAN KETAT:
 """
 
     try:
-        # 4. Request ke OpenRouter
-        # Saya gunakan model 'google/gemini-2.0-flash-exp:free' karena paling pintar untuk JSON complex & Gratis
-        # Kalau mau ganti Gemma, ubah jadi 'google/gemma-2-9b-it:free'
+        # 4. Request ke LLM (default: deepseek-chat via api.deepseek.com)
+        # Ganti model/base_url lewat .env (LLM_MODEL, LLM_BASE_URL)
         completion = client.chat.completions.create(
-            model="google/gemma-3-27b-it:free",
+            model=LLM_MODEL,
             messages=[
                 {
                     "role": "user",
@@ -622,19 +582,23 @@ ATURAN KETAT:
 # ============================================================
 # 3. EMAIL SENDER
 # ============================================================
-# EMAIL SENDERs
-SMTP_SERVER = "smtp.gmail.com"
-SMTP_PORT = 587
-SENDER_EMAIL = "balicivicai1@gmail.com"
-SENDER_PASS = "fbze bvnn ihrk vljh"
-TARGET_EMAIL = "mifebyte@gmail.com"
-TOKEN = "dinas_pupr_2025" 
+# EMAIL SENDER — semua credential dari .env (JANGAN hardcode di source)
+SMTP_SERVER = os.getenv("SMTP_SERVER", "smtp.gmail.com")
+SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
+SENDER_EMAIL = os.getenv("SMTP_SENDER_EMAIL", "")
+SENDER_PASS = os.getenv("SMTP_APP_PASSWORD", "")
+TARGET_EMAIL = os.getenv("ALERT_TARGET_EMAIL", "")
+# ponytail: fallback token lama biar link email yang sudah terkirim tetap jalan; ganti via .env
+TOKEN = os.getenv("ADMIN_TOKEN", "dinas_pupr_2025")
 
 
 
 
 def send_email_alert(issue_data: Issue):
     try:
+        if not SENDER_EMAIL or not SENDER_PASS:
+            print("[EMAIL] SMTP belum dikonfigurasi di .env. Email dilewati.")
+            return
         # Filter Cerdas: Hanya kirim jika skor > 60 (Medium ke atas)
         if issue_data.final_score < 60:
             print(f"[EMAIL] Skor {issue_data.final_score} (Low/Medium-Low). Email dilewati.")
@@ -748,8 +712,13 @@ def process_analysis(issue_id: str, image_path: str, session: Session):
 
         for box in r.boxes:
             cls_id = int(box.cls[0])
-            cls_name = model.names[cls_id]
+            cls_name = CLASS_ALIASES.get(model.names[cls_id], model.names[cls_id])
             conf = float(box.conf[0])
+
+            # Hanya kelas yang dikenal sistem (jangan terima class COCO
+            # seperti person/car dari model fallback yolo11s)
+            if cls_name not in CLASS_LABEL_PUBLIC:
+                continue
 
             if conf >= CONF_THRESHOLDS.get(cls_name, 0.25):
                 valid_detections.append(
@@ -763,7 +732,7 @@ def process_analysis(issue_id: str, image_path: str, session: Session):
                     max_conf = conf
                     primary_class_conf = cls_name
 
-        print(f"[ENGINE] Deteksi Valid: {len(valid_detections)} objek.")
+                print(f"[ENGINE] Deteksi Valid: {len(valid_detections)} objek.")
 
         # Ambil issue dari DB
         issue = session.get(Issue, issue_id)
@@ -823,7 +792,7 @@ def process_analysis(issue_id: str, image_path: str, session: Session):
         }
 
         print("[ENGINE] Mengontak Gemini (combined reasoning + public + dinas).")
-        llm_result = ask_gemini_combined(payload)
+        llm_result = ask_llm_combined(payload)
 
         size_reasoning = llm_result.get("size_reasoning", {}) or {}
         public_out = llm_result.get("public", {}) or {}
