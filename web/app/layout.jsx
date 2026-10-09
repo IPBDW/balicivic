@@ -4,7 +4,7 @@ import Script from "next/script";
 export const metadata = {
   title: "BaliCivic AI - Platform Pelaporan Lingkungan Cerdas",
   description:
-    "Sistem pelaporan kerusakan infrastruktur berbasis AI untuk Bali. Deteksi jalan bolong, genangan, sampah liar, dan kabel semrawut dengan Vision AI.",
+    "Sistem pelaporan kerusakan infrastruktur berbasis AI untuk Bali. Deteksi jalan bolong, genangan, sampah liar, dan kabel berantakan dengan Vision AI.",
   icons: { icon: "/assets/BaliCivic_App_Icon_1_.png" },
 };
 

@@ -22,7 +22,7 @@ const CLASS_FILTERS = [
   { id: "jalan_bolong", label: "Jalan Bolong", dot: "bg-red-500", box: "text-red-500 group-hover:border-red-400" },
   { id: "genangan_air", label: "Genangan Air", dot: "bg-sky-500", box: "text-sky-500 group-hover:border-sky-400" },
   { id: "sampah_liar", label: "Sampah Liar", dot: "bg-orange-500", box: "text-orange-500 group-hover:border-orange-400" },
-  { id: "kabel_semrawut", label: "Kabel Semrawut", dot: "bg-gray-800", box: "text-gray-800 group-hover:border-gray-600" },
+  { id: "kabel_semrawut", label: "Kabel Berantakan", dot: "bg-gray-800", box: "text-gray-800 group-hover:border-gray-600" },
 ];
 
 const STATUS_FILTERS = [

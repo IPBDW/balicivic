@@ -163,7 +163,7 @@ export default function HomePage() {
         { label: "Jalan Bolong", count: counts.jalan_bolong, percent: Math.round((counts.jalan_bolong / total) * 100) },
         { label: "Sampah Liar", count: counts.sampah_liar, percent: Math.round((counts.sampah_liar / total) * 100) },
         { label: "Genangan Air", count: counts.genangan_air, percent: Math.round((counts.genangan_air / total) * 100) },
-        { label: "Kabel Semrawut", count: counts.kabel_semrawut, percent: Math.round((counts.kabel_semrawut / total) * 100) },
+        { label: "Kabel Berantakan", count: counts.kabel_semrawut, percent: Math.round((counts.kabel_semrawut / total) * 100) },
       ];
       data.sort((a, b) => b.percent - a.percent);
       setDistribution(data);
@@ -479,7 +479,7 @@ export default function HomePage() {
               {[
                 { t: "Lokal", d: "± 1.000 foto hasil dokumentasi lapangan di Gianyar, Denpasar, dan Badung." },
                 { t: "Publik", d: "± 21.718 foto dari dataset open-source (CC0/Creative Commons) untuk memperluas variasi." },
-                { t: "Anotasi", d: "Seluruh gambar dianotasi ulang dengan Roboflow untuk 4 kelas deteksi: jalan bolong, sampah liar, genangan, dan kabel semrawut." },
+                { t: "Anotasi", d: "Seluruh gambar dianotasi ulang dengan Roboflow untuk 4 kelas deteksi: jalan bolong, sampah liar, genangan, dan kabel berantakan." },
               ].map((c, i) => (
                 <div key={i} className={`rounded-xl border border-lightBorder bg-bgPage p-5 shadow-sm scroll-reveal stagger-${i + 1}`}>
                   <h3 className="text-sm font-semibold text-textDark mb-1">{c.t}</h3>
@@ -694,7 +694,7 @@ export default function HomePage() {
                   <div className="flex items-center gap-2 text-[10px] text-textSecondary"><span className="w-2 h-2 rounded-full bg-red-500"></span> Jalan bolong</div>
                   <div className="flex items-center gap-2 text-[10px] text-textSecondary"><span className="w-2 h-2 rounded-full bg-amber-500"></span> Sampah liar</div>
                   <div className="flex items-center gap-2 text-[10px] text-textSecondary"><span className="w-2 h-2 rounded-full bg-blue-500"></span> Genangan</div>
-                  <div className="flex items-center gap-2 text-[10px] text-textSecondary"><span className="w-2 h-2 rounded-full bg-slate-600"></span> Kabel semrawut</div>
+                  <div className="flex items-center gap-2 text-[10px] text-textSecondary"><span className="w-2 h-2 rounded-full bg-slate-600"></span> Kabel berantakan</div>
                 </div>
               </div>
 

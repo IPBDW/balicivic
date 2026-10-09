@@ -89,7 +89,7 @@ export default function DashboardPage() {
         { label: "Jalan Bolong", count: counts.jalan_bolong, percent: Math.round((counts.jalan_bolong / total) * 100) },
         { label: "Sampah Liar", count: counts.sampah_liar, percent: Math.round((counts.sampah_liar / total) * 100) },
         { label: "Genangan Air", count: counts.genangan_air, percent: Math.round((counts.genangan_air / total) * 100) },
-        { label: "Kabel Semrawut", count: counts.kabel_semrawut, percent: Math.round((counts.kabel_semrawut / total) * 100) },
+        { label: "Kabel Berantakan", count: counts.kabel_semrawut, percent: Math.round((counts.kabel_semrawut / total) * 100) },
       ];
       data.sort((a, b) => b.percent - a.percent);
       setDistribution(data);

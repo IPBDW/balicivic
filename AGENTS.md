@@ -7,7 +7,7 @@ sebelum mulai bekerja di project ini. Ikuti semua aturan di bawah ini.
 
 **BaliCivic AI** — sistem pelaporan kerusakan infrastruktur berbasis AI untuk
 pemerintah Bali. Warga upload foto kerusakan (jalan bolong, genangan, sampah
-liar, kabel semrawut), AI mendeteksi & memberi skor keparahan, lalu menghasilkan
+liar, kabel berantakan), AI mendeteksi & memberi skor keparahan, lalu menghasilkan
 laporan warga + laporan teknis Dinas PUPR.
 
 ## Struktur Folder

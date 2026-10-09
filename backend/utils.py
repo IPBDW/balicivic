@@ -128,7 +128,7 @@ CLASS_LABEL_PUBLIC = {
     "jalan_bolong": "jalan berlubang",
     "genangan_air": "genangan air",
     "sampah_liar": "tumpukan sampah liar",
-    "kabel_semrawut": "kabel semrawut",
+    "kabel_semrawut": "kabel berantakan",
 }
 
 # Asumsi kamera warga

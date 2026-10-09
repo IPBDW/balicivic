@@ -340,7 +340,7 @@ def get_issue_distribution(session: Session = Depends(get_session)):
                         "count": counts["genangan_air"],
         },
         {
-            "label": "Kabel Semrawut",
+            "label": "Kabel Berantakan",
             "percent": round((counts["kabel_semrawut"] / total) * 100),
             "color": "#455a64",
             "count": counts["kabel_semrawut"],
