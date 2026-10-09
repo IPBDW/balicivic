@@ -3,6 +3,7 @@
 import NavbarApp from "@/components/NavbarApp";
 import BottomNav from "@/components/BottomNav";
 import { API_BASE } from "@/lib/api";
+import { waitForLeaflet } from "@/lib/leaflet";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 const PAGE_CSS = `
@@ -42,6 +43,7 @@ export default function PetaPage() {
   const heatRef = useRef(null);
   const markerLayerRef = useRef(null);
   const totalRef = useRef(null);
+  const loadHeatmapRef = useRef(null);
 
   const toggleClass = (id) => {
     setSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
@@ -165,31 +167,66 @@ export default function PetaPage() {
     }
   }, [selected, status, updateLayerVisibility]);
 
+  // Simpan versi terbaru agar peta (yang di-init sekali) selalu memanggil data terbaru.
   useEffect(() => {
-    const map = L.map("heatmap-map", { zoomControl: false, attributionControl: false }).setView([-8.4095, 115.1889], 10);
-    L.control.zoom({ position: "bottomleft" }).addTo(map);
-    const zoomControlContainer = document.querySelector(".leaflet-bottom.leaflet-left");
-    if (zoomControlContainer) {
-      zoomControlContainer.style.marginBottom = "80px";
-      zoomControlContainer.classList.add("md:mb-0");
-    }
-    L.tileLayer("https://cartodb-basemaps-a.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png", {
-      maxZoom: 19,
-      attribution: "&copy; OpenStreetMap contributors",
-    }).addTo(map);
-    mapRef.current = map;
-    markerLayerRef.current = L.layerGroup().addTo(map);
-    map.on("zoomend", updateLayerVisibility);
-    setTimeout(() => {
-      map.invalidateSize();
-      loadHeatmap();
-    }, 300);
+    loadHeatmapRef.current = loadHeatmap;
+  }, [loadHeatmap]);
+
+  useEffect(() => {
+    let cancelled = false;
+    let map = null;
+    let initTimer = null;
+
+    (async () => {
+      try {
+        const L = await waitForLeaflet();
+        if (cancelled) return;
+
+        const container = document.getElementById("heatmap-map");
+        if (!container) return;
+        if (container._leaflet_id) container._leaflet_id = null;
+
+        map = L.map(container, { zoomControl: false, attributionControl: false }).setView([-8.4095, 115.1889], 10);
+        L.control.zoom({ position: "bottomleft" }).addTo(map);
+        const zoomControlContainer = document.querySelector(".leaflet-bottom.leaflet-left");
+        if (zoomControlContainer) {
+          zoomControlContainer.style.marginBottom = "80px";
+          zoomControlContainer.classList.add("md:mb-0");
+        }
+        L.tileLayer("https://cartodb-basemaps-a.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png", {
+          maxZoom: 19,
+          attribution: "&copy; OpenStreetMap contributors",
+        }).addTo(map);
+        mapRef.current = map;
+        markerLayerRef.current = L.layerGroup().addTo(map);
+        map.on("zoomend", updateLayerVisibility);
+        initTimer = setTimeout(() => {
+          if (cancelled) return;
+          map.invalidateSize();
+          loadHeatmapRef.current?.();
+        }, 300);
+      } catch (err) {
+        console.error("Gagal init peta:", err);
+      }
+    })();
+
     return () => {
-      map.off("zoomend", updateLayerVisibility);
-      map.remove();
+      cancelled = true;
+      if (initTimer) clearTimeout(initTimer);
+      if (map) {
+        map.off("zoomend", updateLayerVisibility);
+        map.remove();
+      }
       mapRef.current = null;
+      markerLayerRef.current = null;
+      heatRef.current = null;
     };
-  }, [loadHeatmap, updateLayerVisibility]);
+  }, [updateLayerVisibility]);
+
+  // Muat ulang data setiap filter berubah (tanpa membuat ulang peta).
+  useEffect(() => {
+    if (mapRef.current) loadHeatmap();
+  }, [loadHeatmap]);
 
   return (
     <div className="bg-bgPage text-textDark h-screen flex flex-col overflow-hidden">

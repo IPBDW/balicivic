@@ -71,6 +71,8 @@ export default function LaporanPage() {
   }, []);
 
   useEffect(() => {
+    // Fetch on mount: setState terjadi setelah await, bukan render berjenjang.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchData();
     const interval = setInterval(fetchData, 30000);
     return () => clearInterval(interval);

@@ -1,7 +1,7 @@
 "use client";
 
 import { API_BASE, imgUrl } from "@/lib/api";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import BottomNav from "@/components/BottomNav";
 
@@ -21,6 +21,7 @@ body { background-color: #F0F4F8; background-image: radial-gradient(circle at 10
 
 export default function DetailPage() {
   const params = useParams();
+  const router = useRouter();
   const issueId = params.id;
   const mapRef = useRef(null);
   const [imgLoading, setImgLoading] = useState(true);
@@ -33,15 +34,17 @@ export default function DetailPage() {
 
   useEffect(() => {
     if (!issueId) {
-      window.location.href = "/dashboard";
+      router.replace("/dashboard");
       return;
     }
-    let map = null;
+    let cancelled = false;
+    let mapTimer = null;
     (async () => {
       try {
         const res = await fetch(`${API_BASE}/api/issues/${issueId}`);
         if (!res.ok) throw new Error("Gagal ambil data");
         const d = await res.json();
+        if (cancelled) return;
         setData(d);
 
         const score = typeof d.final_score === "number" ? d.final_score : 0;
@@ -72,9 +75,17 @@ export default function DetailPage() {
         }
 
         if (typeof L !== "undefined" && d.latitude && d.longitude) {
-          setTimeout(() => {
-            if (map) map.remove();
-            map = L.map("map", { zoomControl: false, attributionControl: false }).setView([d.latitude, d.longitude], 15);
+          mapTimer = setTimeout(() => {
+            if (cancelled) return;
+            const container = document.getElementById("map");
+            if (!container) return;
+            // Hindari double-init Leaflet (mis. akibat React StrictMode).
+            if (mapRef.current) {
+              mapRef.current.remove();
+              mapRef.current = null;
+            }
+            if (container._leaflet_id) container._leaflet_id = null;
+            const map = L.map(container, { zoomControl: false, attributionControl: false }).setView([d.latitude, d.longitude], 15);
             L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", { maxZoom: 19 }).addTo(map);
             const customIcon = L.divIcon({
               className: "custom-div-icon",
@@ -84,7 +95,11 @@ export default function DetailPage() {
             });
             L.marker([d.latitude, d.longitude], { icon: customIcon }).addTo(map);
             mapRef.current = map;
-            setTimeout(() => { map.invalidateSize(); map.setView([d.latitude, d.longitude], 15); }, 500);
+            setTimeout(() => {
+              if (cancelled) return;
+              map.invalidateSize();
+              map.setView([d.latitude, d.longitude], 15);
+            }, 500);
           }, 100);
         }
       } catch (error) {
@@ -92,7 +107,12 @@ export default function DetailPage() {
       }
     })();
     return () => {
-      if (mapRef.current) mapRef.current.remove();
+      cancelled = true;
+      if (mapTimer) clearTimeout(mapTimer);
+      if (mapRef.current) {
+        mapRef.current.remove();
+        mapRef.current = null;
+      }
     };
   }, [issueId]);
 
@@ -142,7 +162,6 @@ export default function DetailPage() {
   const locText = `${data?.kecamatan || "Lokasi Unknown"}, ${data?.kabupaten || "Lokasi Unknown"}`;
   const gmapsHref = data?.latitude && data?.longitude ? `https://www.google.com/maps/search/?api=1&query=${data.latitude},${data.longitude}` : "#";
   const imgSrc = data?.image_url ? imgUrl(data.image_url) : "";
-  const printDate = new Date().toLocaleDateString("id-ID", { weekday: "long", year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" });
 
   return (
     <div className="text-slate-800 antialiased min-h-screen pb-28 md:pb-12">
@@ -198,7 +217,13 @@ export default function DetailPage() {
                       <i className="fas fa-image text-slate-300 text-3xl"></i>
                     </div>
                   )}
-                  <img src={imgSrc} alt="Bukti Laporan" onLoad={() => setImgLoading(false)} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+                  {imgSrc ? (
+                    <img src={imgSrc} alt="Bukti Laporan" onLoad={() => setImgLoading(false)} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+                  ) : (
+                    <div className="absolute inset-0 flex items-center justify-center bg-slate-100">
+                      <i className="fas fa-image text-slate-300 text-3xl"></i>
+                    </div>
+                  )}
                   <div className="absolute top-4 left-4 z-10 flex gap-2">
                     <span className="bg-black/40 backdrop-blur-md text-white text-[10px] font-bold px-3 py-1.5 rounded-full border border-white/10 flex items-center gap-1.5 shadow-lg">
                       <i className="fas fa-eye text-emerald-400"></i> YOLOv11 Vision
@@ -316,7 +341,7 @@ export default function DetailPage() {
         onClick={() => setModalOpen(false)}
       >
         <div className="relative max-w-6xl w-full max-h-[90vh] flex flex-col items-center">
-          <img src={imgSrc} alt="Tampilan penuh" className="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl border border-white/10" />
+          {imgSrc && <img src={imgSrc} alt="Tampilan penuh" className="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl border border-white/10" />}
           <button className="mt-6 bg-white/10 hover:bg-white/20 text-white px-6 py-2 rounded-full font-bold transition-all flex items-center gap-2 backdrop-blur-sm border border-white/10">
             <i className="fas fa-times"></i> Tutup Tampilan Penuh
           </button>

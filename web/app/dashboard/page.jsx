@@ -4,6 +4,7 @@ import Link from "next/link";
 import NavbarApp from "@/components/NavbarApp";
 import BottomNav from "@/components/BottomNav";
 import { API_BASE } from "@/lib/api";
+import { waitForLeaflet } from "@/lib/leaflet";
 import { useCallback, useEffect, useState } from "react";
 
 const PAGE_CSS = `
@@ -57,6 +58,7 @@ export default function DashboardPage() {
   const [distribution, setDistribution] = useState([]);
   const [barWidths, setBarWidths] = useState({});
   const [issues, setIssues] = useState([]);
+  const [updatedAt, setUpdatedAt] = useState("");
 
   const fetchStats = useCallback(async () => {
     try {
@@ -105,32 +107,25 @@ export default function DashboardPage() {
       const res = await fetch(`${API_BASE}/api/issues`);
       const data = await res.json();
       setIssues(data);
+      setUpdatedAt(new Date().toLocaleTimeString());
     } catch (e) {
       console.error(e);
     }
   }, []);
 
-  useEffect(() => {
-    fetchTopLocations();
-    const t1 = setInterval(fetchTopLocations, 50000);
-    fetchDistribution();
-    const t2 = setInterval(fetchDistribution, 100000);
-    fetchStats();
-    fetchRecentIssues();
-    const t3 = setInterval(fetchRecentIssues, 5000);
-    initDashboardMap();
-    return () => {
-      clearInterval(t1);
-      clearInterval(t2);
-      clearInterval(t3);
-    };
-  }, [fetchTopLocations, fetchDistribution, fetchStats, fetchRecentIssues]);
-
-  function initDashboardMap() {
+  const initDashboardMap = useCallback(async () => {
     const mapContainer = document.getElementById("mini-heatmap");
-    if (!mapContainer || typeof L === "undefined") return;
+    if (!mapContainer) return;
     if (window.getComputedStyle(mapContainer).display === "none") return;
-    const map = L.map("mini-heatmap", {
+    let L;
+    try {
+      L = await waitForLeaflet();
+    } catch (e) {
+      console.error("Dashboard map error:", e);
+      return;
+    }
+    if (mapContainer._leaflet_id) return; // sudah di-init
+    const map = L.map(mapContainer, {
       zoomControl: true,
       attributionControl: false,
       scrollWheelZoom: false,
@@ -161,7 +156,25 @@ export default function DashboardPage() {
         }
       })
       .catch((e) => console.error("Dashboard map error:", e));
-  }
+  }, []);
+
+  useEffect(() => {
+    // Fetch on mount: setState terjadi setelah await, bukan render berjenjang.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchTopLocations();
+    const t1 = setInterval(fetchTopLocations, 50000);
+    fetchDistribution();
+    const t2 = setInterval(fetchDistribution, 100000);
+    fetchStats();
+    fetchRecentIssues();
+    const t3 = setInterval(fetchRecentIssues, 5000);
+    initDashboardMap();
+    return () => {
+      clearInterval(t1);
+      clearInterval(t2);
+      clearInterval(t3);
+    };
+  }, [fetchTopLocations, fetchDistribution, fetchStats, fetchRecentIssues, initDashboardMap]);
 
   const mobileIssues = issues.slice(0, 5);
   const desktopIssues = issues.slice(0, 10);
@@ -353,7 +366,7 @@ export default function DashboardPage() {
               <div className="mt-6 pt-4 border-t border-slate-100 flex justify-end items-center">
                 <span className="text-[10px] text-slate-400 flex items-center gap-1">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                  Updated <span className="font-mono text-slate-600 ml-1">{new Date().toLocaleTimeString()}</span>
+                  Updated <span className="font-mono text-slate-600 ml-1">{updatedAt || "--:--:--"}</span>
                 </span>
               </div>
             </div>

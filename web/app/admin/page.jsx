@@ -1,8 +1,9 @@
 "use client";
 
 import { API_BASE, imgUrl } from "@/lib/api";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 
 const PAGE_CSS = `
 body { font-family: 'Inter', sans-serif; }
@@ -12,16 +13,16 @@ body { font-family: 'Inter', sans-serif; }
 .modal-animate { animation: modalIn 0.2s ease-out; }
 `;
 
-const VALID_TOKEN = "dinas_pupr_2025";
-
-export default function AdminPage() {
+// useSearchParams() wajib dibungkus <Suspense> agar bisa di-prerender Next.js.
+function AdminContent() {
   const params = useSearchParams();
   const token = params.get("token");
   const id = params.get("id");
   const pdfRef = useRef(null);
 
-  const [stage, setStage] = useState("checking"); // checking -> locked -> open
-  const [errorMsg, setErrorMsg] = useState(null);
+  const hasAccess = Boolean(token && id);
+  const [stage, setStage] = useState(hasAccess ? "checking" : "locked"); // checking -> locked -> open
+  const [errorMsg, setErrorMsg] = useState(hasAccess ? null : "Token tidak valid.");
   const [data, setData] = useState(null);
   const [modal, setModal] = useState(null); // {title, message, type, onConfirm}
   const [toast, setToast] = useState(null);
@@ -29,17 +30,29 @@ export default function AdminPage() {
   const [actionBusy, setActionBusy] = useState(false);
 
   useEffect(() => {
-    if (token !== VALID_TOKEN || !id) {
-      setStage("locked");
-      setErrorMsg("Token tidak valid.");
-      return;
-    }
-    setStage("checking");
-    const t1 = setTimeout(() => {
-      setStage("open");
-      fetchIssueDetail(id);
-    }, 1500);
-    return () => clearTimeout(t1);
+    if (!token || !id) return;
+    let cancelled = false;
+    (async () => {
+      // Verifikasi token ke server (token tidak disimpan/hardcoded di client).
+      try {
+        const res = await fetch(`${API_BASE}/api/admin/verify?token=${encodeURIComponent(token)}`);
+        if (cancelled) return;
+        if (!res.ok) {
+          setStage("locked");
+          setErrorMsg("Token tidak valid.");
+          return;
+        }
+        setStage("open");
+        fetchIssueDetail(id);
+      } catch (e) {
+        if (cancelled) return;
+        setStage("locked");
+        setErrorMsg("Gagal memverifikasi token. Cek koneksi ke server.");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, id]);
 
@@ -75,9 +88,9 @@ export default function AdminPage() {
     if (!data) return;
     setActionBusy(true);
     try {
-      const res = await fetch(`${API_BASE}/api/issues/${data.id}/status?status=${newStatus}&token=${token}`, {
+      const res = await fetch(`${API_BASE}/api/issues/${data.id}/status?status=${newStatus}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "X-Admin-Token": token || "" },
       });
       if (res.ok) {
         showToast("Berhasil!", "Status diperbarui.");
@@ -250,12 +263,12 @@ export default function AdminPage() {
       {/* Header */}
       <header className="sticky top-0 z-50 w-full border-b bg-white/95 backdrop-blur-md">
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-3">
-          <a href="/" className="flex items-center gap-2">
+          <Link href="/" className="flex items-center gap-2">
             <div className="h-8 w-8 bg-primary rounded-xl flex items-center justify-center text-white font-bold shadow-lg">
               <i className="fas fa-shield-halved text-xs"></i>
             </div>
             <span className="font-bold text-base">BaliCivic <span className="text-primary">AI</span></span>
-          </a>
+          </Link>
           <div className="flex items-center gap-2">
             <button onClick={downloadPDF} className="px-3 py-2 bg-primary/10 text-primary rounded-xl font-semibold text-sm hover:bg-primary hover:text-white">
               <i className="fas fa-file-pdf mr-1"></i> PDF
@@ -502,5 +515,25 @@ export default function AdminPage() {
         </div>
       )}
     </div>
+  );
+}
+
+// Bungkus dengan <Suspense> karena memakai useSearchParams().
+export default function AdminPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-white">
+          <div className="text-center space-y-4">
+            <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto animate-pulse">
+              <i className="fas fa-lock text-2xl text-primary"></i>
+            </div>
+            <p className="text-slate-500 text-sm">Memuat…</p>
+          </div>
+        </div>
+      }
+    >
+      <AdminContent />
+    </Suspense>
   );
 }

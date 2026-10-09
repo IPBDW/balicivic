@@ -1,3 +1,4 @@
+import Link from "next/link";
 import NavbarApp from "@/components/NavbarApp";
 import BottomNav from "@/components/BottomNav";
 
@@ -57,7 +58,7 @@ export default function BantuanPage() {
               Akses Dashboard
             </h3>
             <p className="text-textSecondary mb-4">
-              Klik tombol "Dashboard" di menu navigasi atau tombol "Coba Sekarang" untuk mengakses halaman dashboard.
+              Klik tombol &quot;Dashboard&quot; di menu navigasi atau tombol &quot;Coba Sekarang&quot; untuk mengakses halaman dashboard.
               Di sini Anda dapat melihat statistik laporan, peta heatmap, dan data terkini.
             </p>
             <div className="bg-bgPage rounded-xl p-4 border border-lightBorder">
@@ -74,7 +75,7 @@ export default function BantuanPage() {
               Buat Laporan Baru
             </h3>
             <p className="text-textSecondary mb-4">
-              Klik menu "Laporan" atau tombol FAB (+) di pojok kanan bawah untuk membuat laporan kerusakan baru.
+              Klik menu &quot;Laporan&quot; atau tombol FAB (+) di pojok kanan bawah untuk membuat laporan kerusakan baru.
               Anda akan diarahkan ke halaman formulir pelaporan.
             </p>
           </div>
@@ -126,7 +127,7 @@ export default function BantuanPage() {
                   <h4 className="font-bold text-textDark mb-2 flex items-center gap-2">
                     <i className="fas fa-crosshairs text-accentGreen"></i> Deteksi Otomatis
                   </h4>
-                  <p className="text-sm text-textSecondary">Klik tombol "Deteksi Lokasi Saya" untuk menggunakan GPS perangkat Anda</p>
+                  <p className="text-sm text-textSecondary">Klik tombol &quot;Deteksi Lokasi Saya&quot; untuk menggunakan GPS perangkat Anda</p>
                 </div>
                 <div className="bg-primary/5 rounded-xl p-4 border border-primary/20">
                   <h4 className="font-bold text-textDark mb-2 flex items-center gap-2">
@@ -158,7 +159,7 @@ export default function BantuanPage() {
                 <i className="fas fa-robot text-primary"></i>
                 Analisis AI
               </h3>
-              <p className="text-textSecondary mb-4">Setelah klik "Analisis Sekarang", sistem akan:</p>
+              <p className="text-textSecondary mb-4">Setelah klik &quot;Analisis Sekarang&quot;, sistem akan:</p>
               <div className="space-y-3">
                 {[
                   ["fas fa-brain", "Deteksi Objek", "Mengidentifikasi jenis kerusakan menggunakan YOLOv8"],
@@ -217,9 +218,9 @@ export default function BantuanPage() {
               <a href="mailto:support@balicivic.ai" className="inline-flex items-center justify-center gap-2 bg-primary text-white px-6 py-3 rounded-xl font-semibold hover:bg-primaryHover transition-all hover:-translate-y-1 shadow-lg">
                 <i className="fas fa-envelope"></i> Email Kami
               </a>
-              <a href="/" className="inline-flex items-center justify-center gap-2 bg-white text-textDark px-6 py-3 rounded-xl font-semibold border border-lightBorder hover:bg-gray-50 transition-all hover:-translate-y-1">
+              <Link href="/" className="inline-flex items-center justify-center gap-2 bg-white text-textDark px-6 py-3 rounded-xl font-semibold border border-lightBorder hover:bg-gray-50 transition-all hover:-translate-y-1">
                 <i className="fas fa-home"></i> Kembali ke Beranda
-              </a>
+              </Link>
             </div>
           </div>
         </section>

@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { API_BASE } from "@/lib/api";
+import { waitForLeaflet } from "@/lib/leaflet";
 
 /* ===== CSS asli index.html (1:1) ===== */
 const PAGE_CSS = `
@@ -58,7 +59,7 @@ function MarketingNavbar() {
     <header className="sticky top-0 z-50 w-full border-b border-lightBorder bg-white/90 backdrop-blur-md transition-all duration-300">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
         <div className="flex items-center gap-2">
-          <a href="/" className="block" aria-label="BaliCivic AI - Beranda">
+          <Link href="/" className="block" aria-label="BaliCivic AI - Beranda">
             <img
               src="/assets/BaliCivic_App_Icon_1_.png"
               onError={(e) => (e.currentTarget.src = "https://via.placeholder.com/32?text=B")}
@@ -68,7 +69,7 @@ function MarketingNavbar() {
               height="32"
               loading="lazy"
             />
-          </a>
+          </Link>
           <span className="font-bold tracking-tight text-lg">BaliCivic AI</span>
         </div>
 
@@ -137,6 +138,89 @@ export default function HomePage() {
   const [topLocs, setTopLocs] = useState(null);
   const [distribution, setDistribution] = useState(null);
   const [barWidths, setBarWidths] = useState({});
+  const [lastUpdate, setLastUpdate] = useState("");
+  const mapInitRef = useRef(false);
+
+  async function fetchTopLocations() {
+    try {
+      const res = await fetch(`${API_BASE}/api/top-locations`);
+      setTopLocs(await res.json());
+    } catch (e) {
+      console.error("Gagal load lokasi:", e);
+    }
+  }
+
+  async function fetchDistribution() {
+    try {
+      const res = await fetch(`${API_BASE}/api/issues`);
+      const issues = await res.json();
+      const counts = { jalan_bolong: 0, sampah_liar: 0, genangan_air: 0, kabel_semrawut: 0 };
+      issues.forEach((issue) => {
+        if (counts[issue.issue_class] !== undefined) counts[issue.issue_class]++;
+      });
+      const total = issues.length || 1;
+      const data = [
+        { label: "Jalan Bolong", count: counts.jalan_bolong, percent: Math.round((counts.jalan_bolong / total) * 100) },
+        { label: "Sampah Liar", count: counts.sampah_liar, percent: Math.round((counts.sampah_liar / total) * 100) },
+        { label: "Genangan Air", count: counts.genangan_air, percent: Math.round((counts.genangan_air / total) * 100) },
+        { label: "Kabel Semrawut", count: counts.kabel_semrawut, percent: Math.round((counts.kabel_semrawut / total) * 100) },
+      ];
+      data.sort((a, b) => b.percent - a.percent);
+      setDistribution(data);
+      setLastUpdate(new Date().toLocaleTimeString());
+      // animasi bar bertahap
+      const widths = {};
+      data.forEach((item, index) => {
+        setTimeout(() => {
+          setBarWidths((prev) => ({ ...prev, [`bar-${index}`]: item.percent + "%" }));
+        }, 100 + index * 100);
+      });
+    } catch (e) {
+      console.error("Gagal load distribusi:", e);
+    }
+  }
+
+  async function initLandingHeatmap() {
+    const mapContainer = document.getElementById("mini-heatmap");
+    if (!mapContainer || mapContainer.offsetWidth === 0) return;
+    if (mapInitRef.current) return; // sudah di-init (hindari double-init)
+    try {
+      const L = await waitForLeaflet();
+      if (mapInitRef.current) return;
+      if (mapContainer._leaflet_id) return;
+      mapInitRef.current = true;
+      const map = L.map(mapContainer, {
+        zoomControl: true,
+        attributionControl: false,
+        scrollWheelZoom: false,
+        dragging: true,
+        doubleClickZoom: true,
+      }).setView([-8.4095, 115.1889], 9);
+      L.tileLayer("https://cartodb-basemaps-a.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png", {
+        maxZoom: 19,
+        attribution: "&copy; OpenStreetMap contributors",
+      }).addTo(map);
+      setTimeout(() => map.invalidateSize(), 100);
+      const res = await fetch(`${API_BASE}/api/issues`);
+      const points = await res.json();
+      const heatData = points
+        .filter((p) => (p.latitude || p.lat) && (p.longitude || p.long || p.lon))
+        .map((p) => {
+          const score = p.final_score || p.severity_score || p.score || 0;
+          return [p.latitude || p.lat, p.longitude || p.long || p.lon, Math.max(score / 100, 0.2)];
+        });
+      if (heatData.length > 0) {
+        L.heatLayer(heatData, {
+          radius: 20,
+          blur: 15,
+          maxZoom: 14,
+          gradient: { 0.2: "blue", 0.4: "cyan", 0.6: "lime", 0.8: "yellow", 1.0: "red" },
+        }).addTo(map);
+      }
+    } catch (e) {
+      console.error("Landing heatmap error:", e);
+    }
+  }
 
   useEffect(() => {
     // Scroll reveal + counter
@@ -183,6 +267,8 @@ export default function HomePage() {
     document.addEventListener("mousemove", onMove);
 
     // Live widgets
+    // Fetch on mount: setState terjadi setelah await, bukan render berjenjang.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchTopLocations();
     fetchDistribution();
     initLandingHeatmap();
@@ -198,81 +284,6 @@ export default function HomePage() {
       clearInterval(interval);
     };
   }, []);
-
-  async function fetchTopLocations() {
-    try {
-      const res = await fetch(`${API_BASE}/api/top-locations`);
-      setTopLocs(await res.json());
-    } catch (e) {
-      console.error("Gagal load lokasi:", e);
-    }
-  }
-
-  async function fetchDistribution() {
-    try {
-      const res = await fetch(`${API_BASE}/api/issues`);
-      const issues = await res.json();
-      const counts = { jalan_bolong: 0, sampah_liar: 0, genangan_air: 0, kabel_semrawut: 0 };
-      issues.forEach((issue) => {
-        if (counts[issue.issue_class] !== undefined) counts[issue.issue_class]++;
-      });
-      const total = issues.length || 1;
-      const data = [
-        { label: "Jalan Bolong", count: counts.jalan_bolong, percent: Math.round((counts.jalan_bolong / total) * 100) },
-        { label: "Sampah Liar", count: counts.sampah_liar, percent: Math.round((counts.sampah_liar / total) * 100) },
-        { label: "Genangan Air", count: counts.genangan_air, percent: Math.round((counts.genangan_air / total) * 100) },
-        { label: "Kabel Semrawut", count: counts.kabel_semrawut, percent: Math.round((counts.kabel_semrawut / total) * 100) },
-      ];
-      data.sort((a, b) => b.percent - a.percent);
-      setDistribution(data);
-      // animasi bar bertahap
-      const widths = {};
-      data.forEach((item, index) => {
-        setTimeout(() => {
-          setBarWidths((prev) => ({ ...prev, [`bar-${index}`]: item.percent + "%" }));
-        }, 100 + index * 100);
-      });
-    } catch (e) {
-      console.error("Gagal load distribusi:", e);
-    }
-  }
-
-  async function initLandingHeatmap() {
-    const mapContainer = document.getElementById("mini-heatmap");
-    if (!mapContainer || mapContainer.offsetWidth === 0 || typeof L === "undefined") return;
-    try {
-      const map = L.map("mini-heatmap", {
-        zoomControl: true,
-        attributionControl: false,
-        scrollWheelZoom: false,
-        dragging: true,
-        doubleClickZoom: true,
-      }).setView([-8.4095, 115.1889], 9);
-      L.tileLayer("https://cartodb-basemaps-a.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png", {
-        maxZoom: 19,
-        attribution: "&copy; OpenStreetMap contributors",
-      }).addTo(map);
-      setTimeout(() => map.invalidateSize(), 100);
-      const res = await fetch(`${API_BASE}/api/issues`);
-      const points = await res.json();
-      const heatData = points
-        .filter((p) => (p.latitude || p.lat) && (p.longitude || p.long || p.lon))
-        .map((p) => {
-          const score = p.final_score || p.severity_score || p.score || 0;
-          return [p.latitude || p.lat, p.longitude || p.long || p.lon, Math.max(score / 100, 0.2)];
-        });
-      if (heatData.length > 0) {
-        L.heatLayer(heatData, {
-          radius: 20,
-          blur: 15,
-          maxZoom: 14,
-          gradient: { 0.2: "blue", 0.4: "cyan", 0.6: "lime", 0.8: "yellow", 1.0: "red" },
-        }).addTo(map);
-      }
-    } catch (e) {
-      console.error("Landing heatmap error:", e);
-    }
-  }
 
   return (
     <div className="pb-24 md:pb-0 relative">
@@ -351,7 +362,7 @@ export default function HomePage() {
                   </div>
                   <div className="font-mono text-[10px] bg-slate-900 text-slate-300 p-3 rounded-lg space-y-1 shadow-inner">
                     <div className="flex gap-2"><span className="text-emerald-400">➜</span> <span>Loading YOLOv11s weights...</span></div>
-                    <div className="flex gap-2"><span className="text-yellow-400">⚠</span> <span>Detected: 'genangan_air'</span></div>
+                    <div className="flex gap-2"><span className="text-yellow-400">⚠</span> <span>Detected: &apos;genangan_air&apos;</span></div>
                     <div className="flex gap-2 border-t border-slate-700 pt-1 mt-1"><span className="text-blue-400">ℹ</span> <span>Generating summary with Gemini Flash...</span></div>
                   </div>
                 </div>
@@ -371,12 +382,12 @@ export default function HomePage() {
               </svg>
             </div>
             <h2 className="text-3xl md:text-5xl font-bold mb-8 text-white tracking-tight drop-shadow-2xl">
-              "Bali yang Lebih Baik,<br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-accentGreen via-white to-accentTeal">Bersama Kecerdasan Buatan"</span>
+              &quot;Bali yang Lebih Baik,<br />
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-accentGreen via-white to-accentTeal">Bersama Kecerdasan Buatan&quot;</span>
             </h2>
             <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-3xl p-8 md:p-12 max-w-3xl mx-auto shadow-2xl transform hover:scale-[1.02] transition-all duration-500">
               <p className="text-lg md:text-xl text-gray-100 leading-relaxed font-light italic tracking-wide">
-                "Teknologi bukan hadir untuk menggantikan tradisi, melainkan untuk melindunginya. Dengan BaliCivic AI, kita wujudkan pengawasan lingkungan yang transparan demi menjaga kelestarian dan harmoni Pulau Dewata."
+                &quot;Teknologi bukan hadir untuk menggantikan tradisi, melainkan untuk melindunginya. Dengan BaliCivic AI, kita wujudkan pengawasan lingkungan yang transparan demi menjaga kelestarian dan harmoni Pulau Dewata.&quot;
               </p>
             </div>
           </div>
@@ -641,7 +652,13 @@ export default function HomePage() {
                 </div>
               </div>
               <div className="relative aspect-video bg-black rounded-xl overflow-hidden shadow-inner border border-white/5 group">
-                <iframe className="absolute top-0 left-0 w-full h-full" src="" title="BaliCivic AI Demo" frameBorder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerPolicy="strict-origin-when-cross-origin" allowFullScreen></iframe>
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-center px-6">
+                  <div className="w-16 h-16 rounded-full bg-white/10 border border-white/15 flex items-center justify-center">
+                    <i className="fas fa-play text-white text-xl ml-1"></i>
+                  </div>
+                  <p className="text-sm text-white/70 font-medium">Video demo sedang disiapkan</p>
+                  <p className="text-[11px] text-white/40">balicivic-platform-demo.mp4</p>
+                </div>
               </div>
             </div>
           </div>
@@ -718,7 +735,7 @@ export default function HomePage() {
                   <div className="flex justify-between items-center mb-4">
                     <h3 className="font-bold text-textDark text-sm">Distribusi Jenis Masalah</h3>
                     <span id="last-update" className="text-[10px] text-textSecondary font-medium">
-                      {distribution ? `Update: ${new Date().toLocaleTimeString()}` : ""}
+                      {distribution && lastUpdate ? `Update: ${lastUpdate}` : ""}
                     </span>
                   </div>
                   <div id="distribution-container" className="space-y-4">
@@ -922,7 +939,7 @@ export default function HomePage() {
                   <div className="bg-cardGrey p-5 rounded-xl border border-lightBorder relative">
                     <div className="absolute -top-2 left-8 w-4 h-4 bg-cardGrey border-t border-l border-lightBorder transform rotate-45"></div>
                     <p className="text-sm text-textDark leading-relaxed font-medium italic text-justify">
-                      "Terdeteksi lubang jalan berukuran sedang dengan kedalaman estimasi sekitar 8–12 cm. Terletak di pinggir jalur kendaraan roda dua sehingga berpotensi menyebabkan slip. Disarankan penanganan level medium dalam 2–5 hari."
+                      &quot;Terdeteksi lubang jalan berukuran sedang dengan kedalaman estimasi sekitar 8–12 cm. Terletak di pinggir jalur kendaraan roda dua sehingga berpotensi menyebabkan slip. Disarankan penanganan level medium dalam 2–5 hari.&quot;
                     </p>
                     <div className="mt-3 flex items-center justify-end gap-2 text-[10px] text-textSecondary font-mono">
                       <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
