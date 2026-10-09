@@ -588,8 +588,21 @@ SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
 SENDER_EMAIL = os.getenv("SMTP_SENDER_EMAIL", "")
 SENDER_PASS = os.getenv("SMTP_APP_PASSWORD", "")
 TARGET_EMAIL = os.getenv("ALERT_TARGET_EMAIL", "")
-# ponytail: fallback token lama biar link email yang sudah terkirim tetap jalan; ganti via .env
-TOKEN = os.getenv("ADMIN_TOKEN", "dinas_pupr_2025")
+
+# Token admin — WAJIB dari .env. Tidak ada fallback hardcoded lagi supaya
+# tidak ada token default yang bisa ditebak siapa pun.
+# Kalau kosong, sistem bikin token acak sekali pakai (per proses) dan
+# memperingatkan; link admin di email tidak akan valid sampai ADMIN_TOKEN diisi.
+TOKEN = os.getenv("ADMIN_TOKEN")
+if not TOKEN:
+    import secrets
+
+    TOKEN = secrets.token_urlsafe(32)
+    print(
+        "[SECURITY][WARN] ADMIN_TOKEN belum diisi di .env. "
+        "Sistem memakai token acak sementara (berubah tiap restart). "
+        "Isi ADMIN_TOKEN di .env sebelum produksi."
+    )
 
 
 
@@ -605,7 +618,9 @@ def send_email_alert(issue_data: Issue):
             return
 
         print(f"[EMAIL] Mempersiapkan pengiriman peringatan untuk ID {issue_data.id}...")
-        dashboard_url = f"https://balicivicai.site/admin.html?token={TOKEN}&id={issue_data.id}"
+        # Base URL frontend admin — bisa diatur via env (FRONTEND_BASE_URL).
+        frontend_base = os.getenv("FRONTEND_BASE_URL", "https://balicivicai.site").rstrip("/")
+        dashboard_url = f"{frontend_base}/admin?token={TOKEN}&id={issue_data.id}"
 
         # Setup Pesan Multipart
         msg = MIMEMultipart('related')

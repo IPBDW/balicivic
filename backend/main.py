@@ -1,7 +1,6 @@
 import os
 import uvicorn
 from uuid import uuid4
-from datetime import datetime
 from contextlib import asynccontextmanager
 from typing import List
 from collections import Counter
@@ -25,11 +24,12 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from dotenv import load_dotenv
+import hmac
 
 # --- INTERNAL MODULES ---
 # Pastikan file database.py, models.py, utils.py ada di folder yang sama!
 from database import create_db_and_tables, get_session, engine
-from models import Issue
+from models import Issue, wita_now
 from utils import process_analysis, TOKEN
 
 # 1. LOAD ENVIRONMENT
@@ -40,7 +40,7 @@ load_dotenv()
 async def lifespan(app: FastAPI):
     # Bikin tabel kalau belum ada
     create_db_and_tables()
-    print("[SYSTEM] Database SQLite Connected & Tables Ready.")
+    print("[SYSTEM] Database Connected & Tables Ready.")
     yield
 
 
@@ -56,9 +56,19 @@ app = FastAPI(
 # Setup Middleware & Limiter
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+# CORS: whitelist domain dari env (CORS_ORIGINS, dipisah koma).
+# Default: hanya localhost dev. Di produksi isi domain resmi, contoh:
+#   CORS_ORIGINS=https://balicivicai.site,https://www.balicivicai.site
+_cors_env = os.getenv("CORS_ORIGINS", "http://127.0.0.1:8000,http://localhost:8000,http://localhost:3000")
+allow_origins = [o.strip() for o in _cors_env.split(",") if o.strip()]
+if allow_origins == ["*"]:
+    print("[SECURITY][WARN] CORS_ORIGINS='*' (semua origin diizinkan). "
+          "Ganti ke domain resmi sebelum produksi.")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],      # semua origin boleh
+    allow_origins=allow_origins,
     allow_credentials=False,  # WAJIB False kalau pakai "*"
     allow_methods=["*"],
     allow_headers=["*"],
@@ -182,32 +192,42 @@ def read_single_issue(issue_id: str, session: Session = Depends(get_session)):
     return issue
 
 
+def verify_admin_token(
+    token: str | None = Query(None),
+    x_admin_token: str | None = Header(None),
+):
+    """
+    Dependency auth admin. Terima token dari query ?token=... atau header
+    X-Admin-Token. Pakai perbandingan konstan-waktu supaya tidak bocor
+    lewat timing attack.
+    """
+    provided = token or x_admin_token or ""
+    # hmac.compare_digest butuh dua str/bytes; pastikan dibandingkan dengan aman
+    if not provided or not hmac.compare_digest(str(provided), str(TOKEN)):
+        raise HTTPException(status_code=401, detail="Token admin tidak valid")
+
+
 @app.put("/api/issues/{issue_id}/status")
 def update_status(
     issue_id: int,
     status: str,
-    token: str | None = Query(None),
-    x_admin_token: str | None = Header(None),
     session: Session = Depends(get_session),
+    _: None = Depends(verify_admin_token),
 ):
     """
     Update status oleh admin (Dinas) & Catat di Timeline.
     Flow: PENDING -> OPEN (Dikerjakan) -> DONE (Selesai)
     """
-    # 1. AUTH — token wajib (query ?token=... atau header X-Admin-Token)
-    if (token or x_admin_token) != TOKEN:
-        raise HTTPException(status_code=401, detail="Token admin tidak valid")
-
-    # 2. Whitelist status (jangan terima string asal)
+    # 1. Whitelist status (jangan terima string asal)
     if status not in {"PENDING", "IN_PROGRESS", "DONE", "ERROR"}:
         raise HTTPException(status_code=422, detail=f"Status '{status}' tidak dikenal")
 
-    # 3. Cari Data
+    # 2. Cari Data
     issue = session.get(Issue, issue_id)
     if not issue:
         raise HTTPException(status_code=404, detail="Laporan tidak ditemukan")
 
-    # 2. Tentukan Pesan Aksi untuk Timeline (Biar History-nya Cantik)
+    # 3. Tentukan Pesan Aksi untuk Timeline (Biar History-nya Cantik)
     action_message = "Status diperbarui"
     if status == "IN_PROGRESS":
         action_message = "Laporan Diverifikasi & Tim Dikerahkan"
@@ -216,25 +236,25 @@ def update_status(
     elif status == "ERROR":
         action_message = "Laporan Ditolak / Invalid"
 
-    # 3. Buat Object Event Baru (Jejak Digital)
+    # 4. Buat Object Event Baru (Jejak Digital)
     new_event = {
         "status": status,
-        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "timestamp": wita_now().strftime("%Y-%m-%d %H:%M:%S"),
         "actor": "Admin Dinas",
         "message": action_message
     }
 
-    # 4. Update Timeline (Append ke list JSON yang sudah ada)
+    # 5. Update Timeline (Append ke list JSON yang sudah ada)
     # Kita copy list lama, tambah event baru, lalu simpan balik
     current_timeline = list(issue.timeline) if issue.timeline else []
     current_timeline.append(new_event)
     issue.timeline = current_timeline  # Simpan JSON
 
-    # 5. Update Status Utama
+    # 6. Update Status Utama
     issue.status = status
-    issue.updated_at = datetime.now()
+    issue.updated_at = wita_now()
 
-    # 6. Simpan ke Database
+    # 7. Simpan ke Database
     session.add(issue)
     session.commit()
     session.refresh(issue)
@@ -248,11 +268,22 @@ def update_status(
     }
 
 
+@app.get("/api/admin/verify")
+def verify_token_endpoint(_: None = Depends(verify_admin_token)):
+    """
+    Cek apakah token admin valid. Dipakai panel admin untuk verifikasi
+    tanpa menyimpan token hardcoded di sisi client.
+    """
+    return {"valid": True}
+
+
 @app.get("/api/sumary")
+@app.get("/api/summary")
 def get_dashboard(session: Session = Depends(get_session)):
     """
     Ringkasan untuk dashboard admin:
     total laporan, jumlah antrean, butuh tindakan, selesai.
+    Dua route: /api/sumary (nama lama, tetap didukung) dan /api/summary.
     """
     all_issues = session.exec(select(Issue)).all()
     total = len(all_issues)
@@ -352,7 +383,7 @@ def get_top_locations(session: Session = Depends(get_session)):
 
 @app.get("/api/heatmap")
 def get_heatmap_data(
-    status: str | None = Query(None, regex="^(PENDING|IN_PROGRESS|DONE|ERROR)$"),
+    status: str | None = Query(None, pattern="^(PENDING|IN_PROGRESS|DONE|ERROR)$"),
     classes: str | None = Query(None),   # "aman,genangan_air,jalan_bolong"
     min_score: int = Query(0, ge=0, le=100),
     max_score: int = Query(100, ge=0, le=100),
