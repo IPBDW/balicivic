@@ -18,41 +18,58 @@ balicivic/
 │   ├── main.py       # API endpoints
 │   ├── utils.py      # YOLO, scoring, LLM, email, geocoding
 │   ├── models.py     # SQLModel: tabel `issue`
-│   ├── database.py   # SQLite
+│   ├── database.py   # Engine DB (PostgreSQL / SQLite via DATABASE_URL)
+│   ├── alembic/      # Migrasi skema (JANGAN edit manual tanpa alasan)
+│   ├── alembic.ini
+│   ├── DATABASE.md   # Panduan database & migrasi
 │   ├── debug_model.py
-│   ├── migrate_timeline.py
-│   ├── .env          # API keys — JANGAN DIMODIFIKASI/DICOMMIT
+│   ├── requirements.txt
+│   ├── .env.example  # Template env (copy jadi .env)
 │   ├── weights/      # Model YOLO: best.pt (produksi), yolo11s.pt (fallback)
-│   ├── data/         # Database SQLite: balicivilai.db
+│   ├── data/         # Database SQLite (mode dev)
 │   └── uploads/      # Foto laporan + hasil annotate
-└── frontend/         # Static HTML/JS (Tailwind + Leaflet)
-    ├── index.html, report.html, dashboard.html, detail.html
-    ├── all-reports.html, heatmap.html, admin.html, help.html
-    ├── config.js, app.json
-    └── assets/       # Gambar & icon
+└── web/              # Frontend Next.js 16 (React + Tailwind) — SATU-SATUNYA frontend
+    ├── app/          # /, /dashboard, /lapor, /laporan, /peta, /detail/[id], /admin, /bantuan
+    ├── components/   # NavbarApp, BottomNav
+    ├── lib/api.js    # Satu pintu akses API
+    └── public/assets/
 ```
+
+> Folder `frontend/` (HTML statis lama) sudah **dihapus**. Jangan bikin ulang.
+> Semua UI dikerjakan di `web/` (Next.js).
 
 ## Cara Menjalankan
 
 ```bash
 # Backend
 cd backend
+python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
+cp .env.example .env          # isi API keys & ADMIN_TOKEN
+./pg.sh start                 # nyalakan PostgreSQL lokal (portable, tanpa sudo)
+alembic upgrade head          # siapkan skema DB
 uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 
-# Frontend (statis, panggil API via config.js)
-cd frontend
-python -m http.server 8080
+# Frontend (Next.js)
+cd web
+npm install
+npm run dev                   # http://localhost:3000
 ```
+
+> Database: `./pg.sh start|stop|status|psql|reset`. Detail di `backend/DATABASE.md`.
 
 ## Konvensi Project
 
 - **Bahasa**: UI, komentar kode, dan pesan (print/log) dalam Bahasa Indonesia.
-- **Struktur**: backend tetap di `backend/`, frontend di `frontend/`.
+- **Struktur**: backend tetap di `backend/`, frontend di `web/` (Next.js).
 - **Jangan sentuh**: file `.env` (berisi API keys), model weights (`*.pt`),
   database (`balicivilai.db`), dan isi `backend/uploads/` — ini data runtime.
 - **Deduplikasi**: project ini dulu berantakan karena file duplikat. Jangan
   pernah bikin salinan folder/file yang tidak perlu.
+- **Database**: skema diubah lewat migrasi Alembic (`alembic revision
+  --autogenerate`), JANGAN edit `alembic/versions/` manual tanpa alasan.
+- **Keamanan**: token admin hanya dari `ADMIN_TOKEN` di `.env` — JANGAN
+  hardcode token/credential apa pun di source code (backend maupun frontend).
 - **Perubahan struktur**: kalau merubah path file, pastikan import di
   `main.py`/`utils.py` dan URL di frontend masih nyambung.
 
