@@ -1,13 +1,31 @@
-# Requirements for `kti backend`
-# Inferred from `utils.py` imports (adjust versions as needed)
-google-generativeai>=0.5.0
+# ============================================================
+# BaliCivic AI — Backend Requirements
+# Install: pip install -r requirements.txt
+# ============================================================
+
+# --- Web framework ---
+fastapi>=0.110.0
+uvicorn[standard]>=0.27.0
+python-multipart>=0.0.9
+slowapi>=0.1.9
+
+# --- Database ---
+sqlmodel>=0.0.16
+alembic>=1.13.0
+psycopg[binary]>=3.1.0        # driver PostgreSQL
+# SQLite sudah bawaan Python, tidak perlu paket tambahan.
+
+# --- AI / Vision ---
 ultralytics>=8.0.0
 opencv-python>=4.7.0
-sqlmodel>=0.0.8
-python-dotenv>=1.0.0
 torch>=2.0.1
 torchvision>=0.15.2
 Pillow>=9.0.0
 
-# Optional (developer tools)
+# --- LLM & utilitas ---
+openai>=1.0.0                 # klien OpenAI-compatible (DeepSeek/OpenRouter)
+python-dotenv>=1.0.0
+requests>=2.31.0
+
+# --- Optional (developer tools) ---
 # tqdm>=4.0.0

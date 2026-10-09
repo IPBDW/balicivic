@@ -22,6 +22,12 @@ env/
 backend/data/
 backend/uploads/
 
+# Next.js
+web/node_modules/
+web/.next/
+web/out/
+web/.env*.local
+
 # OS / Editor
 .DS_Store
 Thumbs.db
