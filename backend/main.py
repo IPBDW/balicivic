@@ -41,6 +41,43 @@ async def lifespan(app: FastAPI):
     # Bikin tabel kalau belum ada
     create_db_and_tables()
     print("[SYSTEM] Database Connected & Tables Ready.")
+
+    # Recovery: cari Issue yang nyangkut di PENDING karena server restart
+    # atau crash. Kalau raw file-nya masih ada di disk, proses ulang.
+    try:
+        from sqlmodel import Session as _Session
+        with _Session(engine) as s:
+            stuck = s.exec(
+                select(Issue).where(Issue.status == "PENDING")
+            ).all()
+            if stuck:
+                print(f"[RECOVERY] {len(stuck)} laporan PENDING ditemukan, "
+                      "cek apakah file-nya masih ada...")
+                recovered = 0
+                for iss in stuck:
+                    # Cari raw_path dari fid. id field bisa dipake karena
+                    # upload pakai uuid4().hex[:8] untuk nama file,
+                    # tapi field id DB autoincrement. Pakai pattern fallback:
+                    # uploads_raw/{iss.id}.jpg.
+                    cand_raw = f"uploads_raw/{iss.id}.jpg"
+                    if os.path.exists(cand_raw):
+                        print(f"[RECOVERY] Re-queue Issue #{iss.id}")
+                        # langsung panggil worker-nya (sync, aman di startup)
+                        run_analysis_background(iss.id, cand_raw)
+                        recovered += 1
+                    else:
+                        # File hilang, tandai error biar gak nyangkut selamanya
+                        iss.status = "ERROR"
+                        if not isinstance(iss.meta_data, dict):
+                            iss.meta_data = {}
+                        iss.meta_data["recovery_error"] = "Raw file tidak ditemukan saat startup"
+                        s.add(iss)
+                if recovered:
+                    s.commit()
+                    print(f"[RECOVERY] Selesai, {recovered} laporan diproses ulang.")
+    except Exception as e:
+        print(f"[RECOVERY][ERROR] {e}")
+
     yield
 
 
@@ -75,8 +112,17 @@ app.add_middleware(
 )
 
 # Setup Static Files
-UPLOAD_DIR = "uploads"
+#
+# Privasi & EXIF:
+# - uploads_raw/  : file asli dari warga (dipakai YOLO, JANGAN diserve publik).
+# - uploads/      : annotated image (re-encode cv2 → EXIF otomatis ter-strip).
+# Folder uploads/ yang di-mount publik HANYA berisi file _detected.jpg.
+# Foto asli (yang masih bawa GPS di EXIF) tetap di uploads_raw/ dan tidak
+# terekspos dari network.
+UPLOAD_DIR = "uploads"           # publik via /static
+UPLOAD_RAW_DIR = "uploads_raw"   # private (lokal saja)
 os.makedirs(UPLOAD_DIR, exist_ok=True)
+os.makedirs(UPLOAD_RAW_DIR, exist_ok=True)
 app.mount("/static", StaticFiles(directory=UPLOAD_DIR), name="static")
 
 
@@ -100,6 +146,26 @@ def health_check():
     return {"status": "online", "system": "BaliCivic AI Engine V.Release"}
 
 
+@app.get("/health")
+def health_liveness():
+    """
+    Liveness/readiness probe untuk monitoring (k8s, supervisor, dll).
+    Cek DB juga untuk tau apakah siap menerima traffic.
+    """
+    db_ok = False
+    try:
+        with Session(engine) as s:
+            s.exec(select(Issue).limit(1))
+            db_ok = True
+    except Exception:
+        db_ok = False
+    return {
+        "status": "ok" if db_ok else "degraded",
+        "db": "ok" if db_ok else "error",
+        "system": "BaliCivic AI",
+    }
+
+
 @app.post("/api/analyze")
 @limiter.limit("5/minute")
 async def analyze_endpoint(
@@ -115,7 +181,10 @@ async def analyze_endpoint(
     simpan Issue awal, lalu lempar analisis ke background task.
     """
     fid = uuid4().hex[:8]
-    file_path = f"{UPLOAD_DIR}/{fid}.jpg"
+    # File asli disimpan di folder PRIVATE (uploads_raw/), bukan publik.
+    # EXIF (termasuk GPS) tetap ada di sini untuk analisis internal,
+    # tapi tidak bisa diakses via HTTP.
+    raw_path = f"{UPLOAD_RAW_DIR}/{fid}.jpg"
 
     try:
         # Validasi input di trust boundary: harus gambar & maksimal 10MB
@@ -123,15 +192,15 @@ async def analyze_endpoint(
             raise HTTPException(status_code=400, detail="File harus berupa gambar (jpg/png)")
         MAX_UPLOAD = 10 * 1024 * 1024
         size = 0
-        with open(file_path, "wb") as f:
+        with open(raw_path, "wb") as f:
             while chunk := file.file.read(1024 * 1024):
                 size += len(chunk)
                 if size > MAX_UPLOAD:
                     raise HTTPException(status_code=413, detail="Ukuran file maksimal 10MB")
                 f.write(chunk)
     except HTTPException:
-        if os.path.exists(file_path):
-            os.remove(file_path)
+        if os.path.exists(raw_path):
+            os.remove(raw_path)
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Gagal simpan file: {str(e)}")
@@ -149,7 +218,8 @@ async def analyze_endpoint(
         issue_class="processing",
         severity_label="LOW",
         final_score=0,
-        image_url=f"/static/{fid}.jpg",
+        # image_url diisi setelah analyze selesai (annotated sudah EXIF-strip)
+        image_url=None,
         status="PENDING",
         breakdown_score={},
         secondary_issues=[],
@@ -160,31 +230,53 @@ async def analyze_endpoint(
     session.commit()
     session.refresh(new_issue)
 
-    background_tasks.add_task(run_analysis_background, new_issue.id, file_path)
+    # Worker pakai raw_path (asli, untuk YOLO), output publik = annotated
+    background_tasks.add_task(run_analysis_background, new_issue.id, raw_path)
 
     return {
         "message": "Laporan diterima & sedang diproses",
         "id": new_issue.id,
         "status": "PENDING",
-        "image_url": new_issue.image_url,
+        "image_url": new_issue.image_url,  # null sampai annotate selesai
     }
 
 
 
 @app.get("/api/issues", response_model=List[Issue])
-def read_issues(session: Session = Depends(get_session)):
+def read_issues(
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+    status_filter: str | None = Query(
+        None, alias="status", pattern="^(PENDING|IN_PROGRESS|DONE|ERROR)$"
+    ),
+    issue_class: str | None = Query(None),
+    session: Session = Depends(get_session),
+):
     """
-    Ambil semua issue, urut dari terbaru.
+    Ambil issue dengan pagination + filter.
+    Query params:
+      ?limit=50&offset=0&status=PENDING&issue_class=jalan_bolong
     """
-    statement = select(Issue).order_by(Issue.created_at.desc())
-    results = session.exec(statement).all()
-    return results
+    stmt = select(Issue).order_by(Issue.created_at.desc())
+    if status_filter:
+        stmt = stmt.where(Issue.status == status_filter)
+    if issue_class:
+        stmt = stmt.where(Issue.issue_class == issue_class)
+    stmt = stmt.limit(limit).offset(offset)
+    return session.exec(stmt).all()
+
+
+@app.get("/api/issues/count")
+def count_issues(session: Session = Depends(get_session)):
+    """Total jumlah issue untuk pagination UI."""
+    total = len(session.exec(select(Issue)).all())
+    return {"total": total}
 
 
 @app.get("/api/issues/{issue_id}")
-def read_single_issue(issue_id: str, session: Session = Depends(get_session)):
+def read_single_issue(issue_id: int, session: Session = Depends(get_session)):
     """
-    Detail satu issue.
+    Detail satu issue. PK adalah int (lihat models.Issue.id).
     """
     issue = session.get(Issue, issue_id)
     if not issue:
@@ -260,11 +352,53 @@ def update_status(
     session.refresh(issue)
 
     print(f"[ADMIN] Status Issue #{issue_id} berubah menjadi {status}")
-    
+
     return {
-        "message": "Status berhasil diupdate", 
+        "message": "Status berhasil diupdate",
         "current_status": status,
         "history": new_event
+    }
+
+
+@app.delete("/api/issues/{issue_id}")
+def delete_issue(
+    issue_id: int,
+    session: Session = Depends(get_session),
+    _: None = Depends(verify_admin_token),
+):
+    """
+    Hapus laporan oleh admin (untuk laporan spam/palsu/invalid).
+    Menghapus baris DB + file annotated di disk. Raw file (kalau masih ada)
+    juga dihapus. Tercatat di log untuk audit.
+    """
+    issue = session.get(Issue, issue_id)
+    if not issue:
+        raise HTTPException(status_code=404, detail="Laporan tidak ditemukan")
+
+    # Hapus file annotated dari disk
+    deleted_files = []
+    if issue.image_url and issue.image_url.startswith("/static/"):
+        fname = issue.image_url.replace("/static/", "")
+        path = os.path.join(UPLOAD_DIR, fname)
+        if os.path.exists(path):
+            os.remove(path)
+            deleted_files.append(path)
+
+    # Hapus raw kalau masih ada (mungkin gagal analyze)
+    raw_path = f"uploads_raw/{issue_id}.jpg"
+    if os.path.exists(raw_path):
+        os.remove(raw_path)
+        deleted_files.append(raw_path)
+
+    session.delete(issue)
+    session.commit()
+
+    print(f"[ADMIN] Issue #{issue_id} dihapus oleh admin. Files: {deleted_files}")
+
+    return {
+        "message": "Laporan dihapus",
+        "issue_id": issue_id,
+        "files_removed": deleted_files,
     }
 
 
@@ -290,12 +424,14 @@ def get_dashboard(session: Session = Depends(get_session)):
     pending = len([i for i in all_issues if i.status == "PENDING"])
     action_needed = len([i for i in all_issues if i.status == "IN_PROGRESS"])
     completed = len([i for i in all_issues if i.status == "DONE"])
+    errors = len([i for i in all_issues if i.status == "ERROR"])
 
     return {
         "total": total,
         "antrean": pending,
         "perlu_tindakan": action_needed,
         "selesai": completed,
+        "error": errors,
     }
 
 

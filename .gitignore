@@ -21,6 +21,7 @@ env/
 # Runtime data (uploads & sqlite)
 backend/data/
 backend/uploads/
+backend/uploads_raw/
 
 # Next.js
 web/node_modules/

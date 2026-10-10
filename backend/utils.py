@@ -289,7 +289,9 @@ def calculate_spatial_score(detections, img_w: int, img_h: int):
 
 
 # ============================================================
-# 2. GEMINI: SIZE REASONING + PUBLIC + DINAS (1 CALL)
+# 2. LLM NARASI: SIZE REASONING + VALIDATION + PUBLIC + DINAS (1 CALL)
+# Backend pakai OpenAI-compatible client (lihat LLM_BASE_URL/LLM_MODEL
+# di .env). Default: DeepSeek. Bisa diganti ke OpenRouter / Gemini / GLM / dll.
 # ============================================================
 
 def _build_location_text(issue: Issue) -> str:
@@ -313,8 +315,9 @@ def _build_location_text(issue: Issue) -> str:
 
 def _fallback_llm_result(payload: dict):
     """
-    Kalau GEMINI_API_KEY kosong / error, pakai fallback ini.
-    Minimal tetap punya teks untuk publik dan dinas.
+    Kalau LLM_API_KEY kosong / call error / JSON gagal di-parse,
+    pakai fallback ini. Minimal tetap punya teks untuk publik dan dinas
+    sehingga pipeline tidak terputus walau LLM offline.
     """
     primary = payload.get("primary_issue_class", "unknown")
     pretty = CLASS_LABEL_PUBLIC.get(primary, primary.replace("_", " "))
@@ -347,7 +350,7 @@ def _fallback_llm_result(payload: dict):
             "adjusted_width_m": geom.get("estimated_width_m"),
             "adjusted_width_range_m": geom.get("estimated_width_range_m"),
             "size_category": None,
-            "reason": "Menggunakan estimasi geometri langsung tanpa penalaran tambahan karena layanan Gemini tidak tersedia.",
+            "reason": "Menggunakan estimasi geometri langsung tanpa penalaran tambahan karena layanan LLM tidak tersedia.",
         },
         "public": {
             "title": f"{pretty.title()} Teridentifikasi",
@@ -382,11 +385,15 @@ def ask_llm_combined(payload: dict):
         print("[LLM] DEEPSEEK_API_KEY tidak ditemukan di .env. Pakai fallback.")
         return _fallback_llm_result(payload)
 
-    # 2. Setup Client (OpenAI-compatible: DeepSeek / OpenRouter / dll)
+    # 2. Setup Client (OpenAI-compatible: DeepSeek / OpenRouter / ninerouter / dll)
+    # Timeout 90s (router via proxy bisa lambat di jam sibuk),
+    # max_retries 2 biar API call sementara yang timeout bisa recovery sendiri.
     try:
         client = OpenAI(
             base_url=LLM_BASE_URL,
             api_key=LLM_API_KEY,
+            timeout=90.0,
+            max_retries=2,
         )
     except Exception as e:
         print(f"[LLM INIT ERROR] {e}")
@@ -806,7 +813,7 @@ def process_analysis(issue_id: str, image_path: str, session: Session):
             "timestamp": issue.created_at.isoformat() if issue.created_at else None,
         }
 
-        print("[ENGINE] Mengontak Gemini (combined reasoning + public + dinas).")
+        print("[ENGINE] Mengontak LLM narasi (size reasoning + validation + public + dinas).")
         llm_result = ask_llm_combined(payload)
 
         size_reasoning = llm_result.get("size_reasoning", {}) or {}
@@ -852,7 +859,8 @@ def process_analysis(issue_id: str, image_path: str, session: Session):
             or "Sistem berhasil menganalisis laporan, namun deskripsi tidak tersedia."
         )
 
-        # Simpan image annotated
+        # Simpan image annotated (cv2.imwrite tidak menulis EXIF,
+        # jadi GPS/identitas lain otomatis hilang dari file publik).
         issue.image_url = f"/static/{detected_filename}"
 
         # Status tetap PENDING untuk diverifikasi admin
@@ -865,6 +873,15 @@ def process_analysis(issue_id: str, image_path: str, session: Session):
             f"[ENGINE] SUKSES! Issue: {issue.id}, "
             f"Class: {primary_issue}, Score: {final_score}, Severity: {severity_label}"
         )
+
+        # Cleanup: hapus raw file (EXIF/GPS) setelah analisis sukses.
+        # Kalau error, raw tetap disimpan untuk debug/admin.
+        try:
+            if image_path.startswith("uploads_raw" + os.sep) and os.path.exists(image_path):
+                os.remove(image_path)
+                print(f"[STRIP-EXIF] Raw file dihapus: {image_path}")
+        except Exception as ce:
+            print(f"[STRIP-EXIF] Gagal hapus raw: {ce}")
 
         send_email_alert(issue)
 
