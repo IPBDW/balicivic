@@ -1,337 +1,340 @@
 "use client";
 
-import NavbarApp from "@/components/NavbarApp";
-import BottomNav from "@/components/BottomNav";
-import { API_BASE } from "@/lib/api";
+// /lapor — form pelaporan warga (mobile-first).
+// Redesign pakai design system: Button, Card, Badge dari components/ui/.
+// Flow: Upload foto → Deteksi lokasi → Konfirmasi → Submit → Redirect ke tracking.
+
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-
-const PAGE_CSS = `
-body { font-family: 'Inter', sans-serif; }
-* { transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1); }
-a, button, .card, .btn { transition: all 0.3s ease; }
-.card-hover:hover, [class*="rounded"]:hover { transform: translateY(-2px); box-shadow: 0 8px 16px -4px rgba(0, 0, 0, 0.08); }
-button:hover, .btn:hover, a[class*="bg-"]:hover { transform: translateY(-1px); box-shadow: 0 4px 8px -2px rgba(0, 0, 0, 0.08); }
-button:active, .btn:active { transform: translateY(0px); }
-a:not([class*="bg-"]):hover { color: #C94B4B; }
-i:hover { transform: scale(1.05); transition: transform 0.2s ease; }
-input:focus, textarea:focus, select:focus { box-shadow: 0 0 0 3px rgba(201, 75, 75, 0.1); transition: all 0.2s ease; }
-.no-scrollbar::-webkit-scrollbar { display: none; }
-.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-.loader { border: 3px solid #f3f3f3; border-top: 3px solid #C94B4B; border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; }
-@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-`;
+import NavbarApp from "@/components/NavbarApp";
+import BottomNav from "@/components/BottomNav";
+import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
+import { Button } from "@/components/ui/Button";
+import { Badge, StatusBadge } from "@/components/ui/Badge";
+import { ThemeToggle } from "@/components/ui/ThemeToggle";
+import { apiPostForm, apiGet } from "@/lib/api";
+import { generateTicketId } from "@/lib/design-system";
 
 const TIPS = [
-  { icon: "fas fa-check-circle text-green-500", t: "Fokus pada Objek", d: "Pastikan lubang/sampah ada di tengah frame." },
-  { icon: "fas fa-sun text-amber-500", t: "Cahaya Cukup", d: "Hindari foto back-light atau terlalu gelap." },
-  { icon: "fas fa-ban text-red-500", t: "Hindari Blur", d: "Pegang HP stabil saat memotret." },
+  { icon: "🎯", title: "Fokus pada objek", desc: "Pastikan kerusakan ada di tengah frame." },
+  { icon: "☀️", title: "Cahaya cukup", desc: "Hindari foto back-light atau terlalu gelap." },
+  { icon: "📵", title: "Hindari blur", desc: "Pegang HP stabil saat memotret." },
 ];
 
 export default function LaporPage() {
   const router = useRouter();
   const fileRef = useRef(null);
   const [preview, setPreview] = useState(null);
-  const [gpsStatus, setGpsStatus] = useState({ text: "GPS Inactive", cls: "text-[10px] text-gray-400" });
-  const [lat, setLat] = useState("");
-  const [lng, setLng] = useState("");
-  const [modal, setModal] = useState({ show: false, success: false, countdown: 3 });
+  const [coords, setCoords] = useState({ lat: null, lng: null });
+  const [gpsState, setGpsState] = useState('idle'); // idle | loading | ok | error
+  const [gpsError, setGpsError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
   const [activity, setActivity] = useState([]);
+  const [step, setStep] = useState(1); // 1=upload, 2=lokasi, 3=konfirmasi
 
   useEffect(() => {
     fetchLiveActivity();
-    const interval = setInterval(fetchLiveActivity, 10000);
     getLocation();
+    const interval = setInterval(fetchLiveActivity, 15000);
     return () => clearInterval(interval);
   }, []);
 
-  function previewFile(e) {
+  function handleFileChange(e) {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = (ev) => setPreview(ev.target.result);
+    reader.onload = (ev) => {
+      setPreview(ev.target.result);
+      setStep(2); // auto-advance setelah foto dipilih
+    };
     reader.readAsDataURL(file);
   }
 
   function getLocation() {
     if (!navigator.geolocation) {
-      alert("Browser anda tidak mendukung Geolocation.");
+      setGpsState('error');
+      setGpsError('Browser tidak mendukung GPS.');
       return;
     }
-    setGpsStatus({ text: "Mencari satelit...", cls: "text-[10px] text-amber-500 font-bold animate-pulse" });
+    setGpsState('loading');
+    setGpsError('');
     navigator.geolocation.getCurrentPosition(
-      (position) => {
-        setLat(position.coords.latitude.toFixed(6));
-        setLng(position.coords.longitude.toFixed(6));
-        setGpsStatus({ text: "GPS Terkunci", cls: "text-[10px] text-accentGreen font-bold" });
+      (pos) => {
+        setCoords({
+          lat: Number(pos.coords.latitude.toFixed(6)),
+          lng: Number(pos.coords.longitude.toFixed(6)),
+        });
+        setGpsState('ok');
       },
-      (error) => {
-        let msg = "Gagal ambil lokasi.";
-        switch (error.code) {
-          case error.PERMISSION_DENIED:
-            msg = "Izin GPS ditolak. Mohon aktifkan izin lokasi browser.";
-            break;
-          case error.POSITION_UNAVAILABLE:
-            msg = "Informasi lokasi tidak tersedia.";
-            break;
-          case error.TIMEOUT:
-            msg = "Waktu habis. Coba lagi di area terbuka.";
-            break;
-          default:
-            msg = "Error GPS: " + error.message;
-        }
-        alert(msg);
-        setGpsStatus({ text: "GPS Error", cls: "text-[10px] text-red-500 font-bold" });
+      (err) => {
+        const messages = {
+          1: 'Izin GPS ditolak. Aktifkan izin lokasi di browser.',
+          2: 'Informasi lokasi tidak tersedia.',
+          3: 'Waktu habis. Coba lagi di area terbuka.',
+        };
+        setGpsError(messages[err.code] || `Error GPS: ${err.message}`);
+        setGpsState('error');
       },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
     );
   }
 
   async function fetchLiveActivity() {
     try {
-      const res = await fetch(`${API_BASE}/api/issues`);
-      if (!res.ok) return;
-      const data = await res.json();
-      setActivity(data.slice(0, 3));
-    } catch (error) {
-      console.error("Gagal load aktivitas:", error);
+      const data = await apiGet('/api/issues?limit=5');
+      setActivity(data.slice(0, 4));
+    } catch (e) {
+      // silent — widget dekoratif
     }
   }
 
-  async function onSubmit(e) {
-    e.preventDefault();
+  async function handleSubmit() {
     if (!fileRef.current?.files?.[0]) {
-      alert("Harap ambil foto dulu!");
+      alert('Pilih foto dulu.');
       return;
     }
-    if (!lat) {
-      if (!confirm("Lokasi belum terkunci (0,0). Lanjutkan?")) return;
-    }
-
-    setModal({ show: true, success: false, countdown: 3 });
-
-    const formData = new FormData();
-    formData.append("file", fileRef.current.files[0]);
-    formData.append("lat", lat || "0");
-    formData.append("long", lng || "0");
+    setSubmitting(true);
+    const fd = new FormData();
+    fd.append('file', fileRef.current.files[0]);
+    if (coords.lat != null) fd.append('lat', String(coords.lat));
+    if (coords.lng != null) fd.append('long', String(coords.lng));
 
     try {
-      const response = await fetch(`${API_BASE}/api/analyze`, { method: "POST", body: formData });
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || "Server Error");
-      }
-      const data = await response.json();
-
-      setModal((m) => ({ ...m, success: true }));
-      // Countdown lalu redirect ke halaman detail laporannya sendiri
-      let timeLeft = 2;
-      const interval = setInterval(() => {
-        timeLeft--;
-        setModal((m) => ({ ...m, countdown: timeLeft }));
-        if (timeLeft <= 0) {
-          clearInterval(interval);
-          router.push(`/detail/${data.id}`);
-        }
-      }, 1000);
-    } catch (error) {
-      console.error("Upload Error:", error);
-      alert("Gagal mengirim laporan: " + error.message);
-      setModal({ show: false, success: false, countdown: 3 });
+      const result = await apiPostForm('/api/analyze', fd);
+      // Generate URL-friendly ticket ID untuk warga.
+      // Backend balikin id (int), kita combine jadi BC-2026-XXXX untuk UX.
+      const ticketId = generateTicketId();
+      router.push(`/laporan/${result.id}?ticket=${ticketId}`);
+    } catch (err) {
+      alert('Gagal kirim laporan: ' + err.message);
+      setSubmitting(false);
     }
   }
 
   return (
-    <div className="pb-24 md:pb-0">
-      <style dangerouslySetInnerHTML={{ __html: PAGE_CSS }} />
+    <div className="min-h-screen ds-bg pb-24 md:pb-12">
       <NavbarApp active="/lapor" />
 
-      <main className="flex-1 w-full max-w-5xl mx-auto p-4 md:p-8">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-10 items-start">
-          <div className="lg:col-span-7 order-1 animate-slide-up">
-            <div className="mb-4 lg:mb-6 group cursor-default">
-              <h1 className="text-2xl font-bold text-textDark group-hover:text-primary transition-colors duration-300">
-                Lapor Kerusakan
-              </h1>
-              <p className="text-sm text-textSecondary mt-1 group-hover:text-textDark transition-colors duration-300">
-                Bantu pemerintah mendata infrastruktur via AI.
-              </p>
-            </div>
-
-            <div className="bg-white rounded-2xl border border-lightBorder shadow-sm p-5 md:p-8 hover:shadow-2xl hover:-translate-y-1 hover:border-primary/30 transition-all duration-500 ease-out group">
-              <form onSubmit={onSubmit} className="space-y-6">
-                <div className="space-y-2">
-                  <label className="text-sm font-bold text-textDark flex justify-between items-center">
-                    Foto Kondisi <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative w-full aspect-[4/3] bg-gray-50 rounded-xl border-2 border-dashed border-lightBorder hover:border-primary hover:bg-red-50/30 transition-all duration-300 overflow-hidden group cursor-pointer">
-                    <input
-                      ref={fileRef}
-                      type="file"
-                      name="file"
-                      accept="image/*"
-                      capture="environment"
-                      required
-                      onChange={previewFile}
-                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
-                    />
-                    {!preview && (
-                      <div id="uploadPlaceholder" className="absolute inset-0 flex flex-col items-center justify-center text-center p-4">
-                        <div className="w-12 h-12 rounded-full bg-white shadow-sm flex items-center justify-center mb-2 text-primary group-hover:scale-110 transition-transform duration-300">
-                          <i className="fas fa-camera text-xl"></i>
-                        </div>
-                        <span className="text-sm font-medium text-gray-600">Ketuk untuk Foto</span>
-                        <span className="text-[10px] text-gray-400 mt-1">atau upload dari galeri</span>
-                      </div>
-                    )}
-                    {preview && <img src={preview} className="absolute inset-0 w-full h-full object-cover z-10" alt="Preview" />}
-                    {preview && (
-                      <div className="absolute inset-0 bg-black/40 z-10 flex items-center justify-center">
-                        <span className="text-white text-xs font-bold border border-white px-3 py-1 rounded-full backdrop-blur-sm">Ganti Foto</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex justify-between items-end">
-                    <label className="text-sm font-bold text-textDark">Lokasi</label>
-                    <span className={gpsStatus.cls} id="gpsStatus">{gpsStatus.text}</span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <input
-                      type="number"
-                      step="any"
-                      name="lat"
-                      value={lat}
-                      readOnly
-                      placeholder="Latitude"
-                      required
-                      className="bg-gray-50 border border-lightBorder rounded-lg px-3 py-3 text-xs font-mono focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none"
-                    />
-                    <input
-                      type="number"
-                      step="any"
-                      name="long"
-                      value={lng}
-                      readOnly
-                      placeholder="Longitude"
-                      required
-                      className="bg-gray-50 border border-lightBorder rounded-lg px-3 py-3 text-xs font-mono focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none"
-                    />
-                  </div>
-                  <button
-                    type="button"
-                    onClick={getLocation}
-                    className="relative overflow-hidden w-full py-3 rounded-xl bg-accentGreen/10 text-accentGreen text-xs font-bold hover:bg-accentGreen hover:text-white hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 ease-out flex items-center justify-center gap-2 active:scale-95 group"
-                  >
-                    <div className="absolute inset-0 -translate-x-full group-hover:animate-shine bg-gradient-to-r from-transparent via-white/30 to-transparent z-0"></div>
-                    <span className="relative z-10 flex items-center gap-2">
-                      <i className="fas fa-crosshairs group-hover:rotate-45 transition-transform duration-500 ease-out"></i>
-                      Deteksi Lokasi Saya
-                    </span>
-                  </button>
-                </div>
-
-                <button
-                  type="submit"
-                  className="w-full bg-primary text-white rounded-xl py-4 text-sm font-bold shadow-lg shadow-primary/20 hover:bg-primaryHover hover:-translate-y-1 hover:shadow-2xl hover:shadow-primary/40 transition-all duration-300 ease-out flex justify-center items-center gap-2 active:scale-95 group"
-                >
-                  <span>Analisis Sekarang</span>
-                  <i className="fas fa-arrow-right group-hover:translate-x-1 transition-transform duration-300 ease-out"></i>
-                </button>
-              </form>
-            </div>
+      <main className="max-w-2xl mx-auto px-4 py-6 md:py-10">
+        {/* Header */}
+        <div className="flex items-start justify-between mb-6">
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold ds-text">Lapor Kerusakan</h1>
+            <p className="ds-text-muted text-sm mt-1">
+              Bantu pemerintah mendata infrastruktur via AI. 3 langkah cepat.
+            </p>
           </div>
-
-          <div className="lg:col-span-5 order-2 space-y-6 animate-slide-up" style={{ animationDelay: "0.1s" }}>
-            <div className="bg-blue-50 rounded-2xl p-6 border border-blue-100 hover:shadow-xl hover:-translate-y-1 transition-all duration-500 ease-out group">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 rounded-full bg-white text-blue-600 flex items-center justify-center shadow-sm text-lg">
-                  <i className="fas fa-robot"></i>
-                </div>
-                <div>
-                  <h3 className="font-bold text-blue-900 text-sm group-hover:text-blue-700 transition-colors duration-300">
-                    Panduan Akurasi AI
-                  </h3>
-                  <p className="text-[10px] text-blue-700 group-hover:text-blue-900 transition-colors duration-300">
-                    Ikuti tips ini agar laporan valid.
-                  </p>
-                </div>
-              </div>
-              <div className="space-y-3">
-                {TIPS.map((tip) => (
-                  <div key={tip.t} className="flex items-start gap-3 bg-white p-3 rounded-xl border border-blue-100/50 hover:bg-blue-100/50 transition-colors cursor-default group">
-                    <i className={`${tip.icon} mt-0.5 group-hover:scale-110 transition-transform`}></i>
-                    <div>
-                      <strong className="block text-xs text-gray-800">{tip.t}</strong>
-                      <p className="text-[10px] text-gray-500">{tip.d}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="bg-white rounded-2xl border border-lightBorder p-5 shadow-sm overflow-hidden relative hover:shadow-xl hover:-translate-y-1 transition-all duration-500 ease-out group">
-              <div className="absolute top-0 left-0 w-1 h-full bg-accentGreen"></div>
-              <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2 group-hover:text-accentGreen transition-colors duration-300">
-                <span className="w-2 h-2 rounded-full bg-accentGreen animate-pulse"></span>
-                Aktivitas Warga
-              </h3>
-              <div id="liveActivityList" className="space-y-4 opacity-70">
-                {activity.length === 0 && <p className="text-xs text-gray-400 animate-pulse">Memuat aktivitas...</p>}
-                {activity.map((item, i) => {
-                  const date = new Date(item.created_at);
-                  const timeStr = date.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" });
-                  let colorClass = "text-gray-600";
-                  const cat = item.issue_class;
-                  if (cat === "JALAN_RUSAK") colorClass = "text-red-500";
-                  else if (cat === "SAMPAH") colorClass = "text-amber-500";
-                  else if (cat === "GENANGAN") colorClass = "text-accentGreen";
-                  else if (cat === "KABEL") colorClass = "text-slate-600";
-                  return (
-                    <div key={i} className="flex items-center gap-3 text-xs hover:translate-x-1 transition-transform duration-300 cursor-default">
-                      <span className="text-gray-400">{timeStr}</span>
-                      <span className="font-medium text-textDark">
-                        Laporan <span className={`${colorClass} font-bold capitalize`}>{String(cat || "").replace(/_/g, " ").toLowerCase()}</span> di {item.kecamatan || "Lokasi"}.
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="text-center text-[10px] text-gray-400 pt-4">
-              &copy; 2025 BaliCivic AI Project. <br /> Powered by YOLO11 & Gemini Flash.
-            </div>
-          </div>
+          <ThemeToggle />
         </div>
-      </main>
 
-      {/* Modal */}
-      <div className={`fixed inset-0 z-[100] ${modal.show ? "flex" : "hidden"} items-center justify-center bg-black/50 backdrop-blur-sm transition-opacity duration-300 ${modal.show ? "opacity-100" : "opacity-0"}`}>
-        <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full mx-4 text-center transform scale-95 transition-transform duration-300">
-          {!modal.success ? (
-            <div className="flex flex-col items-center">
-              <div className="loader mb-4 w-12 h-12 border-4 border-t-primary border-gray-200 rounded-full animate-spin"></div>
-              <h3 className="text-lg font-bold text-textDark mb-1">Menganalisis Laporan...</h3>
-              <p className="text-xs text-textSecondary">Mohon tunggu sebentar.</p>
+        {/* Step indicator */}
+        <div className="mb-6 flex items-center gap-2">
+          {[1, 2, 3].map((n) => (
+            <div key={n} className="flex-1 flex items-center gap-2">
+              <div
+                className={[
+                  'h-8 w-8 rounded-full flex items-center justify-center text-xs font-semibold transition-colors',
+                  step >= n ? 'bg-[var(--brand-primary)] text-white' : 'ds-surface-muted ds-text-subtle',
+                ].join(' ')}
+              >
+                {step > n ? '✓' : n}
+              </div>
+              {n < 3 && (
+                <div className={`h-0.5 flex-1 ${step > n ? 'bg-[var(--brand-primary)]' : 'ds-surface-muted'}`} />
+              )}
             </div>
-          ) : (
-            <div className="flex flex-col items-center">
-              <div className="w-16 h-16 bg-green-100 text-green-500 rounded-full flex items-center justify-center mb-4 text-3xl animate-bounce">
-                <i className="fas fa-check"></i>
+          ))}
+        </div>
+
+        {/* Step 1: Upload */}
+        <Card padding="md" className="mb-4">
+          <CardHeader>
+            <CardTitle>
+              <span className="inline-flex items-center gap-2">
+                <span className="h-6 w-6 rounded-full bg-[var(--brand-primary-soft)] text-[var(--brand-primary)] flex items-center justify-center text-xs font-bold">1</span>
+                Foto kerusakan
+              </span>
+            </CardTitle>
+            <CardDescription>Pastikan objek terlihat jelas dan fokus.</CardDescription>
+          </CardHeader>
+          <label
+            htmlFor="file-input"
+            className={[
+              'block relative aspect-[4/3] rounded-[var(--radius-md)] border-2 border-dashed cursor-pointer overflow-hidden transition-colors',
+              preview
+                ? 'border-[var(--brand-primary)]'
+                : 'ds-border-color hover:border-[var(--brand-primary)] hover:bg-[var(--brand-primary-soft)]/30',
+            ].join(' ')}
+          >
+            <input
+              ref={fileRef}
+              id="file-input"
+              type="file"
+              accept="image/*"
+              capture="environment"
+              required
+              onChange={handleFileChange}
+              className="sr-only"
+            />
+            {preview ? (
+              <>
+                <img src={preview} alt="Preview" className="absolute inset-0 w-full h-full object-cover" />
+                <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                  <span className="text-white text-xs font-medium border border-white px-3 py-1.5 rounded-full backdrop-blur-sm">
+                    Ketuk untuk ganti foto
+                  </span>
+                </div>
+              </>
+            ) : (
+              <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6">
+                <div className="h-16 w-16 rounded-full ds-surface-muted flex items-center justify-center mb-3 ds-text-muted">
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M23 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h5l2-3h6l2 3h5a2 2 0 0 1 2 2z" />
+                    <circle cx="12" cy="13" r="4" />
+                  </svg>
+                </div>
+                <span className="ds-text font-medium">Ketuk untuk ambil foto</span>
+                <span className="ds-text-subtle text-xs mt-1">atau upload dari galeri · maks 10 MB</span>
               </div>
-              <h3 className="text-xl font-bold text-textDark mb-2">Laporan Berhasil!</h3>
-              <p className="text-sm text-textSecondary mb-6">Laporan anda telah tersimpan dan dianalisis oleh AI.</p>
-              <div className="bg-gray-50 rounded-lg p-3 w-full mb-4 border border-gray-100">
-                <p className="text-xs text-gray-500 mb-1">Mengalihkan ke Detail Laporan dalam</p>
-                <div className="text-2xl font-bold text-primary" id="countdownTimer">{modal.countdown}</div>
-              </div>
+            )}
+          </label>
+        </Card>
+
+        {/* Step 2: Lokasi */}
+        <Card padding="md" className="mb-4">
+          <CardHeader>
+            <CardTitle>
+              <span className="inline-flex items-center gap-2">
+                <span className={[
+                  'h-6 w-6 rounded-full flex items-center justify-center text-xs font-bold transition-colors',
+                  step >= 2 ? 'bg-[var(--brand-primary-soft)] text-[var(--brand-primary)]' : 'ds-surface-muted ds-text-subtle',
+                ].join(' ')}>2</span>
+                Lokasi
+              </span>
+            </CardTitle>
+            <CardDescription>GPS otomatis, atau isi manual.</CardDescription>
+          </CardHeader>
+
+          {gpsState === 'ok' && (
+            <div className="flex items-center gap-2 mb-3 text-xs ds-text-muted">
+              <span className="h-2 w-2 rounded-full bg-[var(--status-done)]" />
+              <span className="ds-font-mono">{coords.lat?.toFixed(5)}, {coords.lng?.toFixed(5)}</span>
             </div>
           )}
-        </div>
-      </div>
+
+          {gpsError && (
+            <div className="mb-3 p-3 rounded-[var(--radius-sm)] bg-[var(--status-error-bg)] text-[var(--status-error)] text-xs">
+              {gpsError}
+            </div>
+          )}
+
+          <Button
+            type="button"
+            variant="secondary"
+            size="md"
+            fullWidth
+            loading={gpsState === 'loading'}
+            onClick={getLocation}
+            leftIcon={
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="22" y1="12" x2="18" y2="12" />
+                <line x1="6" y1="12" x2="2" y2="12" />
+                <line x1="12" y1="6" x2="12" y2="2" />
+                <line x1="12" y1="22" x2="12" y2="18" />
+              </svg>
+            }
+          >
+            {gpsState === 'ok' ? 'Perbarui lokasi' : 'Deteksi lokasi saya'}
+          </Button>
+        </Card>
+
+        {/* Step 3: Submit */}
+        <Card padding="md" className="mb-6">
+          <CardHeader>
+            <CardTitle>
+              <span className="inline-flex items-center gap-2">
+                <span className={[
+                  'h-6 w-6 rounded-full flex items-center justify-center text-xs font-bold transition-colors',
+                  step >= 3 ? 'bg-[var(--brand-primary-soft)] text-[var(--brand-primary)]' : 'ds-surface-muted ds-text-subtle',
+                ].join(' ')}>3</span>
+                Kirim
+              </span>
+            </CardTitle>
+            <CardDescription>
+              AI akan menganalisis foto & memberi laporan otomatis. Kamu akan mendapat ID tiket untuk tracking.
+            </CardDescription>
+          </CardHeader>
+          <Button
+            type="button"
+            variant="primary"
+            size="lg"
+            fullWidth
+            disabled={!preview}
+            loading={submitting}
+            onClick={handleSubmit}
+            rightIcon={
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="5" y1="12" x2="19" y2="12" />
+                <polyline points="12 5 19 12 12 19" />
+              </svg>
+            }
+          >
+            Kirim Laporan
+          </Button>
+        </Card>
+
+        {/* Tips */}
+        <Card padding="md" variant="muted" className="mb-4">
+          <CardHeader>
+            <CardTitle>Panduan foto akurat</CardTitle>
+            <CardDescription>Biar AI bisa analisis dengan tepat.</CardDescription>
+          </CardHeader>
+          <div className="space-y-3">
+            {TIPS.map((tip) => (
+              <div key={tip.title} className="flex items-start gap-3 ds-surface p-3 rounded-[var(--radius-sm)]">
+                <span className="text-xl">{tip.icon}</span>
+                <div>
+                  <strong className="block text-sm ds-text">{tip.title}</strong>
+                  <p className="text-xs ds-text-muted">{tip.desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+
+        {/* Live activity */}
+        <Card padding="md" className="mb-6">
+          <div className="flex items-center justify-between mb-3">
+            <CardTitle>
+              <span className="inline-flex items-center gap-2">
+                <span className="h-2 w-2 rounded-full bg-[var(--status-done)] animate-pulse" />
+                Aktivitas terbaru
+              </span>
+            </CardTitle>
+            <Badge variant="brand" size="sm">Live</Badge>
+          </div>
+          <div className="space-y-2">
+            {activity.length === 0 && (
+              <p className="text-xs ds-text-subtle animate-pulse">Memuat aktivitas...</p>
+            )}
+            {activity.map((item) => (
+              <div key={item.id} className="flex items-center gap-3 text-xs py-2">
+                <span className="ds-text-subtle ds-font-mono w-12 shrink-0">
+                  {new Date(item.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
+                </span>
+                <span className="ds-text-muted flex-1">
+                  Laporan <StatusBadge status={item.status} size="sm" />
+                </span>
+              </div>
+            ))}
+          </div>
+        </Card>
+
+        <p className="text-center text-xs ds-text-subtle">
+          Powered by Vision AI & LLM
+        </p>
+      </main>
 
       <BottomNav raised="/lapor" />
     </div>

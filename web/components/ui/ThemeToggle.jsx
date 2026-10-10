@@ -12,6 +12,8 @@ export function ThemeToggle({ className = '' }) {
   useEffect(() => {
     const stored = typeof window !== 'undefined' && localStorage.getItem('ds-theme');
     const initial = stored || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    // Set initial state from localStorage / system preference after mount.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setTheme(initial);
   }, []);
 

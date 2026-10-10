@@ -88,7 +88,7 @@ export function simulateAnalysis(id) {
     issue.final_score = 30 + Math.floor(Math.random() * 60);
     issue.severity_label = issue.final_score >= 75 ? 'HIGH' : issue.final_score >= 45 ? 'MEDIUM' : 'LOW';
     issue.title = `Laporan: ${issue.issue_class.replace('_', ' ')}`;
-    issue.description = 'Analisis AI selesai. Laporan terverifikasi dan siap ditindaklanjuti.';
+    issue.description = 'Analisis AI selesai. Laporan terverifikasi dan siap ditindaklanjuti oleh admin.';
     issue.status = 'PENDING'; // tetap PENDING untuk admin review
     issue.image_url = issue.image_url || `https://picsum.photos/seed/ai${id}/640/480`;
     issue.breakdown_score = {
@@ -96,6 +96,10 @@ export function simulateAnalysis(id) {
       area: Math.floor(issue.final_score * 0.3),
       perspective: Math.floor(issue.final_score * 0.1),
     };
+    issue.timeline = [
+      { status: 'PENDING', timestamp: new Date().toISOString().slice(0, 19).replace('T', ' '), actor: 'Sistem', message: 'Laporan diterima' },
+      { status: 'IN_PROGRESS', timestamp: new Date(Date.now() + 86400e3).toISOString().slice(0, 19).replace('T', ' '), actor: 'Sistem', message: 'Sedang dianalisis AI' },
+    ];
     issue.updated_at = new Date().toISOString();
   }, 4000 + Math.random() * 4000);
 }
