@@ -30,7 +30,7 @@ export default function NavbarApp({ active = "", variant = "plain", sublabel = "
           </div>
           <div className="hidden md:flex items-center space-x-1">
             {LINKS.map((l) => (
-              <Link key={l.href} href={l.href} className={active === l.href ? "px-4 py-2 text-sm font-bold text-primary bg-primary/5 rounded-lg transition-all" : "px-4 py-2 text-sm font-medium text-slate-500 hover:text-primary hover:bg-primary/5 rounded-lg transition-all"}>
+              <Link key={l.href} href={l.href} className={active === l.href ? "px-4 py-2 text-sm font-bold text-[var(--brand-primary)] bg-primary/5 rounded-lg transition-all" : "px-4 py-2 text-sm font-medium text-slate-500 hover:text-[var(--brand-primary)] hover:bg-primary/5 rounded-lg transition-all"}>
                 {l.label}
               </Link>
             ))}
@@ -38,7 +38,7 @@ export default function NavbarApp({ active = "", variant = "plain", sublabel = "
               <i className="fas fa-plus-circle mr-2"></i>Lapor
             </Link>
           </div>
-          <Link href="/bantuan" className="md:hidden p-2.5 text-slate-500 hover:text-primary hover:bg-primary/5 rounded-lg transition-all duration-300">
+          <Link href="/bantuan" className="md:hidden p-2.5 text-slate-500 hover:text-[var(--brand-primary)] hover:bg-primary/5 rounded-lg transition-all duration-300">
             <i className="fas fa-question-circle text-lg"></i>
           </Link>
         </div>
@@ -55,13 +55,13 @@ export default function NavbarApp({ active = "", variant = "plain", sublabel = "
               <img src="/assets/BaliCivic_App_Icon_1_.png" alt="BaliCivic AI" className="h-9 w-9 rounded-xl object-cover shadow-lg shadow-primary/20 ring-1 ring-white/50" />
             </Link>
             <div className="flex flex-col">
-              <span className="font-display font-bold tracking-tight text-lg text-textDark">BaliCivic AI</span>
-              {sublabel && <span className="text-[10px] font-medium text-primary leading-none">{sublabel}</span>}
+              <span className="font-display font-bold tracking-tight text-lg ds-text">BaliCivic AI</span>
+              {sublabel && <span className="text-[10px] font-medium text-[var(--brand-primary)] leading-none">{sublabel}</span>}
             </div>
           </div>
           <div className="hidden md:flex items-center space-x-1">
             {LINKS.map((l) => (
-              <Link key={l.href} href={l.href} className={active === l.href ? "px-4 py-2 text-sm font-bold text-primary bg-primary/5 rounded-lg transition-all" : "px-4 py-2 text-sm font-medium text-slate-500 hover:text-primary hover:bg-primary/5 rounded-lg transition-all"}>
+              <Link key={l.href} href={l.href} className={active === l.href ? "px-4 py-2 text-sm font-bold text-[var(--brand-primary)] bg-primary/5 rounded-lg transition-all" : "px-4 py-2 text-sm font-medium text-slate-500 hover:text-[var(--brand-primary)] hover:bg-primary/5 rounded-lg transition-all"}>
                 {l.label}
               </Link>
             ))}
@@ -69,7 +69,7 @@ export default function NavbarApp({ active = "", variant = "plain", sublabel = "
               <i className="fas fa-plus-circle mr-2"></i>Lapor
             </Link>
           </div>
-          <Link href="/bantuan" className="md:hidden p-2.5 text-slate-500 hover:text-primary hover:bg-primary/5 rounded-lg transition-all duration-300">
+          <Link href="/bantuan" className="md:hidden p-2.5 text-slate-500 hover:text-[var(--brand-primary)] hover:bg-primary/5 rounded-lg transition-all duration-300">
             <i className="fas fa-question-circle text-lg"></i>
           </Link>
         </div>
@@ -79,17 +79,17 @@ export default function NavbarApp({ active = "", variant = "plain", sublabel = "
 
   // plain (default)
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-lightBorder bg-white/90 backdrop-blur-md transition-all duration-300">
+    <header className="sticky top-0 z-50 w-full border-b ds-border-color bg-white/90 backdrop-blur-md transition-all duration-300">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
         <div className="flex items-center gap-2">
           <Link href="/" className="block" aria-label="BaliCivic AI - Beranda">
             <img src="/assets/BaliCivic_App_Icon_1_.png" alt="BaliCivic AI" className="h-8 w-8 rounded-lg object-cover shadow-lg shadow-primary/30" width="32" height="32" />
           </Link>
-          <span className="font-bold tracking-tight text-lg text-textDark">BaliCivic AI</span>
+          <span className="font-bold tracking-tight text-lg ds-text">BaliCivic AI</span>
         </div>
         <div className="hidden md:flex items-center space-x-1">
           {LINKS.map((l) => (
-            <Link key={l.href} href={l.href} className={active === l.href ? "px-4 py-2 text-sm font-bold text-primary bg-primary/5 rounded-lg transition-all" : "px-4 py-2 text-sm font-medium text-textSecondary hover:text-primary hover:bg-primary/5 rounded-lg transition-all"}>
+            <Link key={l.href} href={l.href} className={active === l.href ? "px-4 py-2 text-sm font-bold text-[var(--brand-primary)] bg-primary/5 rounded-lg transition-all" : "px-4 py-2 text-sm font-medium ds-text-muted hover:text-[var(--brand-primary)] hover:bg-primary/5 rounded-lg transition-all"}>
               {l.label}
             </Link>
           ))}
@@ -97,7 +97,7 @@ export default function NavbarApp({ active = "", variant = "plain", sublabel = "
             <i className="fas fa-plus-circle mr-2"></i>Lapor
           </Link>
         </div>
-        <Link href="/bantuan" className="md:hidden p-2.5 text-textSecondary hover:text-primary hover:bg-primary/5 rounded-lg transition-all duration-300 group">
+        <Link href="/bantuan" className="md:hidden p-2.5 ds-text-muted hover:text-[var(--brand-primary)] hover:bg-primary/5 rounded-lg transition-all duration-300 group">
           <i className="fas fa-question-circle text-base group-hover:scale-110 transition-transform"></i>
         </Link>
       </div>

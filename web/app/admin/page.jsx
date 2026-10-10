@@ -53,7 +53,7 @@ function AdminContent() {
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [token, id]);
 
   async function fetchIssueDetail(targetId) {
@@ -186,7 +186,7 @@ function AdminContent() {
     );
   } else {
     actionButtons = (
-      <button onClick={() => confirmUpdate("IN_PROGRESS")} disabled={actionBusy} className="w-full bg-primary text-white font-bold py-3 rounded-xl">
+      <button onClick={() => confirmUpdate("IN_PROGRESS")} disabled={actionBusy} className="w-full bg-[var(--brand-primary)] text-white font-bold py-3 rounded-xl">
         <i className="fas fa-rocket mr-1"></i> Verifikasi
       </button>
     );
@@ -208,7 +208,7 @@ function AdminContent() {
         <div className="fixed inset-0 z-[100]">
           <div className="absolute inset-0 bg-black/50" onClick={closeModal}></div>
           <div className="absolute inset-0 flex items-center justify-center p-4">
-            <div className="modal-animate bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
+            <div className="modal-animate ds-surface rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
               <div className="pt-6 pb-2 flex justify-center">
                 {modal.type === "confirm" ? (
                   <div className="w-16 h-16 rounded-full bg-amber-100 flex items-center justify-center">
@@ -232,7 +232,7 @@ function AdminContent() {
                 {modal.type === "confirm" ? (
                   <>
                     <button onClick={closeModal} className="flex-1 py-4 text-slate-500 font-semibold">Batal</button>
-                    <button onClick={confirmModal} className="flex-1 py-4 text-primary font-bold border-l">Ya</button>
+                    <button onClick={confirmModal} className="flex-1 py-4 text-[var(--brand-primary)] font-bold border-l">Ya</button>
                   </>
                 ) : (
                   <button onClick={closeModal} className={`flex-1 py-4 font-bold ${modal.type === "success" ? "text-emerald-600" : "text-red-600"}`}>
@@ -248,7 +248,7 @@ function AdminContent() {
       {/* Toast */}
       {toast && (
         <div className="fixed top-4 left-4 right-4 z-[110]">
-          <div className="bg-white rounded-xl shadow-lg border p-4 flex items-center gap-3 max-w-md mx-auto">
+          <div className="ds-surface rounded-xl shadow-lg border p-4 flex items-center gap-3 max-w-md mx-auto">
             <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
               <i className="fas fa-check text-emerald-500"></i>
             </div>
@@ -261,36 +261,36 @@ function AdminContent() {
       )}
 
       {/* Header */}
-      <header className="sticky top-0 z-50 w-full border-b bg-white/95 backdrop-blur-md">
+      <header className="sticky top-0 z-50 w-full border-b ds-surface/95 backdrop-blur-md">
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-3">
           <Link href="/" className="flex items-center gap-2">
-            <div className="h-8 w-8 bg-primary rounded-xl flex items-center justify-center text-white font-bold shadow-lg">
+            <div className="h-8 w-8 bg-[var(--brand-primary)] rounded-xl flex items-center justify-center text-white font-bold shadow-lg">
               <i className="fas fa-shield-halved text-xs"></i>
             </div>
-            <span className="font-bold text-base">BaliCivic <span className="text-primary">AI</span></span>
+            <span className="font-bold text-base">BaliCivic <span className="text-[var(--brand-primary)]">AI</span></span>
           </Link>
           <div className="flex items-center gap-2">
-            <button onClick={downloadPDF} className="px-3 py-2 bg-primary/10 text-primary rounded-xl font-semibold text-sm hover:bg-primary hover:text-white">
+            <button onClick={downloadPDF} className="px-3 py-2 bg-[var(--brand-primary)]/10 text-[var(--brand-primary)] rounded-xl font-semibold text-sm hover:bg-[var(--brand-primary)] hover:text-white">
               <i className="fas fa-file-pdf mr-1"></i> PDF
             </button>
-            <span className="text-xs font-mono font-bold text-primary hidden sm:block">#{shortId}</span>
+            <span className="text-xs font-mono font-bold text-[var(--brand-primary)] hidden sm:block">#{shortId}</span>
           </div>
         </div>
       </header>
 
       {/* Lock Screen */}
       {stage !== "open" && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-white">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center ds-surface">
           <div className="text-center space-y-6 max-w-sm px-6">
-            <div className="w-20 h-20 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto animate-bounce-slow">
-              <i className="fas fa-lock text-3xl text-primary"></i>
+            <div className="w-20 h-20 bg-[var(--brand-primary)]/10 rounded-2xl flex items-center justify-center mx-auto animate-bounce-slow">
+              <i className="fas fa-lock text-3xl text-[var(--brand-primary)]"></i>
             </div>
             <h1 className="text-xl font-bold">Akses Terenkripsi</h1>
             <p className="text-slate-500 text-sm">
               {stage === "checking" ? "Mohon tunggu verifikasi token." : errorMsg || "Token tidak valid."}
             </p>
             {stage === "checking" && (
-              <div className="flex items-center justify-center gap-2 text-sm text-primary">
+              <div className="flex items-center justify-center gap-2 text-sm text-[var(--brand-primary)]">
                 <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
@@ -307,7 +307,7 @@ function AdminContent() {
         <main className="flex-grow opacity-100 transition-opacity py-4 px-3 pb-6">
           <div className="mx-auto max-w-5xl">
             <nav className="flex mb-3 text-xs text-slate-500">
-              <a href="/dashboard" className="hover:text-primary">Dashboard</a>
+              <a href="/dashboard" className="hover:text-[var(--brand-primary)]">Dashboard</a>
               <span className="mx-2">/</span>
               <span className="font-medium text-slate-800">Detail</span>
             </nav>
@@ -327,15 +327,15 @@ function AdminContent() {
 
             <div className="grid lg:grid-cols-12 gap-4">
               <div className="lg:col-span-7 space-y-4">
-                <div className="bg-white rounded-xl border overflow-hidden">
+                <div className="ds-surface rounded-xl border overflow-hidden">
                   <div className="relative aspect-video bg-slate-100">
                     {imgSrc && <img src={imgSrc} alt="Bukti" className="w-full h-full object-cover" />}
                     <div className="absolute top-2 left-2 px-2 py-1 bg-black/60 rounded text-white text-xs font-mono">YOLO11s</div>
                   </div>
                 </div>
-                <div className="bg-white rounded-xl border p-4">
+                <div className="ds-surface rounded-xl border p-4">
                   <h3 className="text-xs font-bold text-slate-400 uppercase mb-3">
-                    <i className="fas fa-database text-primary mr-1"></i> Metadata
+                    <i className="fas fa-database text-[var(--brand-primary)] mr-1"></i> Metadata
                   </h3>
                   <div className="grid grid-cols-2 gap-2 mb-4">
                     <div className="p-3 bg-slate-50 rounded-lg">
@@ -355,12 +355,12 @@ function AdminContent() {
                       <span className="font-bold text-slate-800">{dateStr}</span>
                     </div>
                   </div>
-                  <div className="bg-primary/5 rounded-lg p-3 border-l-4 border-primary">
-                    <h4 className="text-xs font-bold text-primary mb-1">Deskripsi AI</h4>
+                  <div className="bg-[var(--brand-primary)]/5 rounded-lg p-3 border-l-4 border-[var(--brand-primary)]">
+                    <h4 className="text-xs font-bold text-[var(--brand-primary)] mb-1">Deskripsi AI</h4>
                     <p className="text-slate-700 text-sm">{data?.description || "Memuat..."}</p>
                   </div>
                 </div>
-                <div className="bg-white rounded-xl border p-4">
+                <div className="ds-surface rounded-xl border p-4">
                   <h3 className="text-xs font-bold text-slate-400 uppercase mb-3">
                     <i className="fas fa-exclamation-triangle text-amber-500 mr-1"></i> Risk Note
                   </h3>
@@ -372,10 +372,10 @@ function AdminContent() {
               </div>
 
               <div className="lg:col-span-5 space-y-4">
-                <div className="bg-white rounded-xl border overflow-hidden">
+                <div className="ds-surface rounded-xl border overflow-hidden">
                   <div className="bg-gradient-to-r from-slate-800 to-slate-900 text-white px-4 py-3 flex justify-between items-center">
-                    <span className="font-bold text-sm"><i className="fas fa-microchip text-primary mr-1"></i> Severity Score</span>
-                    <span className="text-2xl font-black text-primary">{score}</span>
+                    <span className="font-bold text-sm"><i className="fas fa-microchip text-[var(--brand-primary)] mr-1"></i> Severity Score</span>
+                    <span className="text-2xl font-black text-[var(--brand-primary)]">{score}</span>
                   </div>
                   <div className="p-4">
                     <div className="h-3 bg-slate-100 rounded-full overflow-hidden mb-2">
@@ -386,16 +386,16 @@ function AdminContent() {
                     </div>
                   </div>
                 </div>
-                <div className="bg-white rounded-xl border p-4">
+                <div className="ds-surface rounded-xl border p-4">
                   <div className="flex justify-between items-center mb-4">
                     <h3 className="text-sm font-bold text-slate-800">
-                      <i className="fas fa-tasks text-primary mr-1"></i> Tindakan
+                      <i className="fas fa-tasks text-[var(--brand-primary)] mr-1"></i> Tindakan
                     </h3>
                     <span className={`${statusBadgeCls} px-2 py-1 rounded-full text-xs font-bold`}>{statusBadgeText}</span>
                   </div>
                   <div className="flex flex-col gap-2 opacity-100">{actionButtons}</div>
                 </div>
-                <div className="bg-white rounded-xl border p-4">
+                <div className="ds-surface rounded-xl border p-4">
                   <h3 className="text-xs font-bold text-slate-400 uppercase mb-3">
                     <i className="fas fa-lightbulb text-emerald-500 mr-1"></i> Recommended Action
                   </h3>
@@ -523,10 +523,10 @@ export default function AdminPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen flex items-center justify-center bg-white">
+        <div className="min-h-screen flex items-center justify-center ds-surface">
           <div className="text-center space-y-4">
-            <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto animate-pulse">
-              <i className="fas fa-lock text-2xl text-primary"></i>
+            <div className="w-16 h-16 bg-[var(--brand-primary)]/10 rounded-2xl flex items-center justify-center mx-auto animate-pulse">
+              <i className="fas fa-lock text-2xl text-[var(--brand-primary)]"></i>
             </div>
             <p className="text-slate-500 text-sm">Memuat…</p>
           </div>

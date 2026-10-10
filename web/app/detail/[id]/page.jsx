@@ -168,8 +168,8 @@ export default function DetailPage() {
       <style dangerouslySetInnerHTML={{ __html: PAGE_CSS }} />
       <nav className="sticky top-0 z-50 w-full glass-panel border-b border-white/50 transition-all duration-300 print:hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
-          <a href="/dashboard" className="flex items-center gap-3 text-slate-500 hover:text-primary transition-all group">
-            <div className="w-10 h-10 rounded-full bg-white/80 border border-white shadow-sm flex items-center justify-center group-hover:bg-primary group-hover:text-white group-hover:border-primary transition-all duration-300">
+          <a href="/dashboard" className="flex items-center gap-3 text-slate-500 hover:text-[var(--brand-primary)] transition-all group">
+            <div className="w-10 h-10 rounded-full ds-surface/80 border border-white shadow-sm flex items-center justify-center group-hover:bg-[var(--brand-primary)] group-hover:text-white group-hover:border-[var(--brand-primary)] transition-all duration-300">
               <i className="fas fa-arrow-left text-sm group-hover:-translate-x-0.5 transition-transform"></i>
             </div>
             <span className="font-medium text-sm tracking-wide">Kembali ke Dashboard</span>
@@ -181,8 +181,8 @@ export default function DetailPage() {
             <span className="font-display font-bold text-xl tracking-tight text-slate-800">Detail Laporan</span>
           </div>
           <div className="flex items-center gap-3">
-            <button onClick={() => window.print()} className="group flex items-center gap-2 px-4 py-2 rounded-xl bg-white/50 hover:bg-white border border-white/60 hover:border-white shadow-sm hover:shadow-md transition-all duration-300">
-              <i className="fas fa-print text-slate-400 group-hover:text-primary transition-colors"></i>
+            <button onClick={() => window.print()} className="group flex items-center gap-2 px-4 py-2 rounded-xl ds-surface/50 hover:ds-surface border border-white/60 hover:border-white shadow-sm hover:shadow-md transition-all duration-300">
+              <i className="fas fa-print text-slate-400 group-hover:text-[var(--brand-primary)] transition-colors"></i>
               <span className="text-xs font-bold text-slate-600 group-hover:text-slate-900 hidden md:inline">Cetak PDF</span>
             </button>
           </div>
@@ -193,10 +193,10 @@ export default function DetailPage() {
         {!data && (
           <div className="flex flex-col items-center justify-center min-h-[60vh] gap-8 animate-fade-in print:hidden">
             <div className="relative w-24 h-24">
-              <div className="absolute inset-0 border-t-4 border-primary/20 rounded-full"></div>
-              <div className="absolute inset-0 border-t-4 border-primary rounded-full animate-spin"></div>
+              <div className="absolute inset-0 border-t-4 border-[var(--brand-primary)]/20 rounded-full"></div>
+              <div className="absolute inset-0 border-t-4 border-[var(--brand-primary)] rounded-full animate-spin"></div>
               <div className="absolute inset-0 flex items-center justify-center">
-                <i className="fas fa-robot text-primary/40 text-3xl animate-pulse"></i>
+                <i className="fas fa-robot text-[var(--brand-primary)]/40 text-3xl animate-pulse"></i>
               </div>
             </div>
             <div className="text-center space-y-2">
@@ -241,9 +241,9 @@ export default function DetailPage() {
               <div className="glass-panel rounded-3xl p-6 shadow-glass glass-card-hover relative overflow-hidden">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="font-display font-bold text-slate-700 flex items-center gap-2">
-                    <i className="fas fa-map-marked-alt text-primary/70"></i> Lokasi Kejadian
+                    <i className="fas fa-map-marked-alt text-[var(--brand-primary)]/70"></i> Lokasi Kejadian
                   </h3>
-                  <a href={gmapsHref} target="_blank" rel="noreferrer" className="text-xs font-bold text-primary hover:text-primary/80 flex items-center gap-1 bg-primary/5 px-3 py-1.5 rounded-full hover:bg-primary/10 transition-colors">
+                  <a href={gmapsHref} target="_blank" rel="noreferrer" className="text-xs font-bold text-[var(--brand-primary)] hover:text-[var(--brand-primary)]/80 flex items-center gap-1 bg-[var(--brand-primary)]/5 px-3 py-1.5 rounded-full hover:bg-[var(--brand-primary)]/10 transition-colors">
                     Buka Google Maps <i className="fas fa-external-link-alt ml-1"></i>
                   </a>
                 </div>
@@ -271,10 +271,10 @@ export default function DetailPage() {
                   </div>
                   <h1 className="text-2xl md:text-3xl font-display font-bold text-slate-800 leading-tight mb-4">{data?.title || `Laporan #${shortId}`}</h1>
                   <div className="flex items-center gap-2 text-sm text-slate-500 mb-8">
-                    <i className="far fa-clock text-primary/60"></i>
+                    <i className="far fa-clock text-[var(--brand-primary)]/60"></i>
                     <span className="font-medium">{timeText}</span>
                   </div>
-                  <div className="bg-white/60 rounded-2xl p-5 border border-white/60 shadow-sm backdrop-blur-sm">
+                  <div className="ds-surface/60 rounded-2xl p-5 border border-white/60 shadow-sm backdrop-blur-sm">
                     <div className="flex justify-between items-end mb-3">
                       <div>
                         <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Tingkat Keparahan</span>
@@ -287,7 +287,7 @@ export default function DetailPage() {
                     </div>
                     <div className="h-4 w-full bg-slate-100 rounded-full overflow-hidden shadow-inner border border-slate-100">
                       <div className={bar.cls} style={{ width: bar.width }}>
-                        <div className="absolute inset-0 bg-white/20 animate-[shimmer_2s_infinite]"></div>
+                        <div className="absolute inset-0 ds-surface/20 animate-[shimmer_2s_infinite]"></div>
                       </div>
                     </div>
                   </div>
@@ -323,7 +323,7 @@ export default function DetailPage() {
       </main>
 
       {/* Print Footer */}
-      <div className="hidden fixed bottom-0 left-0 w-full text-center py-6 border-t border-slate-200 bg-white" id="print-footer">
+      <div className="hidden fixed bottom-0 left-0 w-full text-center py-6 border-t border-slate-200 ds-surface" id="print-footer">
         <div className="flex items-center justify-center gap-2 mb-2 opacity-50">
           <img src="/assets/BaliCivic_App_Icon_1_.png" className="w-6 h-6 grayscale" alt="" />
           <span className="font-display font-bold text-slate-600">BaliCivic AI</span>
@@ -332,7 +332,7 @@ export default function DetailPage() {
           Dokumen ini digenerate secara otomatis oleh sistem BaliCivic AI.<br />
           Validitas data bergantung pada hasil analisis AI dan verifikasi lapangan.
         </p>
-        <p className="text-[10px] font-bold text-primary mt-1">www.balicivicai.site</p>
+        <p className="text-[10px] font-bold text-[var(--brand-primary)] mt-1">www.balicivicai.site</p>
       </div>
 
       {/* Image Modal */}
@@ -342,7 +342,7 @@ export default function DetailPage() {
       >
         <div className="relative max-w-6xl w-full max-h-[90vh] flex flex-col items-center">
           {imgSrc && <img src={imgSrc} alt="Tampilan penuh" className="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl border border-white/10" />}
-          <button className="mt-6 bg-white/10 hover:bg-white/20 text-white px-6 py-2 rounded-full font-bold transition-all flex items-center gap-2 backdrop-blur-sm border border-white/10">
+          <button className="mt-6 ds-surface/10 hover:ds-surface/20 text-white px-6 py-2 rounded-full font-bold transition-all flex items-center gap-2 backdrop-blur-sm border border-white/10">
             <i className="fas fa-times"></i> Tutup Tampilan Penuh
           </button>
         </div>

@@ -1,21 +1,25 @@
 @import "tailwindcss";
 
-/* ===== TEMA — identik dengan config.js frontend lama ===== */
+/* ===== TEMA — BaliCivic AI v2 (light mode only by default) ===== */
+/* Design tokens pakai CSS variables agar konsisten lintas halaman.
+   Dark mode aktif CUMA kalau user pilih via ThemeToggle (kelas .dark di <html>).
+   Tidak ada auto prefers-color-scheme — supaya konsisten saat demo. */
+
 @theme {
-  --color-primary: #C94B4B;
-  --color-primaryHover: #A43838;
-  --color-accentGreen: #1B9C85;
-  --color-accentGreenSoft: #E1F4EF;
-  --color-accentTeal: #2C8FBB;
-  --color-accentTealSoft: #E0F2FA;
-  --color-bgPage: #FAFAFA;
-  --color-cardGrey: #F8FAFC;
-  --color-textDark: #1E293B;
-  --color-textSecondary: #64748B;
-  --color-lightBorder: #E2E8F0;
-  --color-severityHigh: #EF4444;
-  --color-severityMed: #F59E0B;
-  --color-severityLow: #10B981;
+  --color-primary: #1e40af;          /* deep blue — gov-style */
+  --color-primaryHover: #1e3a8a;
+  --color-accentGreen: #10b981;      /* emerald */
+  --color-accentGreenSoft: #d1fae5;
+  --color-accentTeal: #0891b2;       /* cyan-600 */
+  --color-accentTealSoft: #cffafe;
+  --color-bgPage: #fafafa;
+  --color-cardGrey: #ffffff;
+  --color-textDark: #0f172a;
+  --color-textSecondary: #64748b;
+  --color-lightBorder: #e2e8f0;
+  --color-severityHigh: #dc2626;
+  --color-severityMed: #f59e0b;
+  --color-severityLow: #10b981;
 
   --font-sans: 'Inter', sans-serif;
   --font-display: 'Outfit', sans-serif;
@@ -83,40 +87,41 @@
   }
 }
 
-/* ===== DESIGN SYSTEM — Light & Dark Mode ===== */
-/* Pakai class .dark di <html> untuk aktifkan dark mode (override prefers-color-scheme). */
+/* ===== DESIGN SYSTEM — Light Mode (default) ===== */
+/* Tidak ada prefers-color-scheme auto — light mode konsisten di semua device. */
 :root {
   /* Surface */
   --ds-bg: #fafafa;
   --ds-surface: #ffffff;
   --ds-surface-muted: #f5f5f5;
-  --ds-border: #e5e5e5;
-  --ds-border-strong: #d4d4d4;
+  --ds-border: #e2e8f0;
+  --ds-border-strong: #cbd5e1;
 
   /* Text */
-  --ds-text: #0a0a0a;
-  --ds-text-muted: #525252;
-  --ds-text-subtle: #a3a3a3;
-  --ds-text-inverse: #fafafa;
+  --ds-text: #0f172a;
+  --ds-text-muted: #64748b;
+  --ds-text-subtle: #94a3b8;
+  --ds-text-inverse: #ffffff;
 
-  /* Brand & accent */
+  /* Brand & accent — deep blue (gov-style), bukan merah */
   --brand-primary: #1e40af;
   --brand-primary-hover: #1e3a8a;
   --brand-primary-soft: #dbeafe;
+  --brand-primary-text: #ffffff;
 
   /* Status pipeline */
-  --status-pending: #6b7280;
-  --status-pending-bg: #f3f4f6;
+  --status-pending: #64748b;
+  --status-pending-bg: #f1f5f9;
   --status-in-progress: #2563eb;
   --status-in-progress-bg: #dbeafe;
-  --status-done: #16a34a;
-  --status-done-bg: #dcfce7;
+  --status-done: #10b981;
+  --status-done-bg: #d1fae5;
   --status-error: #dc2626;
   --status-error-bg: #fee2e2;
 
   /* Severity */
-  --sev-low: #16a34a;
-  --sev-low-bg: #dcfce7;
+  --sev-low: #10b981;
+  --sev-low-bg: #d1fae5;
   --sev-medium: #f59e0b;
   --sev-medium-bg: #fef3c7;
   --sev-high: #dc2626;
@@ -127,30 +132,38 @@
   --ds-shadow-md: 0 4px 16px rgba(0,0,0,0.08);
   --ds-shadow-lg: 0 12px 32px rgba(0,0,0,0.12);
 
-  /* Override @theme colors yang lama (yang dipakai komponen existing) */
+  /* Bridge ke @theme lama (untuk class Tailwind lama yang masih dipake). */
+  --color-primary: var(--brand-primary);
+  --color-primaryHover: var(--brand-primary-hover);
+  --color-accentGreen: #10b981;
+  --color-accentGreenSoft: #d1fae5;
+  --color-accentTeal: #0891b2;
+  --color-accentTealSoft: #cffafe;
   --color-bgPage: var(--ds-bg);
   --color-cardGrey: var(--ds-surface);
   --color-textDark: var(--ds-text);
   --color-textSecondary: var(--ds-text-muted);
   --color-lightBorder: var(--ds-border);
+  --color-severityHigh: var(--sev-high);
+  --color-severityMed: var(--sev-medium);
+  --color-severityLow: var(--sev-low);
 }
 
+/* ===== Dark Mode — HANYA aktif kalau user pilih (kelas .dark di <html>) ===== */
 .dark {
   --ds-bg: #0a0a0a;
   --ds-surface: #171717;
   --ds-surface-muted: #1f1f1f;
   --ds-border: #262626;
   --ds-border-strong: #404040;
-
   --ds-text: #fafafa;
   --ds-text-muted: #a3a3a3;
   --ds-text-subtle: #737373;
   --ds-text-inverse: #0a0a0a;
-
   --brand-primary: #3b82f6;
   --brand-primary-hover: #60a5fa;
   --brand-primary-soft: #1e3a8a;
-
+  --brand-primary-text: #ffffff;
   --status-pending: #9ca3af;
   --status-pending-bg: #1f1f1f;
   --status-in-progress: #3b82f6;
@@ -159,18 +172,17 @@
   --status-done-bg: #14532d;
   --status-error: #f87171;
   --status-error-bg: #7f1d1d;
-
   --sev-low: #4ade80;
   --sev-low-bg: #14532d;
   --sev-medium: #fbbf24;
   --sev-medium-bg: #78350f;
   --sev-high: #f87171;
   --sev-high-bg: #7f1d1d;
-
   --ds-shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
   --ds-shadow-md: 0 4px 16px rgba(0,0,0,0.4);
   --ds-shadow-lg: 0 12px 32px rgba(0,0,0,0.5);
-
+  --color-primary: var(--brand-primary);
+  --color-primaryHover: var(--brand-primary-hover);
   --color-bgPage: var(--ds-bg);
   --color-cardGrey: var(--ds-surface);
   --color-textDark: var(--ds-text);
@@ -178,47 +190,7 @@
   --color-lightBorder: var(--ds-border);
 }
 
-/* Default ke prefers-color-scheme kalau user belum pilih */
-@media (prefers-color-scheme: dark) {
-  :root:not(.light) {
-    --ds-bg: #0a0a0a;
-    --ds-surface: #171717;
-    --ds-surface-muted: #1f1f1f;
-    --ds-border: #262626;
-    --ds-border-strong: #404040;
-    --ds-text: #fafafa;
-    --ds-text-muted: #a3a3a3;
-    --ds-text-subtle: #737373;
-    --ds-text-inverse: #0a0a0a;
-    --brand-primary: #3b82f6;
-    --brand-primary-hover: #60a5fa;
-    --brand-primary-soft: #1e3a8a;
-    --status-pending: #9ca3af;
-    --status-pending-bg: #1f1f1f;
-    --status-in-progress: #3b82f6;
-    --status-in-progress-bg: #1e3a8a;
-    --status-done: #4ade80;
-    --status-done-bg: #14532d;
-    --status-error: #f87171;
-    --status-error-bg: #7f1d1d;
-    --sev-low: #4ade80;
-    --sev-low-bg: #14532d;
-    --sev-medium: #fbbf24;
-    --sev-medium-bg: #78350f;
-    --sev-high: #f87171;
-    --sev-high-bg: #7f1d1d;
-    --ds-shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
-    --ds-shadow-md: 0 4px 16px rgba(0,0,0,0.4);
-    --ds-shadow-lg: 0 12px 32px rgba(0,0,0,0.5);
-    --color-bgPage: var(--ds-bg);
-    --color-cardGrey: var(--ds-surface);
-    --color-textDark: var(--ds-text);
-    --color-textSecondary: var(--ds-text-muted);
-    --color-lightBorder: var(--ds-border);
-  }
-}
-
-/* ===== Utility classes untuk Design System ===== */
+/* ===== Utility classes ===== */
 .ds-bg { background-color: var(--ds-bg); }
 .ds-surface { background-color: var(--ds-surface); }
 .ds-surface-muted { background-color: var(--ds-surface-muted); }
@@ -226,12 +198,42 @@
 .ds-text { color: var(--ds-text); }
 .ds-text-muted { color: var(--ds-text-muted); }
 .ds-text-subtle { color: var(--ds-text-subtle); }
-
 .ds-shadow-sm { box-shadow: var(--ds-shadow-sm); }
 .ds-shadow-md { box-shadow: var(--ds-shadow-md); }
 .ds-shadow-lg { box-shadow: var(--ds-shadow-lg); }
 
-/* scroll halus (dulu <html class="scroll-smooth">) */
+/* Scroll-reveal (legacy utility). Dipakai banyak di landing. Initial state
+   tersembunyi, animasi fade-in-up saat IntersectionObserver trigger class .active. */
+.scroll-reveal { opacity: 0; transform: translateY(30px); transition: opacity 0.8s cubic-bezier(0.5, 0, 0, 1), transform 0.8s cubic-bezier(0.5, 0, 0, 1); }
+.scroll-reveal.active { opacity: 1; transform: translateY(0); }
+.scroll-reveal.stagger-1 { transition-delay: 0.1s; }
+.scroll-reveal.stagger-2 { transition-delay: 0.2s; }
+.scroll-reveal.stagger-3 { transition-delay: 0.3s; }
+.scroll-reveal.stagger-4 { transition-delay: 0.4s; }
+.scroll-reveal.delay-100 { transition-delay: 0.1s; }
+.scroll-reveal.delay-200 { transition-delay: 0.2s; }
+
+/* Decorative blob backgrounds for hero section */
+.blob-bg { position: absolute; filter: blur(80px); z-index: -1; opacity: 0.4; transition: transform 0.1s ease-out; }
+
+/* Bounding-box simulation visual di hero mockup */
+.bbox-sim { position: absolute; border: 2px solid; background-color: rgba(255, 255, 255, 0.1); }
+.bbox-label { position: absolute; top: -22px; left: -2px; padding: 2px 6px; font-size: 0.65rem; font-weight: 600; color: white; border-radius: 4px 4px 0 0; }
+
+/* Legacy card hover effect (used on landing) */
+.card-hover { transition: all 0.3s ease; }
+.card-hover:hover { transform: translateY(-4px); box-shadow: 0 12px 20px -5px rgba(0, 0, 0, 0.08); }
+
+/* Animated gradient text (shimmer) untuk highlight "Vision AI" */
+.text-gradient-shimmer {
+  background: linear-gradient(to right, var(--brand-primary) 20%, #10b981 40%, #10b981 60%, var(--brand-primary) 80%);
+  background-size: 200% auto;
+  color: transparent;
+  -webkit-background-clip: text;
+  background-clip: text;
+  animation: shimmer 4s linear infinite;
+}
+
 html {
   scroll-behavior: smooth;
 }
@@ -242,8 +244,6 @@ body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
-/* Typography helpers */
 .ds-font-mono { font-family: var(--font-mono); }

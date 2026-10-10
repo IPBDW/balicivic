@@ -26,8 +26,8 @@ export default function BantuanPage() {
       <main className="mx-auto max-w-6xl px-4 py-12">
         {/* Header */}
         <div className="text-center mb-12">
-          <h1 className="text-4xl md:text-5xl font-bold text-textDark mb-4">Pusat Bantuan</h1>
-          <p className="text-lg text-textSecondary max-w-2xl mx-auto">
+          <h1 className="text-4xl md:text-5xl font-bold ds-text mb-4">Pusat Bantuan</h1>
+          <p className="text-lg ds-text-muted max-w-2xl mx-auto">
             Temukan panduan lengkap untuk menggunakan BaliCivic AI dan laporkan masalah lingkungan dengan mudah
           </p>
         </div>
@@ -35,57 +35,57 @@ export default function BantuanPage() {
         {/* Quick Links */}
         <div className="grid md:grid-cols-3 gap-6 mb-12">
           {[
-            { href: "#getting-started", iconBg: "bg-primary/10 group-hover:bg-primary", icon: "fas fa-rocket text-2xl text-primary group-hover:text-white", t: "Memulai", d: "Pelajari cara menggunakan aplikasi untuk pertama kali" },
-            { href: "#how-to-report", iconBg: "bg-accentGreen/10 group-hover:bg-accentGreen", icon: "fas fa-file-alt text-2xl text-accentGreen group-hover:text-white", t: "Cara Melapor", d: "Panduan lengkap membuat laporan kerusakan" },
-            { href: "#faq", iconBg: "bg-accentTeal/10 group-hover:bg-accentTeal", icon: "fas fa-question-circle text-2xl text-accentTeal group-hover:text-white", t: "FAQ", d: "Pertanyaan yang sering diajukan" },
+            { href: "#getting-started", iconBg: "bg-[var(--brand-primary)]/10 group-hover:bg-[var(--brand-primary)]", icon: "fas fa-rocket text-2xl text-[var(--brand-primary)] group-hover:text-white", t: "Memulai", d: "Pelajari cara menggunakan aplikasi untuk pertama kali" },
+            { href: "#how-to-report", iconBg: "bg-[var(--brand-primary)]/10 group-hover:bg-[var(--brand-primary)]", icon: "fas fa-file-alt text-2xl text-accentGreen group-hover:text-white", t: "Cara Melapor", d: "Panduan lengkap membuat laporan kerusakan" },
+            { href: "#faq", iconBg: "bg-[var(--brand-primary)]/10 group-hover:bg-[var(--brand-primary)]", icon: "fas fa-question-circle text-2xl text-accentTeal group-hover:text-white", t: "FAQ", d: "Pertanyaan yang sering diajukan" },
           ].map((c) => (
-            <a key={c.href} href={c.href} className="group bg-white rounded-2xl border border-lightBorder p-6 hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+            <a key={c.href} href={c.href} className="group ds-surface rounded-2xl border ds-border-color p-6 hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
               <div className={`w-12 h-12 ${c.iconBg} rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-all`}>
                 <i className={`${c.icon} transition-colors`}></i>
               </div>
-              <h3 className="font-bold text-textDark mb-2">{c.t}</h3>
-              <p className="text-sm text-textSecondary">{c.d}</p>
+              <h3 className="font-bold ds-text mb-2">{c.t}</h3>
+              <p className="text-sm ds-text-muted">{c.d}</p>
             </a>
           ))}
         </div>
 
         {/* Getting Started */}
         <section id="getting-started" className="mb-16">
-          <h2 className="text-3xl font-bold text-textDark mb-6">Memulai dengan BaliCivic AI</h2>
-          <div className="bg-white rounded-2xl border border-lightBorder p-8 mb-6">
-            <h3 className="text-xl font-bold text-textDark mb-4 flex items-center gap-2">
-              <span className="w-8 h-8 bg-primary text-white rounded-full flex items-center justify-center text-sm">1</span>
+          <h2 className="text-3xl font-bold ds-text mb-6">Memulai dengan BaliCivic AI</h2>
+          <div className="ds-surface rounded-2xl border ds-border-color p-8 mb-6">
+            <h3 className="text-xl font-bold ds-text mb-4 flex items-center gap-2">
+              <span className="w-8 h-8 bg-[var(--brand-primary)] text-white rounded-full flex items-center justify-center text-sm">1</span>
               Akses Dashboard
             </h3>
-            <p className="text-textSecondary mb-4">
+            <p className="ds-text-muted mb-4">
               Klik tombol &quot;Dashboard&quot; di menu navigasi atau tombol &quot;Coba Sekarang&quot; untuk mengakses halaman dashboard.
               Di sini Anda dapat melihat statistik laporan, peta heatmap, dan data terkini.
             </p>
-            <div className="bg-bgPage rounded-xl p-4 border border-lightBorder">
-              <p className="text-sm text-textSecondary">
+            <div className="ds-bg rounded-xl p-4 border ds-border-color">
+              <p className="text-sm ds-text-muted">
                 <i className="fas fa-lightbulb text-accentGreen mr-2"></i>
                 Gunakan mode mobile untuk pengalaman terbaik saat melapor dari lapangan.
               </p>
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl border border-lightBorder p-8 mb-6">
-            <h3 className="text-xl font-bold text-textDark mb-4 flex items-center gap-2">
-              <span className="w-8 h-8 bg-primary text-white rounded-full flex items-center justify-center text-sm">2</span>
+          <div className="ds-surface rounded-2xl border ds-border-color p-8 mb-6">
+            <h3 className="text-xl font-bold ds-text mb-4 flex items-center gap-2">
+              <span className="w-8 h-8 bg-[var(--brand-primary)] text-white rounded-full flex items-center justify-center text-sm">2</span>
               Buat Laporan Baru
             </h3>
-            <p className="text-textSecondary mb-4">
+            <p className="ds-text-muted mb-4">
               Klik menu &quot;Laporan&quot; atau tombol FAB (+) di pojok kanan bawah untuk membuat laporan kerusakan baru.
               Anda akan diarahkan ke halaman formulir pelaporan.
             </p>
           </div>
 
-          <div className="bg-white rounded-2xl border border-lightBorder p-8">
-            <h3 className="text-xl font-bold text-textDark mb-4 flex items-center gap-2">
-              <span className="w-8 h-8 bg-primary text-white rounded-full flex items-center justify-center text-sm">3</span>
+          <div className="ds-surface rounded-2xl border ds-border-color p-8">
+            <h3 className="text-xl font-bold ds-text mb-4 flex items-center gap-2">
+              <span className="w-8 h-8 bg-[var(--brand-primary)] text-white rounded-full flex items-center justify-center text-sm">3</span>
               Pahami Hasil Analisis
             </h3>
-            <p className="text-textSecondary mb-4">
+            <p className="ds-text-muted mb-4">
               Setelah mengirim laporan, sistem AI akan menganalisis foto dan memberikan hasil deteksi otomatis,
               termasuk jenis kerusakan, tingkat keparahan, dan rekomendasi tindakan.
             </p>
@@ -94,14 +94,14 @@ export default function BantuanPage() {
 
         {/* How to Report */}
         <section id="how-to-report" className="mb-16">
-          <h2 className="text-3xl font-bold text-textDark mb-6">Cara Membuat Laporan</h2>
+          <h2 className="text-3xl font-bold ds-text mb-6">Cara Membuat Laporan</h2>
           <div className="space-y-6">
-            <div className="bg-white rounded-2xl border border-lightBorder p-8">
-              <h3 className="text-xl font-bold text-textDark mb-4 flex items-center gap-3">
-                <i className="fas fa-camera text-primary"></i>
+            <div className="ds-surface rounded-2xl border ds-border-color p-8">
+              <h3 className="text-xl font-bold ds-text mb-4 flex items-center gap-3">
+                <i className="fas fa-camera text-[var(--brand-primary)]"></i>
                 Upload Foto
               </h3>
-              <ul className="space-y-3 text-textSecondary">
+              <ul className="space-y-3 ds-text-muted">
                 {[
                   "Ambil foto yang jelas dan fokus pada area kerusakan",
                   "Pastikan pencahayaan cukup (hindari foto terlalu gelap atau silau)",
@@ -116,50 +116,50 @@ export default function BantuanPage() {
               </ul>
             </div>
 
-            <div className="bg-white rounded-2xl border border-lightBorder p-8">
-              <h3 className="text-xl font-bold text-textDark mb-4 flex items-center gap-3">
+            <div className="ds-surface rounded-2xl border ds-border-color p-8">
+              <h3 className="text-xl font-bold ds-text mb-4 flex items-center gap-3">
                 <i className="fas fa-map-marker-alt text-accentGreen"></i>
                 Tentukan Lokasi
               </h3>
-              <p className="text-textSecondary mb-4">Anda dapat menentukan lokasi dengan dua cara:</p>
+              <p className="ds-text-muted mb-4">Anda dapat menentukan lokasi dengan dua cara:</p>
               <div className="grid md:grid-cols-2 gap-4">
-                <div className="bg-accentGreen/5 rounded-xl p-4 border border-accentGreen/20">
-                  <h4 className="font-bold text-textDark mb-2 flex items-center gap-2">
+                <div className="bg-[var(--brand-primary)]/5 rounded-xl p-4 border border-accentGreen/20">
+                  <h4 className="font-bold ds-text mb-2 flex items-center gap-2">
                     <i className="fas fa-crosshairs text-accentGreen"></i> Deteksi Otomatis
                   </h4>
-                  <p className="text-sm text-textSecondary">Klik tombol &quot;Deteksi Lokasi Saya&quot; untuk menggunakan GPS perangkat Anda</p>
+                  <p className="text-sm ds-text-muted">Klik tombol &quot;Deteksi Lokasi Saya&quot; untuk menggunakan GPS perangkat Anda</p>
                 </div>
-                <div className="bg-primary/5 rounded-xl p-4 border border-primary/20">
-                  <h4 className="font-bold text-textDark mb-2 flex items-center gap-2">
-                    <i className="fas fa-edit text-primary"></i> Input Manual
+                <div className="bg-[var(--brand-primary)]/5 rounded-xl p-4 border border-[var(--brand-primary)]/20">
+                  <h4 className="font-bold ds-text mb-2 flex items-center gap-2">
+                    <i className="fas fa-edit text-[var(--brand-primary)]"></i> Input Manual
                   </h4>
-                  <p className="text-sm text-textSecondary">Masukkan koordinat latitude dan longitude secara manual</p>
+                  <p className="text-sm ds-text-muted">Masukkan koordinat latitude dan longitude secara manual</p>
                 </div>
               </div>
             </div>
 
-            <div className="bg-white rounded-2xl border border-lightBorder p-8">
-              <h3 className="text-xl font-bold text-textDark mb-4 flex items-center gap-3">
+            <div className="ds-surface rounded-2xl border ds-border-color p-8">
+              <h3 className="text-xl font-bold ds-text mb-4 flex items-center gap-3">
                 <i className="fas fa-pen text-accentTeal"></i>
                 Isi Deskripsi
               </h3>
-              <p className="text-textSecondary mb-4">Berikan deskripsi singkat tentang kerusakan yang Anda laporkan:</p>
-              <ul className="space-y-2 text-textSecondary">
+              <p className="ds-text-muted mb-4">Berikan deskripsi singkat tentang kerusakan yang Anda laporkan:</p>
+              <ul className="space-y-2 ds-text-muted">
                 {["Jelaskan kondisi kerusakan secara spesifik", "Sebutkan landmark terdekat jika ada", "Tambahkan informasi waktu kejadian jika relevan"].map((t) => (
                   <li key={t} className="flex items-start gap-3">
-                    <span className="text-primary">•</span>
+                    <span className="text-[var(--brand-primary)]">•</span>
                     <span>{t}</span>
                   </li>
                 ))}
               </ul>
             </div>
 
-            <div className="bg-white rounded-2xl border border-lightBorder p-8">
-              <h3 className="text-xl font-bold text-textDark mb-4 flex items-center gap-3">
-                <i className="fas fa-robot text-primary"></i>
+            <div className="ds-surface rounded-2xl border ds-border-color p-8">
+              <h3 className="text-xl font-bold ds-text mb-4 flex items-center gap-3">
+                <i className="fas fa-robot text-[var(--brand-primary)]"></i>
                 Analisis AI
               </h3>
-              <p className="text-textSecondary mb-4">Setelah klik &quot;Analisis Sekarang&quot;, sistem akan:</p>
+              <p className="ds-text-muted mb-4">Setelah klik &quot;Analisis Sekarang&quot;, sistem akan:</p>
               <div className="space-y-3">
                 {[
                   ["fas fa-brain", "Deteksi Objek", "Mengidentifikasi jenis kerusakan menggunakan YOLOv8"],
@@ -167,12 +167,12 @@ export default function BantuanPage() {
                   ["fas fa-lightbulb", "Rekomendasi", "Memberikan saran tindakan perbaikan"],
                 ].map(([icon, t, d]) => (
                   <div key={t} className="flex items-start gap-3">
-                    <div className="w-6 h-6 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <i className={`${icon} text-primary text-xs`}></i>
+                    <div className="w-6 h-6 bg-[var(--brand-primary)]/10 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <i className={`${icon} text-[var(--brand-primary)] text-xs`}></i>
                     </div>
                     <div>
-                      <h4 className="font-semibold text-textDark">{t}</h4>
-                      <p className="text-sm text-textSecondary">{d}</p>
+                      <h4 className="font-semibold ds-text">{t}</h4>
+                      <p className="text-sm ds-text-muted">{d}</p>
                     </div>
                   </div>
                 ))}
@@ -183,7 +183,7 @@ export default function BantuanPage() {
 
         {/* FAQ */}
         <section id="faq" className="mb-16">
-          <h2 className="text-3xl font-bold text-textDark mb-6">Pertanyaan yang Sering Diajukan</h2>
+          <h2 className="text-3xl font-bold ds-text mb-6">Pertanyaan yang Sering Diajukan</h2>
           <div className="space-y-4">
             {[
               ["Apa itu BaliCivic AI?", "BaliCivic AI adalah sistem pelaporan cerdas berbasis Vision AI yang membantu warga melaporkan kerusakan infrastruktur dan masalah lingkungan. Sistem ini menggunakan teknologi YOLOv8 untuk deteksi otomatis dan LLM untuk analisis konteks."],
@@ -193,32 +193,32 @@ export default function BantuanPage() {
               ["Apakah data saya aman?", "Ya, kami sangat menjaga privasi Anda. Foto difokuskan pada infrastruktur publik, dan sistem kami dirancang untuk mengaburkan wajah atau informasi pribadi yang terdeteksi. Data lokasi hanya digunakan untuk keperluan pelaporan dan tidak dibagikan ke pihak ketiga."],
               ["Bagaimana jika hasil deteksi AI tidak akurat?", "Model AI kami terus belajar dan berkembang. Jika hasil deteksi kurang akurat, Anda tetap dapat menambahkan deskripsi manual untuk melengkapi informasi. Feedback Anda sangat membantu kami meningkatkan akurasi sistem."],
             ].map(([q, a]) => (
-              <details key={q} className="group bg-white rounded-2xl border border-lightBorder overflow-hidden hover:border-primary/30 transition-colors">
-                <summary className="flex items-center justify-between w-full p-6 text-left font-semibold text-textDark cursor-pointer hover:bg-gray-50 transition-colors">
+              <details key={q} className="group ds-surface rounded-2xl border ds-border-color overflow-hidden hover:border-[var(--brand-primary)]/30 transition-colors">
+                <summary className="flex items-center justify-between w-full p-6 text-left font-semibold ds-text cursor-pointer hover:bg-gray-50 transition-colors">
                   {q}
-                  <i className="fas fa-chevron-down text-textSecondary group-open:rotate-180 transition-transform"></i>
+                  <i className="fas fa-chevron-down ds-text-muted group-open:rotate-180 transition-transform"></i>
                 </summary>
-                <div className="p-6 pt-0 text-textSecondary border-t border-lightBorder/50">{a}</div>
+                <div className="p-6 pt-0 ds-text-muted border-t ds-border-color/50">{a}</div>
               </details>
             ))}
           </div>
         </section>
 
         {/* Contact Support */}
-        <section className="bg-gradient-to-br from-primary/5 to-accentTeal/5 rounded-2xl border border-primary/20 p-8 md:p-12 text-center">
+        <section className="bg-gradient-to-br from-primary/5 to-accentTeal/5 rounded-2xl border border-[var(--brand-primary)]/20 p-8 md:p-12 text-center">
           <div className="max-w-2xl mx-auto">
-            <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6">
-              <i className="fas fa-headset text-3xl text-primary"></i>
+            <div className="w-16 h-16 bg-[var(--brand-primary)]/10 rounded-full flex items-center justify-center mx-auto mb-6">
+              <i className="fas fa-headset text-3xl text-[var(--brand-primary)]"></i>
             </div>
-            <h2 className="text-2xl md:text-3xl font-bold text-textDark mb-4">Masih Butuh Bantuan?</h2>
-            <p className="text-textSecondary mb-6">
+            <h2 className="text-2xl md:text-3xl font-bold ds-text mb-4">Masih Butuh Bantuan?</h2>
+            <p className="ds-text-muted mb-6">
               Tim kami siap membantu Anda. Hubungi kami untuk pertanyaan lebih lanjut atau dukungan teknis.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <a href="mailto:support@balicivic.ai" className="inline-flex items-center justify-center gap-2 bg-primary text-white px-6 py-3 rounded-xl font-semibold hover:bg-primaryHover transition-all hover:-translate-y-1 shadow-lg">
+              <a href="mailto:support@balicivic.ai" className="inline-flex items-center justify-center gap-2 bg-[var(--brand-primary)] text-white px-6 py-3 rounded-xl font-semibold hover:bg-[var(--brand-primary-hover)] transition-all hover:-translate-y-1 shadow-lg">
                 <i className="fas fa-envelope"></i> Email Kami
               </a>
-              <Link href="/" className="inline-flex items-center justify-center gap-2 bg-white text-textDark px-6 py-3 rounded-xl font-semibold border border-lightBorder hover:bg-gray-50 transition-all hover:-translate-y-1">
+              <Link href="/" className="inline-flex items-center justify-center gap-2 ds-surface ds-text px-6 py-3 rounded-xl font-semibold border ds-border-color hover:bg-gray-50 transition-all hover:-translate-y-1">
                 <i className="fas fa-home"></i> Kembali ke Beranda
               </Link>
             </div>

@@ -193,7 +193,7 @@ export default function DashboardPage() {
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <div className="text-xs font-medium bg-white/50 backdrop-blur-sm text-slate-600 px-3 py-1.5 rounded-full border border-slate-200 shadow-sm flex items-center gap-2">
+            <div className="text-xs font-medium ds-surface/50 backdrop-blur-sm text-slate-600 px-3 py-1.5 rounded-full border border-slate-200 shadow-sm flex items-center gap-2">
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
@@ -273,19 +273,19 @@ export default function DashboardPage() {
               <div className="flex items-center justify-between mb-6 relative z-10">
                 <div>
                   <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                    <i className="fas fa-map-marked-alt text-primary"></i> Peta Heatmap Masalah
+                    <i className="fas fa-map-marked-alt text-[var(--brand-primary)]"></i> Peta Heatmap Masalah
                   </h3>
                   <p className="text-xs text-slate-500 mt-1">Simulasi sebaran jalan rusak, sampah, genangan & kabel.</p>
                 </div>
-                <Link href="/peta" className="px-3 py-1.5 rounded-full bg-slate-100 text-slate-600 text-[10px] font-bold hover:bg-primary hover:text-white transition-all flex items-center gap-1">
+                <Link href="/peta" className="px-3 py-1.5 rounded-full bg-slate-100 text-slate-600 text-[10px] font-bold hover:bg-[var(--brand-primary)] hover:text-white transition-all flex items-center gap-1">
                   Buka Peta Penuh <i className="fas fa-arrow-right"></i>
                 </Link>
               </div>
-              <div className="relative flex-1 w-full bg-slate-100 rounded-xl border border-dashed border-slate-200 overflow-hidden flex items-center justify-center group-hover:border-primary/20 transition-colors">
+              <div className="relative flex-1 w-full bg-slate-100 rounded-xl border border-dashed border-slate-200 overflow-hidden flex items-center justify-center group-hover:border-[var(--brand-primary)]/20 transition-colors">
                 <div id="mini-heatmap" className="absolute inset-0 z-10 hidden lg:block rounded-xl"></div>
                 <div className="absolute inset-0 z-0 lg:hidden flex items-center justify-center bg-slate-200/50 backdrop-blur-md">
-                  <Link href="/peta" className="px-6 py-3 bg-white text-slate-800 font-bold rounded-xl shadow-lg border border-white/50 hover:scale-105 transition-transform flex items-center gap-2">
-                    <i className="fas fa-map-marked-alt text-primary"></i> Buka Heatmap
+                  <Link href="/peta" className="px-6 py-3 ds-surface text-slate-800 font-bold rounded-xl shadow-lg border border-white/50 hover:scale-105 transition-transform flex items-center gap-2">
+                    <i className="fas fa-map-marked-alt text-[var(--brand-primary)]"></i> Buka Heatmap
                   </Link>
                 </div>
               </div>
@@ -314,9 +314,9 @@ export default function DashboardPage() {
                   topLocs.map((item, index) => {
                     const style = RANK_BADGES[index] || RANK_BADGES[2];
                     return (
-                      <div key={index} className="flex justify-between items-center p-3 rounded-xl border border-slate-100 hover:border-primary/20 hover:bg-slate-50 transition-all group cursor-default">
+                      <div key={index} className="flex justify-between items-center p-3 rounded-xl border border-slate-100 hover:border-[var(--brand-primary)]/20 hover:bg-slate-50 transition-all group cursor-default">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-500 font-bold text-xs group-hover:bg-white group-hover:shadow-sm transition-all">
+                          <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-500 font-bold text-xs group-hover:ds-surface group-hover:shadow-sm transition-all">
                             {index + 1}
                           </div>
                           <div>
@@ -333,7 +333,7 @@ export default function DashboardPage() {
 
             <div className="glass-card p-6 rounded-2xl">
               <h3 className="text-sm font-bold text-slate-800 mb-5 flex items-center gap-2">
-                <i className="fas fa-chart-pie text-primary"></i> Distribusi Masalah
+                <i className="fas fa-chart-pie text-[var(--brand-primary)]"></i> Distribusi Masalah
               </h3>
               <div className="space-y-4">
                 {distribution.length === 0 && (
@@ -355,7 +355,7 @@ export default function DashboardPage() {
                           className="h-full rounded-full transition-all duration-1000 ease-out relative"
                           style={{ width: barWidths[`bar-${index}`] || "0%", backgroundColor: color, boxShadow: `0 0 10px ${color}40` }}
                         >
-                          <div className="absolute inset-0 bg-white/20 w-full h-full animate-[shimmer_2s_infinite]"></div>
+                          <div className="absolute inset-0 ds-surface/20 w-full h-full animate-[shimmer_2s_infinite]"></div>
                         </div>
                       </div>
                       <div className="text-[10px] text-slate-400 mt-1 text-right opacity-0 group-hover:opacity-100 transition-opacity">{item.count} laporan</div>
@@ -375,11 +375,11 @@ export default function DashboardPage() {
 
         {/* Live Reports Table */}
         <div className="glass-card rounded-2xl overflow-hidden animate-fade-in-up stagger-3">
-          <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white/50">
+          <div className="p-6 border-b border-slate-100 flex justify-between items-center ds-surface/50">
             <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-              <i className="fas fa-list-ul text-primary"></i> Laporan Masuk (Live)
+              <i className="fas fa-list-ul text-[var(--brand-primary)]"></i> Laporan Masuk (Live)
             </h3>
-            <Link href="/lapor" className="bg-white border border-slate-200 text-slate-700 px-4 py-2 rounded-lg text-xs font-bold hover:bg-slate-50 hover:text-primary transition-colors flex items-center gap-2 shadow-sm hidden md:flex">
+            <Link href="/lapor" className="ds-surface border border-slate-200 text-slate-700 px-4 py-2 rounded-lg text-xs font-bold hover:bg-slate-50 hover:text-[var(--brand-primary)] transition-colors flex items-center gap-2 shadow-sm hidden md:flex">
               <i className="fas fa-plus"></i> Buat Laporan
             </Link>
           </div>
@@ -390,7 +390,7 @@ export default function DashboardPage() {
             {mobileIssues.map((item) => {
               const timeStr = new Date(item.created_at).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }) + " WITA";
               return (
-                <div key={item.id} className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm flex flex-col gap-3">
+                <div key={item.id} className="ds-surface p-4 rounded-xl border border-slate-100 shadow-sm flex flex-col gap-3">
                   <div className="flex justify-between items-start">
                     <div className="flex items-center gap-2">
                       <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${getScoreClass(item.final_score)}`}>{item.final_score}</span>
@@ -401,11 +401,11 @@ export default function DashboardPage() {
                   <div>
                     <h4 className="font-bold text-slate-800 capitalize text-sm mb-1">{String(item.issue_class || "-").replace("_", " ")}</h4>
                     <div className="flex items-center gap-1.5 text-xs text-slate-500">
-                      <i className="fas fa-map-marker-alt text-primary/60"></i>
+                      <i className="fas fa-map-marker-alt text-[var(--brand-primary)]/60"></i>
                       <span className="truncate">{item.kecamatan || "Unknown"}, {item.kabupaten || "Bali"}</span>
                     </div>
                   </div>
-                  <Link href={`/detail/${item.id}`} className="w-full mt-1 bg-slate-50 text-slate-600 hover:bg-primary hover:text-white transition-all py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-2">
+                  <Link href={`/detail/${item.id}`} className="w-full mt-1 bg-slate-50 text-slate-600 hover:bg-[var(--brand-primary)] hover:text-white transition-all py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-2">
                     Lihat Detail <i className="fas fa-arrow-right"></i>
                   </Link>
                 </div>
@@ -415,7 +415,7 @@ export default function DashboardPage() {
 
           {/* Mobile: Lihat Semua */}
           <div className="md:hidden px-4 pb-4 bg-slate-50/50">
-            <Link href="/laporan" className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-white border border-slate-200 text-slate-700 rounded-xl text-sm font-bold hover:bg-slate-50 hover:text-primary hover:border-primary/30 transition-all shadow-sm">
+            <Link href="/laporan" className="w-full flex items-center justify-center gap-2 px-4 py-3 ds-surface border border-slate-200 text-slate-700 rounded-xl text-sm font-bold hover:bg-slate-50 hover:text-[var(--brand-primary)] hover:border-[var(--brand-primary)]/30 transition-all shadow-sm">
               <i className="fas fa-list"></i> Lihat Semua Laporan <i className="fas fa-arrow-right text-xs"></i>
             </Link>
           </div>
@@ -433,7 +433,7 @@ export default function DashboardPage() {
                   <th className="px-6 py-4 font-semibold text-right">Aksi</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 text-sm bg-white/50">
+              <tbody className="divide-y divide-slate-100 text-sm ds-surface/50">
                 {desktopIssues.length === 0 && (
                   <tr>
                     <td colSpan="6">
@@ -452,7 +452,7 @@ export default function DashboardPage() {
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 group-hover:bg-white group-hover:shadow-sm transition-all">
+                          <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 group-hover:ds-surface group-hover:shadow-sm transition-all">
                             <i className="fas fa-exclamation-circle"></i>
                           </div>
                           <span className="capitalize font-medium text-slate-700 text-sm">{String(item.issue_class || "-").replace("_", " ")}</span>
@@ -474,7 +474,7 @@ export default function DashboardPage() {
                         <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold border ${getStatusColors(item.status, true)}`}>{item.status}</span>
                       </td>
                       <td className="px-6 py-4 text-right">
-                        <Link href={`/detail/${item.id}`} className="text-slate-400 hover:text-primary hover:bg-primary/5 p-2 rounded-lg transition-all" title="Lihat Detail">
+                        <Link href={`/detail/${item.id}`} className="text-slate-400 hover:text-[var(--brand-primary)] hover:bg-[var(--brand-primary)]/5 p-2 rounded-lg transition-all" title="Lihat Detail">
                           <i className="fas fa-external-link-alt"></i>
                         </Link>
                       </td>
@@ -486,8 +486,8 @@ export default function DashboardPage() {
           </div>
 
           {/* Desktop: Lihat Semua */}
-          <div className="hidden md:block p-6 border-t border-slate-100 bg-white/30">
-            <Link href="/laporan" className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-white border border-slate-200 text-slate-700 rounded-xl text-sm font-bold hover:bg-slate-50 hover:text-primary hover:border-primary/30 transition-all shadow-sm">
+          <div className="hidden md:block p-6 border-t border-slate-100 ds-surface/30">
+            <Link href="/laporan" className="w-full flex items-center justify-center gap-2 px-6 py-3 ds-surface border border-slate-200 text-slate-700 rounded-xl text-sm font-bold hover:bg-slate-50 hover:text-[var(--brand-primary)] hover:border-[var(--brand-primary)]/30 transition-all shadow-sm">
               <i className="fas fa-list"></i> Lihat Semua Laporan <i className="fas fa-arrow-right text-xs"></i>
             </Link>
           </div>

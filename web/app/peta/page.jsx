@@ -22,7 +22,7 @@ const CLASS_FILTERS = [
   { id: "jalan_bolong", label: "Jalan Bolong", dot: "bg-red-500", box: "text-red-500 group-hover:border-red-400" },
   { id: "genangan_air", label: "Genangan Air", dot: "bg-sky-500", box: "text-sky-500 group-hover:border-sky-400" },
   { id: "sampah_liar", label: "Sampah Liar", dot: "bg-orange-500", box: "text-orange-500 group-hover:border-orange-400" },
-  { id: "kabel_semrawut", label: "Kabel Berantakan", dot: "bg-gray-800", box: "text-gray-800 group-hover:border-gray-600" },
+  { id: "kabel_berantakan", label: "Kabel Berantakan", dot: "bg-gray-800", box: "text-gray-800 group-hover:border-gray-600" },
 ];
 
 const STATUS_FILTERS = [
@@ -38,6 +38,7 @@ export default function PetaPage() {
   const [selected, setSelected] = useState(CLASS_FILTERS.map((c) => c.id));
   const [status, setStatus] = useState("");
   const [total, setTotal] = useState(0);
+  const [liveCount, setLiveCount] = useState(0);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const mapRef = useRef(null);
   const heatRef = useRef(null);
@@ -134,14 +135,14 @@ export default function PetaPage() {
           <div class="relative group cursor-pointer transform transition-transform hover:scale-110 hover:z-50">
             <div class="relative z-10 drop-shadow-md">
               <i class="fas fa-map-marker-alt text-3xl ${colorClass} drop-shadow-sm"></i>
-              <div class="absolute top-1.5 left-1/2 -translate-x-1/2 w-2 h-2 bg-white rounded-full shadow-inner"></div>
+              <div class="absolute top-1.5 left-1/2 -translate-x-1/2 w-2 h-2 ds-surface rounded-full shadow-inner"></div>
             </div>
             <div class="absolute left-1/2 -translate-x-1/2 top-full mt-1 whitespace-nowrap z-20">
-              <div class="bg-white/95 backdrop-blur-sm border border-gray-200 px-2 py-1 rounded-lg shadow-lg flex flex-col items-center gap-0.5">
+              <div class="ds-surface/95 backdrop-blur-sm border border-gray-200 px-2 py-1 rounded-lg shadow-lg flex flex-col items-center gap-0.5">
                 <span class="text-[10px] font-bold text-gray-800 uppercase tracking-wide leading-none">${String(pClass).replace("_", " ")}</span>
                 <span class="text-[9px] font-mono text-gray-500 leading-none">#${pId}</span>
               </div>
-              <div class="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-white rotate-45 border-t border-l border-gray-200"></div>
+              <div class="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 ds-surface rotate-45 border-t border-l border-gray-200"></div>
             </div>
           </div>`;
 
@@ -155,7 +156,7 @@ export default function PetaPage() {
               <span class="text-[10px] px-2 py-0.5 rounded-full ${pStatus === "OPEN" ? "bg-red-100 text-red-600" : pStatus === "PENDING" ? "bg-yellow-100 text-yellow-600" : "bg-green-100 text-green-600"} font-bold">${pStatus}</span>
             </div>
             <div class="text-[10px] text-gray-400">ID: #${pId}</div>
-            <div class="mt-2 text-[10px] text-primary font-bold cursor-pointer hover:underline" onclick="window.location.href='/detail/${pId}'">Lihat Detail &rarr;</div>
+            <div class="mt-2 text-[10px] text-[var(--brand-primary)] font-bold cursor-pointer hover:underline" onclick="window.location.href='/detail/${pId}'">Lihat Detail &rarr;</div>
           </div>`;
         marker.bindPopup(popupHtml);
         markerLayerRef.current.addLayer(marker);
@@ -166,6 +167,24 @@ export default function PetaPage() {
       console.error("Gagal load heatmap:", err);
     }
   }, [selected, status, updateLayerVisibility]);
+
+  // Hitung live inference count (laporan PENDING yang sudah dianalisis AI)
+  // untuk badge "Sedang dianalisis" di widget realtime.
+  const fetchLiveCount = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/issues`);
+      const all = await res.json();
+      const live = all.filter((i) => i.meta_data?.is_live_inference).length;
+      setLiveCount(live);
+    } catch (_) { /* silent */ }
+  }, []);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchLiveCount();
+    const id = setInterval(fetchLiveCount, 10000);
+    return () => clearInterval(id);
+  }, [fetchLiveCount]);
 
   // Simpan versi terbaru agar peta (yang di-init sekali) selalu memanggil data terbaru.
   useEffect(() => {
@@ -229,16 +248,36 @@ export default function PetaPage() {
   }, [loadHeatmap]);
 
   return (
-    <div className="bg-bgPage text-textDark h-screen flex flex-col overflow-hidden">
+    <div className="ds-bg ds-text h-screen flex flex-col overflow-hidden">
       <style dangerouslySetInnerHTML={{ __html: PAGE_CSS }} />
       <NavbarApp active="/peta" variant="heatmap" sublabel="Heatmap" />
       {/*__JSX_SIDEBAR__*/}
       <div className="relative flex-1 w-full h-full pt-16">
-        <div id="heatmap-map" className="absolute inset-0 z-0 bg-gray-100"></div>
+        <div id="heatmap-map" className="absolute inset-0 z-0 ds-surface-muted"></div>
+
+        {/* Live inference widget — "AI sedang menganalisis N laporan" */}
+        {liveCount > 0 && (
+          <div className="absolute top-4 left-4 z-[1000] ds-surface/95 backdrop-blur-md border border-white/50 rounded-xl px-4 py-3 shadow-lg max-w-xs animate-fade-in">
+            <div className="flex items-center gap-3">
+              <div className="relative flex h-3 w-3">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[var(--brand-primary)] opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-3 w-3 bg-[var(--brand-primary)]"></span>
+              </div>
+              <div>
+                <p className="text-xs font-bold ds-text">
+                  AI Engine aktif
+                </p>
+                <p className="text-[10px] ds-text-muted">
+                  <strong className="text-[var(--brand-primary)]">{liveCount}</strong> foto sedang dianalisis realtime
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         <button
           onClick={() => setSidebarOpen(true)}
-          className="fixed md:absolute bottom-24 md:bottom-6 right-6 z-[1500] md:z-[400] bg-white/90 backdrop-blur-md p-4 rounded-full shadow-lg border border-white/50 text-primary hover:bg-white hover:scale-110 transition-all duration-300 group"
+          className="fixed md:absolute bottom-24 md:bottom-6 right-6 z-[1500] md:z-[400] ds-surface/90 backdrop-blur-md p-4 rounded-full shadow-lg border border-white/50 text-[var(--brand-primary)] hover:ds-surface hover:scale-110 transition-all duration-300 group"
           aria-label="Filter"
         >
           <i className="fas fa-filter text-xl group-hover:rotate-12 transition-transform duration-300"></i>
@@ -252,26 +291,26 @@ export default function PetaPage() {
         <aside
           className={`fixed md:absolute bottom-0 md:bottom-20 left-0 md:left-auto md:right-6 z-[2000] md:z-[500] w-full md:w-80 max-h-[80vh] md:max-h-[calc(100vh-150px)] flex flex-col transition-all duration-300 rounded-t-3xl md:rounded-2xl shadow-[0_-4px_20px_rgba(0,0,0,0.1)] md:shadow-[0_8px_30px_rgb(0,0,0,0.12)] transform ${sidebarOpen ? "translate-y-0 md:translate-y-10 opacity-100 visible" : "translate-y-full md:translate-y-10 opacity-0 invisible"}`}
         >
-          <div className="flex flex-col h-full pointer-events-auto bg-white/95 backdrop-blur-xl md:rounded-2xl border-t md:border border-white/50 overflow-hidden">
-            <div className="p-5 border-b border-gray-100 bg-white/50">
+          <div className="flex flex-col h-full pointer-events-auto ds-surface/95 backdrop-blur-xl md:rounded-2xl border-t md:border border-white/50 overflow-hidden">
+            <div className="p-5 border-b ds-border-color ds-surface/50">
               <div className="w-12 h-1.5 bg-gray-300 rounded-full mx-auto mb-4 md:hidden"></div>
               <div className="flex items-center justify-between mb-4 sm:hidden">
-                <h2 className="text-lg font-bold text-textDark">Filter Peta</h2>
-                <button onClick={() => setSidebarOpen(false)} className="p-2 text-textSecondary hover:text-red-500 transition-colors" aria-label="Tutup">
+                <h2 className="text-lg font-bold ds-text">Filter Peta</h2>
+                <button onClick={() => setSidebarOpen(false)} className="p-2 ds-text-muted hover:text-red-500 transition-colors" aria-label="Tutup">
                   <i className="fas fa-times text-xl"></i>
                 </button>
               </div>
-              <h2 className="text-[10px] font-bold text-textSecondary uppercase tracking-widest mb-1">Total Data Points</h2>
+              <h2 className="text-[10px] font-bold ds-text-muted uppercase tracking-widest mb-1">Total Data Points</h2>
               <div className="flex items-baseline gap-2">
-                <span ref={totalRef} className="text-3xl font-display font-bold text-textDark">{total}</span>
-                <span className="text-xs text-textSecondary font-medium">laporan terdeteksi</span>
+                <span ref={totalRef} className="text-3xl font-display font-bold ds-text">{total}</span>
+                <span className="text-xs ds-text-muted font-medium">laporan terdeteksi</span>
               </div>
             </div>
 
             <div className="p-5 overflow-y-auto custom-scrollbar flex-1 min-h-0">
               <div className="flex items-center justify-between mb-6">
-                <h3 className="font-bold text-textDark flex items-center gap-2 text-sm">
-                  <i className="fas fa-filter text-primary"></i> Filter Data
+                <h3 className="font-bold ds-text flex items-center gap-2 text-sm">
+                  <i className="fas fa-filter text-[var(--brand-primary)]"></i> Filter Data
                 </h3>
                 <button
                   onClick={() => {
@@ -285,7 +324,7 @@ export default function PetaPage() {
               </div>
 
               <div className="mb-6 space-y-3">
-                <label className="text-[10px] font-bold text-textSecondary uppercase tracking-widest block mb-2">Kategori Masalah</label>
+                <label className="text-[10px] font-bold ds-text-muted uppercase tracking-widest block mb-2">Kategori Masalah</label>
                 {CLASS_FILTERS.map((c) => (
                   <label key={c.id} className="flex items-center justify-between p-2 rounded-lg hover:bg-black/5 cursor-pointer transition-colors group checkbox-wrapper">
                     <div className="flex items-center gap-3">
@@ -303,13 +342,13 @@ export default function PetaPage() {
               </div>
 
               <div className="mb-6">
-                <label className="text-[10px] font-bold text-textSecondary uppercase tracking-widest block mb-3">Status Laporan</label>
+                <label className="text-[10px] font-bold ds-text-muted uppercase tracking-widest block mb-3">Status Laporan</label>
                 <div className="flex p-1 bg-gray-100 rounded-xl">
                   {STATUS_FILTERS.map((s) => (
                     <button
                       key={s.label}
                       onClick={() => setStatus(s.v)}
-                      className={`flex-1 py-1.5 text-[10px] font-bold rounded-lg transition-all ${status === s.v ? "text-primary shadow-sm bg-white" : "text-textSecondary hover:text-textDark"}`}
+                      className={`flex-1 py-1.5 text-[10px] font-bold rounded-lg transition-all ${status === s.v ? "text-[var(--brand-primary)] shadow-sm ds-surface" : "ds-text-muted hover:ds-text"}`}
                     >
                       {s.label}
                     </button>
@@ -318,9 +357,9 @@ export default function PetaPage() {
               </div>
 
               <div>
-                <h4 className="text-[10px] font-bold text-textSecondary uppercase tracking-widest mb-2">Intensitas Heatmap</h4>
+                <h4 className="text-[10px] font-bold ds-text-muted uppercase tracking-widest mb-2">Intensitas Heatmap</h4>
                 <div className="h-2 w-full rounded-full bg-gradient-to-r from-blue-500 via-yellow-400 to-red-500 mb-1"></div>
-                <div className="flex justify-between text-[10px] font-medium text-textSecondary">
+                <div className="flex justify-between text-[10px] font-medium ds-text-muted">
                   <span>Rendah</span>
                   <span>Tinggi</span>
                 </div>
