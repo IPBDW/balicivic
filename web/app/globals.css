@@ -19,6 +19,7 @@
 
   --font-sans: 'Inter', sans-serif;
   --font-display: 'Outfit', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
 
   --animate-float: float 6s ease-in-out infinite;
   --animate-shimmer: shimmer 3s linear infinite;
@@ -82,7 +83,167 @@
   }
 }
 
+/* ===== DESIGN SYSTEM — Light & Dark Mode ===== */
+/* Pakai class .dark di <html> untuk aktifkan dark mode (override prefers-color-scheme). */
+:root {
+  /* Surface */
+  --ds-bg: #fafafa;
+  --ds-surface: #ffffff;
+  --ds-surface-muted: #f5f5f5;
+  --ds-border: #e5e5e5;
+  --ds-border-strong: #d4d4d4;
+
+  /* Text */
+  --ds-text: #0a0a0a;
+  --ds-text-muted: #525252;
+  --ds-text-subtle: #a3a3a3;
+  --ds-text-inverse: #fafafa;
+
+  /* Brand & accent */
+  --brand-primary: #1e40af;
+  --brand-primary-hover: #1e3a8a;
+  --brand-primary-soft: #dbeafe;
+
+  /* Status pipeline */
+  --status-pending: #6b7280;
+  --status-pending-bg: #f3f4f6;
+  --status-in-progress: #2563eb;
+  --status-in-progress-bg: #dbeafe;
+  --status-done: #16a34a;
+  --status-done-bg: #dcfce7;
+  --status-error: #dc2626;
+  --status-error-bg: #fee2e2;
+
+  /* Severity */
+  --sev-low: #16a34a;
+  --sev-low-bg: #dcfce7;
+  --sev-medium: #f59e0b;
+  --sev-medium-bg: #fef3c7;
+  --sev-high: #dc2626;
+  --sev-high-bg: #fee2e2;
+
+  /* Shadow */
+  --ds-shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+  --ds-shadow-md: 0 4px 16px rgba(0,0,0,0.08);
+  --ds-shadow-lg: 0 12px 32px rgba(0,0,0,0.12);
+
+  /* Override @theme colors yang lama (yang dipakai komponen existing) */
+  --color-bgPage: var(--ds-bg);
+  --color-cardGrey: var(--ds-surface);
+  --color-textDark: var(--ds-text);
+  --color-textSecondary: var(--ds-text-muted);
+  --color-lightBorder: var(--ds-border);
+}
+
+.dark {
+  --ds-bg: #0a0a0a;
+  --ds-surface: #171717;
+  --ds-surface-muted: #1f1f1f;
+  --ds-border: #262626;
+  --ds-border-strong: #404040;
+
+  --ds-text: #fafafa;
+  --ds-text-muted: #a3a3a3;
+  --ds-text-subtle: #737373;
+  --ds-text-inverse: #0a0a0a;
+
+  --brand-primary: #3b82f6;
+  --brand-primary-hover: #60a5fa;
+  --brand-primary-soft: #1e3a8a;
+
+  --status-pending: #9ca3af;
+  --status-pending-bg: #1f1f1f;
+  --status-in-progress: #3b82f6;
+  --status-in-progress-bg: #1e3a8a;
+  --status-done: #4ade80;
+  --status-done-bg: #14532d;
+  --status-error: #f87171;
+  --status-error-bg: #7f1d1d;
+
+  --sev-low: #4ade80;
+  --sev-low-bg: #14532d;
+  --sev-medium: #fbbf24;
+  --sev-medium-bg: #78350f;
+  --sev-high: #f87171;
+  --sev-high-bg: #7f1d1d;
+
+  --ds-shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
+  --ds-shadow-md: 0 4px 16px rgba(0,0,0,0.4);
+  --ds-shadow-lg: 0 12px 32px rgba(0,0,0,0.5);
+
+  --color-bgPage: var(--ds-bg);
+  --color-cardGrey: var(--ds-surface);
+  --color-textDark: var(--ds-text);
+  --color-textSecondary: var(--ds-text-muted);
+  --color-lightBorder: var(--ds-border);
+}
+
+/* Default ke prefers-color-scheme kalau user belum pilih */
+@media (prefers-color-scheme: dark) {
+  :root:not(.light) {
+    --ds-bg: #0a0a0a;
+    --ds-surface: #171717;
+    --ds-surface-muted: #1f1f1f;
+    --ds-border: #262626;
+    --ds-border-strong: #404040;
+    --ds-text: #fafafa;
+    --ds-text-muted: #a3a3a3;
+    --ds-text-subtle: #737373;
+    --ds-text-inverse: #0a0a0a;
+    --brand-primary: #3b82f6;
+    --brand-primary-hover: #60a5fa;
+    --brand-primary-soft: #1e3a8a;
+    --status-pending: #9ca3af;
+    --status-pending-bg: #1f1f1f;
+    --status-in-progress: #3b82f6;
+    --status-in-progress-bg: #1e3a8a;
+    --status-done: #4ade80;
+    --status-done-bg: #14532d;
+    --status-error: #f87171;
+    --status-error-bg: #7f1d1d;
+    --sev-low: #4ade80;
+    --sev-low-bg: #14532d;
+    --sev-medium: #fbbf24;
+    --sev-medium-bg: #78350f;
+    --sev-high: #f87171;
+    --sev-high-bg: #7f1d1d;
+    --ds-shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
+    --ds-shadow-md: 0 4px 16px rgba(0,0,0,0.4);
+    --ds-shadow-lg: 0 12px 32px rgba(0,0,0,0.5);
+    --color-bgPage: var(--ds-bg);
+    --color-cardGrey: var(--ds-surface);
+    --color-textDark: var(--ds-text);
+    --color-textSecondary: var(--ds-text-muted);
+    --color-lightBorder: var(--ds-border);
+  }
+}
+
+/* ===== Utility classes untuk Design System ===== */
+.ds-bg { background-color: var(--ds-bg); }
+.ds-surface { background-color: var(--ds-surface); }
+.ds-surface-muted { background-color: var(--ds-surface-muted); }
+.ds-border-color { border-color: var(--ds-border); }
+.ds-text { color: var(--ds-text); }
+.ds-text-muted { color: var(--ds-text-muted); }
+.ds-text-subtle { color: var(--ds-text-subtle); }
+
+.ds-shadow-sm { box-shadow: var(--ds-shadow-sm); }
+.ds-shadow-md { box-shadow: var(--ds-shadow-md); }
+.ds-shadow-lg { box-shadow: var(--ds-shadow-lg); }
+
 /* scroll halus (dulu <html class="scroll-smooth">) */
 html {
   scroll-behavior: smooth;
 }
+
+body {
+  background-color: var(--ds-bg);
+  color: var(--ds-text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* Typography helpers */
+.ds-font-mono { font-family: var(--font-mono); }
