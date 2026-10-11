@@ -28,6 +28,7 @@ web/node_modules/
 web/.next/
 web/out/
 web/.env*.local
+.next/
 
 # OS / Editor
 .DS_Store
@@ -38,3 +39,6 @@ Thumbs.db
 
 # Command Code personal settings & taste
 .commandcode/
+
+# OpenChamber (screenshots, local tooling)
+.openchamber/
