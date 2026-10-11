@@ -20,6 +20,19 @@ export async function POST(req) {
   if (file.size > 10 * 1024 * 1024) {
     return Response.json({ detail: 'Ukuran file maksimal 10MB' }, { status: 413 });
   }
+  // Cek magic bytes juga (content_type bisa kosong/dipalsukan).
+  try {
+    const head = new Uint8Array(await file.slice(0, 16).arrayBuffer());
+    const isJpeg = head[0] === 0xff && head[1] === 0xd8 && head[2] === 0xff;
+    const isPng = head[0] === 0x89 && head[1] === 0x50 && head[2] === 0x4e && head[3] === 0x47;
+    const isWebp = String.fromCharCode(head[0], head[1], head[2], head[3]) === 'RIFF'
+      && String.fromCharCode(head[8], head[9], head[10], head[11]) === 'WEBP';
+    if (!(isJpeg || isPng || isWebp)) {
+      return Response.json({ detail: 'File harus berupa gambar (jpg/png)' }, { status: 400 });
+    }
+  } catch {
+    return Response.json({ detail: 'Gagal membaca file' }, { status: 400 });
+  }
 
   const latRaw = formData.get('lat');
   const lonRaw = formData.get('long');

@@ -79,3 +79,21 @@ export function imgUrl(u) {
   const base = resolveBase();
   return `${base}${u.startsWith('/') ? u : `/${u}`}`;
 }
+
+// Ambil SEMUA issue lewat pagination.
+//
+// Endpoint /api/issues default limit=50 (max 200). Kalau frontend fetch tanpa
+// param, laporan ke-51 dst tidak ikut → statistik (total, distribusi, heatmap)
+// jadi salah tanpa error. Helper ini looping per halaman sampai habis.
+export async function fetchAllIssues({ pageSize = 200, maxPages = 50 } = {}) {
+  const all = [];
+  for (let page = 0; page < maxPages; page++) {
+    const res = await fetch(apiUrl(`/api/issues?limit=${pageSize}&offset=${page * pageSize}`));
+    if (!res.ok) throw new Error(`API ${res.status}: /api/issues`);
+    const batch = await res.json();
+    if (!Array.isArray(batch) || batch.length === 0) break;
+    all.push(...batch);
+    if (batch.length < pageSize) break; // halaman terakhir
+  }
+  return all;
+}

@@ -1,6 +1,6 @@
 "use client";
 
-import { API_BASE, imgUrl } from "@/lib/api";
+import { API_BASE, imgUrl, fetchAllIssues } from "@/lib/api";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useRef, useState } from "react";
@@ -58,8 +58,7 @@ function AdminContent() {
 
   async function fetchIssueDetail(targetId) {
     try {
-      const response = await fetch(`${API_BASE}/api/issues`);
-      const allIssues = await response.json();
+      const allIssues = await fetchAllIssues();
       const item = allIssues.find((x) => String(x.id) === String(targetId));
       if (!item) throw new Error("Data tidak ditemukan");
       setData(item);

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import NavbarApp from "@/components/NavbarApp";
 import BottomNav from "@/components/BottomNav";
-import { API_BASE } from "@/lib/api";
+import { fetchAllIssues } from "@/lib/api";
 import { useCallback, useEffect, useState } from "react";
 
 const PAGE_CSS = `
@@ -53,9 +53,7 @@ export default function LaporanPage() {
 
   const fetchData = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE}/api/issues`);
-      if (!res.ok) throw new Error("network");
-      const data = await res.json();
+      const data = await fetchAllIssues();
       setAll(data);
       setShown(data);
       setCount(data.length);

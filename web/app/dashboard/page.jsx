@@ -3,7 +3,7 @@
 import Link from "next/link";
 import NavbarApp from "@/components/NavbarApp";
 import BottomNav from "@/components/BottomNav";
-import { API_BASE } from "@/lib/api";
+import { API_BASE, fetchAllIssues } from "@/lib/api";
 import { waitForLeaflet } from "@/lib/leaflet";
 import { useCallback, useEffect, useState } from "react";
 import {
@@ -105,8 +105,7 @@ export default function DashboardPage() {
       return;
     }
     try {
-      const res = await fetch(`${API_BASE}/api/issues`);
-      const issuesArr = await res.json();
+      const issuesArr = await fetchAllIssues();
       const counts = { jalan_bolong: 0, sampah_liar: 0, genangan_air: 0, kabel_semrawut: 0 };
       issuesArr.forEach((issue) => {
         if (counts[issue.issue_class] !== undefined) counts[issue.issue_class]++;
@@ -136,8 +135,7 @@ export default function DashboardPage() {
       return;
     }
     try {
-      const res = await fetch(`${API_BASE}/api/issues`);
-      const data = await res.json();
+      const data = await fetchAllIssues();
       setIssues(data);
       setUpdatedAt(new Date().toLocaleTimeString());
     } catch (e) {
@@ -176,8 +174,7 @@ export default function DashboardPage() {
         return DUMMY_HEAT_DATA;
       }
       try {
-        const r = await fetch(`${API_BASE}/api/issues`);
-        const points = await r.json();
+        const points = await fetchAllIssues();
         return points
           .filter((p) => (p.latitude || p.lat) && (p.longitude || p.long || p.lon))
           .map((p) => {

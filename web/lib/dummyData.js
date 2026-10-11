@@ -3,9 +3,9 @@
 // Digunakan oleh Next.js API routes di branch maintenance/frontend.
 // Saat branch di-merge atau backend FastAPI siap, file ini jadi obsolete.
 
-export const KELAS = ['jalan_bolong', 'genangan_air', 'sampah_liar', 'kabel_berantakan'];
-// Note: di dummy kita pake 'kabel_berantakan' (label baru) sebagai class key.
-// Backend beneran pake 'kabel_semrawut' — beda ini nanti di-mapping saat swap.
+export const KELAS = ['jalan_bolong', 'genangan_air', 'sampah_liar', 'kabel_semrawut'];
+// Class key disamakan dengan backend (utils.CLASS_LABEL_PUBLIC) supaya
+// statistik/distribusi di frontend tidak salah hitung saat swap ke API asli.
 
 export const KABUPATEN_BALI = [
   'Denpasar', 'Badung', 'Gianyar', 'Tabanan',
@@ -42,7 +42,7 @@ export const SAMPLE_ISSUES = (() => {
       'Limbah bangunan dibuang sembarangan',
       'Sampah plastik di sepanjang pantai',
     ],
-    kabel_berantakan: [
+    kabel_semrawut: [
       'Kabel menjuntai rendah di atas trotoar',
       'Tiang kabel miring hampir roboh',
       'Kabel melilit di pohon, bahaya konsleting',
@@ -107,7 +107,7 @@ export const CLASS_LABEL_PUBLIC = {
   jalan_bolong: 'jalan bolong',
   genangan_air: 'genangan air',
   sampah_liar: 'sampah liar',
-  kabel_berantakan: 'kabel berantakan',
+  kabel_semrawut: 'kabel berantakan',
 };
 
 // Distribution response (mirror backend/main.py:get_issue_distribution)
@@ -117,13 +117,13 @@ export function distributionFromIssues(issues) {
     jalan_bolong: issues.filter(i => i.issue_class === 'jalan_bolong').length,
     sampah_liar: issues.filter(i => i.issue_class === 'sampah_liar').length,
     genangan_air: issues.filter(i => i.issue_class === 'genangan_air').length,
-    kabel_berantakan: issues.filter(i => i.issue_class === 'kabel_berantakan').length,
+    kabel_semrawut: issues.filter(i => i.issue_class === 'kabel_semrawut').length,
   };
   const data = [
     { label: 'Jalan Bolong', percent: Math.round(counts.jalan_bolong / total * 100), color: '#d32f2f', count: counts.jalan_bolong },
     { label: 'Sampah Liar', percent: Math.round(counts.sampah_liar / total * 100), color: '#f57c00', count: counts.sampah_liar },
     { label: 'Genangan Air', percent: Math.round(counts.genangan_air / total * 100), color: '#1976d2', count: counts.genangan_air },
-    { label: 'Kabel Berantakan', percent: Math.round(counts.kabel_berantakan / total * 100), color: '#455a64', count: counts.kabel_berantakan },
+    { label: 'Kabel Berantakan', percent: Math.round(counts.kabel_semrawut / total * 100), color: '#455a64', count: counts.kabel_semrawut },
   ];
   data.sort((a, b) => b.percent - a.percent);
   return data;

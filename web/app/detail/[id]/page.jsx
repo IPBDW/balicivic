@@ -40,76 +40,106 @@ export default function DetailPage() {
     }
     let cancelled = false;
     let mapTimer = null;
-    (async () => {
+    let pollTimer = null;
+    let pollCount = 0;
+    const MAX_POLLS = 40; // ~40 x 3s = 2 menit maksimal nunggu analisis AI
+
+    function applyData(d) {
+      setData(d);
+
+      const score = typeof d.final_score === "number" ? d.final_score : 0;
+      let scoreColor, textColor, labelText;
+      if (score > 70) {
+        scoreColor = "bg-gradient-to-r from-rose-500 to-red-600 shadow-[0_0_20px_rgba(225,29,72,0.4)]";
+        textColor = "text-rose-600";
+        labelText = "KRITIS - Perlu Penanganan Segera";
+      } else if (score > 40) {
+        scoreColor = "bg-gradient-to-r from-amber-400 to-orange-500 shadow-[0_0_20px_rgba(245,158,11,0.4)]";
+        textColor = "text-amber-600";
+        labelText = "SEDANG - Perlu Dijadwalkan";
+      } else {
+        scoreColor = "bg-gradient-to-r from-emerald-400 to-teal-500 shadow-[0_0_20px_rgba(16,185,129,0.4)]";
+        textColor = "text-emerald-600";
+        labelText = "RINGAN - Monitor Berkala";
+      }
+      setBar({ cls: "h-full w-0 transition-all duration-1000 ease-out rounded-full relative overflow-hidden " + scoreColor, width: "0%" });
+      setScoreUi({ val: String(score), cls: "text-5xl font-display font-bold " + textColor });
+      setSevUi({ label: labelText, cls: "text-sm font-bold " + textColor });
+      setTimeout(() => setBar({ cls: "h-full transition-all duration-1000 ease-out rounded-full relative overflow-hidden " + scoreColor, width: `${Math.min(Math.max(score, 0), 100)}%` }), 300);
+
+      const badge = d.status || "UNKNOWN";
+      // Selesai analisis ditandai issue_class bukan "processing" lagi
+      // (status tetap PENDING = menunggu verifikasi admin, itu normal).
+      const isAnalyzing = d.issue_class === "processing" || badge === "processing";
+      if (isAnalyzing) {
+        setStatusUi({ label: "MENGANALISIS", cls: "px-4 py-1.5 rounded-full text-[10px] font-bold border shadow-sm bg-amber-50 text-amber-600 border-amber-100 uppercase tracking-wider animate-pulse" });
+      } else if (badge === "OPEN" || badge === "IN_PROGRESS") {
+        setStatusUi({ label: badge, cls: "px-4 py-1.5 rounded-full text-[10px] font-bold border shadow-sm bg-rose-50 text-rose-600 border-rose-100 uppercase tracking-wider" });
+      } else if (badge === "ERROR") {
+        setStatusUi({ label: badge, cls: "px-4 py-1.5 rounded-full text-[10px] font-bold border shadow-sm bg-slate-100 text-slate-500 border-slate-200 uppercase tracking-wider" });
+      } else {
+        setStatusUi({ label: badge, cls: "px-4 py-1.5 rounded-full text-[10px] font-bold border shadow-sm bg-emerald-50 text-emerald-600 border-emerald-100 uppercase tracking-wider" });
+      }
+    }
+
+    function initMap(d) {
+      if (typeof L === "undefined" || !d.latitude || !d.longitude) return;
+      if (mapRef.current) return; // sudah pernah di-init, jangan double
+      mapTimer = setTimeout(() => {
+        if (cancelled) return;
+        const container = document.getElementById("map");
+        if (!container) return;
+        // Hindari double-init Leaflet (mis. akibat React StrictMode).
+        if (mapRef.current) {
+          mapRef.current.remove();
+          mapRef.current = null;
+        }
+        if (container._leaflet_id) container._leaflet_id = null;
+        const map = L.map(container, { zoomControl: false, attributionControl: false }).setView([d.latitude, d.longitude], 15);
+        L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: "&copy; OpenStreetMap contributors" }).addTo(map);
+        const customIcon = L.divIcon({
+          className: "custom-div-icon",
+          html: `<div style="background-color: #C94B4B; width: 24px; height: 24px; border-radius: 50%; border: 3px solid white; box-shadow: 0 4px 6px rgba(0,0,0,0.3);"></div>`,
+          iconSize: [24, 24],
+          iconAnchor: [12, 12],
+        });
+        L.marker([d.latitude, d.longitude], { icon: customIcon }).addTo(map);
+        mapRef.current = map;
+        setTimeout(() => {
+          if (cancelled) return;
+          map.invalidateSize();
+          map.setView([d.latitude, d.longitude], 15);
+        }, 500);
+      }, 100);
+    }
+
+    async function load(isFirst) {
       try {
         const res = await fetch(`${API_BASE}/api/issues/${issueId}`);
         if (!res.ok) throw new Error("Gagal ambil data");
         const d = await res.json();
         if (cancelled) return;
-        setData(d);
+        applyData(d);
+        initMap(d);
 
-        const score = typeof d.final_score === "number" ? d.final_score : 0;
-        let scoreColor, textColor, labelText;
-        if (score > 70) {
-          scoreColor = "bg-gradient-to-r from-rose-500 to-red-600 shadow-[0_0_20px_rgba(225,29,72,0.4)]";
-          textColor = "text-rose-600";
-          labelText = "KRITIS - Perlu Penanganan Segera";
-        } else if (score > 40) {
-          scoreColor = "bg-gradient-to-r from-amber-400 to-orange-500 shadow-[0_0_20px_rgba(245,158,11,0.4)]";
-          textColor = "text-amber-600";
-          labelText = "SEDANG - Perlu Dijadwalkan";
-        } else {
-          scoreColor = "bg-gradient-to-r from-emerald-400 to-teal-500 shadow-[0_0_20px_rgba(16,185,129,0.4)]";
-          textColor = "text-emerald-600";
-          labelText = "RINGAN - Monitor Berkala";
-        }
-        setBar({ cls: "h-full w-0 transition-all duration-1000 ease-out rounded-full relative overflow-hidden " + scoreColor, width: "0%" });
-        setScoreUi({ val: String(score), cls: "text-5xl font-display font-bold " + textColor });
-        setSevUi({ label: labelText, cls: "text-sm font-bold " + textColor });
-        setTimeout(() => setBar({ cls: "h-full transition-all duration-1000 ease-out rounded-full relative overflow-hidden " + scoreColor, width: `${Math.min(Math.max(score, 0), 100)}%` }), 300);
-
-        const badge = d.status || "UNKNOWN";
-        if (badge === "OPEN") {
-          setStatusUi({ label: badge, cls: "px-4 py-1.5 rounded-full text-[10px] font-bold border shadow-sm bg-rose-50 text-rose-600 border-rose-100 uppercase tracking-wider" });
-        } else {
-          setStatusUi({ label: badge, cls: "px-4 py-1.5 rounded-full text-[10px] font-bold border shadow-sm bg-emerald-50 text-emerald-600 border-emerald-100 uppercase tracking-wider" });
-        }
-
-        if (typeof L !== "undefined" && d.latitude && d.longitude) {
-          mapTimer = setTimeout(() => {
-            if (cancelled) return;
-            const container = document.getElementById("map");
-            if (!container) return;
-            // Hindari double-init Leaflet (mis. akibat React StrictMode).
-            if (mapRef.current) {
-              mapRef.current.remove();
-              mapRef.current = null;
-            }
-            if (container._leaflet_id) container._leaflet_id = null;
-            const map = L.map(container, { zoomControl: false, attributionControl: false }).setView([d.latitude, d.longitude], 15);
-            L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: "&copy; OpenStreetMap contributors" }).addTo(map);
-            const customIcon = L.divIcon({
-              className: "custom-div-icon",
-              html: `<div style="background-color: #C94B4B; width: 24px; height: 24px; border-radius: 50%; border: 3px solid white; box-shadow: 0 4px 6px rgba(0,0,0,0.3);"></div>`,
-              iconSize: [24, 24],
-              iconAnchor: [12, 12],
-            });
-            L.marker([d.latitude, d.longitude], { icon: customIcon }).addTo(map);
-            mapRef.current = map;
-            setTimeout(() => {
-              if (cancelled) return;
-              map.invalidateSize();
-              map.setView([d.latitude, d.longitude], 15);
-            }, 500);
-          }, 100);
+        // Kalau analisis AI belum selesai (issue_class masih "processing"),
+        // poll ulang. Status PENDING sendiri itu normal (menunggu review admin).
+        const stillProcessing = d.issue_class === "processing";
+        if (stillProcessing && pollCount < MAX_POLLS) {
+          pollCount++;
+          pollTimer = setTimeout(() => { if (!cancelled) load(false); }, 3000);
         }
       } catch (error) {
         console.error("Error loading detail:", error);
       }
-    })();
+    }
+
+    load(true);
+
     return () => {
       cancelled = true;
       if (mapTimer) clearTimeout(mapTimer);
+      if (pollTimer) clearTimeout(pollTimer);
       if (mapRef.current) {
         mapRef.current.remove();
         mapRef.current = null;
@@ -159,7 +189,10 @@ export default function DetailPage() {
     ? new Date(data.created_at).toLocaleDateString("id-ID", { weekday: "long", year: "numeric", month: "long", day: "numeric" }) +
       " • " + new Date(data.created_at).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }) + " WITA"
     : "-";
-  const desc = data?.meta_data?.llm_result?.public?.message ?? "Tidak ada analisis tersedia.";
+  const isAnalyzing = data?.issue_class === "processing";
+  const desc = isAnalyzing
+    ? "Laporan sedang dianalisis oleh AI. Hasil akan muncul otomatis dalam beberapa detik."
+    : (data?.meta_data?.llm_result?.public?.message ?? "Tidak ada analisis tersedia.");
   const locText = `${data?.kecamatan || "Lokasi Unknown"}, ${data?.kabupaten || "Lokasi Unknown"}`;
   const gmapsHref = data?.latitude && data?.longitude ? `https://www.google.com/maps/search/?api=1&query=${data.latitude},${data.longitude}` : "#";
   const imgSrc = data?.image_url ? imgUrl(data.image_url) : "";

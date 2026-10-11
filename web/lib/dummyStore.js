@@ -83,7 +83,7 @@ export function simulateAnalysis(id) {
   setTimeout(() => {
     const issue = _store.find(x => x.id === Number(id));
     if (!issue) return;
-    const kelas = ['jalan_bolong', 'genangan_air', 'sampah_liar', 'kabel_berantakan'];
+    const kelas = ['jalan_bolong', 'genangan_air', 'sampah_liar', 'kabel_semrawut'];
     issue.issue_class = kelas[Math.floor(Math.random() * kelas.length)];
     issue.final_score = 30 + Math.floor(Math.random() * 60);
     issue.severity_label = issue.final_score >= 75 ? 'HIGH' : issue.final_score >= 45 ? 'MEDIUM' : 'LOW';

@@ -89,7 +89,7 @@ export default function LaporPage() {
 
   async function fetchLiveActivity() {
     try {
-      const res = await fetch(`${API_BASE}/api/issues`);
+      const res = await fetch(`${API_BASE}/api/issues?limit=3`);
       if (!res.ok) return;
       const data = await res.json();
       setActivity(data.slice(0, 3));

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { API_BASE } from "@/lib/api";
+import { API_BASE, fetchAllIssues } from "@/lib/api";
 import { waitForLeaflet } from "@/lib/leaflet";
 
 /* ===== CSS asli index.html (1:1) ===== */
@@ -152,8 +152,7 @@ export default function HomePage() {
 
   async function fetchDistribution() {
     try {
-      const res = await fetch(`${API_BASE}/api/issues`);
-      const issues = await res.json();
+      const issues = await fetchAllIssues();
       const counts = { jalan_bolong: 0, sampah_liar: 0, genangan_air: 0, kabel_semrawut: 0 };
       issues.forEach((issue) => {
         if (counts[issue.issue_class] !== undefined) counts[issue.issue_class]++;
@@ -196,14 +195,12 @@ export default function HomePage() {
         dragging: true,
         doubleClickZoom: true,
       }).setView([-8.4095, 115.1889], 9);
-      L.tileLayer("https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png", {
+      L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
         maxZoom: 19,
-        attribution: "&copy; OpenStreetMap contributors &copy; CARTO",
-        subdomains: "abcd",
+        attribution: "&copy; OpenStreetMap contributors",
       }).addTo(map);
       setTimeout(() => map.invalidateSize(), 100);
-      const res = await fetch(`${API_BASE}/api/issues`);
-      const points = await res.json();
+      const points = await fetchAllIssues();
       const heatData = points
         .filter((p) => (p.latitude || p.lat) && (p.longitude || p.long || p.lon))
         .map((p) => {

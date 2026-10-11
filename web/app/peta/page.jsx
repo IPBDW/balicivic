@@ -2,7 +2,7 @@
 
 import NavbarApp from "@/components/NavbarApp";
 import BottomNav from "@/components/BottomNav";
-import { API_BASE } from "@/lib/api";
+import { API_BASE, fetchAllIssues } from "@/lib/api";
 import { waitForLeaflet } from "@/lib/leaflet";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { DUMMY_HEATMAP_POINTS, DUMMY_HEAT_DATA } from "@/lib/dummyDashboard";
@@ -72,7 +72,7 @@ export default function PetaPage() {
     const map = mapRef.current;
     if (!map) return;
     try {
-      const allData = IS_DUMMY_MODE ? DUMMY_HEATMAP_POINTS : await fetch(`${API_BASE}/api/issues`).then((r) => r.json());
+      const allData = IS_DUMMY_MODE ? DUMMY_HEATMAP_POINTS : await fetchAllIssues();
       const points = allData.filter((p) => {
         const pClass = p.issue_class || p.class;
         const pStatus = p.status;
