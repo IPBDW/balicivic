@@ -56,21 +56,21 @@ function MarketingNavbar() {
     { href: "#faq", label: "FAQ" },
   ];
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-lightBorder bg-white/90 backdrop-blur-md transition-all duration-300">
-      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
-        <div className="flex items-center gap-2">
+    <header className="sticky top-0 z-50 w-full h-16 border-b border-lightBorder bg-white/90 backdrop-blur-md transition-all duration-300">
+      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center gap-2 sm:gap-3">
           <Link href="/" className="block" aria-label="BaliCivic AI - Beranda">
             <img
               src="/assets/BaliCivic_App_Icon_1_.png"
               onError={(e) => (e.currentTarget.src = "https://via.placeholder.com/32?text=B")}
               alt="BaliCivic AI"
-              className="h-8 w-8 rounded-lg object-cover shadow-lg shadow-primary/30"
-              width="32"
-              height="32"
+              className="h-9 w-9 rounded-lg object-cover shadow-lg shadow-primary/30"
+              width="36"
+              height="36"
               loading="lazy"
             />
           </Link>
-          <span className="font-bold tracking-tight text-lg">BaliCivic AI</span>
+          <span className="font-bold tracking-tight text-base sm:text-lg">BaliCivic AI</span>
         </div>
 
         <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-textSecondary">
@@ -196,9 +196,10 @@ export default function HomePage() {
         dragging: true,
         doubleClickZoom: true,
       }).setView([-8.4095, 115.1889], 9);
-      L.tileLayer("https://cartodb-basemaps-a.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png", {
+      L.tileLayer("https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png", {
         maxZoom: 19,
-        attribution: "&copy; OpenStreetMap contributors",
+        attribution: "&copy; OpenStreetMap contributors &copy; CARTO",
+        subdomains: "abcd",
       }).addTo(map);
       setTimeout(() => map.invalidateSize(), 100);
       const res = await fetch(`${API_BASE}/api/issues`);
@@ -361,9 +362,9 @@ export default function HomePage() {
                     <div className="absolute inset-0 bg-gradient-to-br from-white/40 to-transparent opacity-50 pointer-events-none"></div>
                   </div>
                   <div className="font-mono text-[10px] bg-slate-900 text-slate-300 p-3 rounded-lg space-y-1 shadow-inner">
-                    <div className="flex gap-2"><span className="text-emerald-400">➜</span> <span>Loading YOLOv11s weights...</span></div>
-                    <div className="flex gap-2"><span className="text-yellow-400">⚠</span> <span>Detected: &apos;genangan_air&apos;</span></div>
-                    <div className="flex gap-2 border-t border-slate-700 pt-1 mt-1"><span className="text-blue-400">ℹ</span> <span>Generating summary with Gemini Flash...</span></div>
+                    <div className="flex gap-2"><i className="fas fa-chevron-right text-emerald-400 text-[10px]"></i> <span>Loading YOLOv11s weights...</span></div>
+                    <div className="flex gap-2"><i className="fas fa-triangle-exclamation text-yellow-400 text-[10px]"></i> <span>Detected: &apos;genangan_air&apos;</span></div>
+                    <div className="flex gap-2 border-t border-slate-700 pt-1 mt-1"><i className="fas fa-circle-info text-blue-400 text-[10px]"></i> <span>Generating summary with Gemini Flash...</span></div>
                   </div>
                 </div>
               </div>
@@ -405,7 +406,7 @@ export default function HomePage() {
                 <div className="space-y-4">
                   {["Laporan Manual Tercecer: Pengaduan via WhatsApp/Instagram sulit dipetakan lokasinya secara akurat.", "Tanpa Prioritas Objektif: Sulit membedakan mana lubang kecil vs lubang berbahaya tanpa standar visual."].map((t, i) => (
                     <div key={i} className="flex gap-4 p-4 rounded-xl bg-red-50 border border-red-100 shadow-sm transition-all duration-300 hover:scale-[1.02] hover:shadow-md cursor-default">
-                      <div className="text-primary text-xl font-bold">✕</div>
+                      <div className="text-primary text-xl font-bold"><i className="fas fa-xmark"></i></div>
                       <div className="text-sm text-textDark">
                         {t.split(":")[0]}: {t.split(":")[1]}
                       </div>
@@ -418,7 +419,7 @@ export default function HomePage() {
                 <ul className="space-y-4 text-sm">
                   {["Automasi pencatatan lokasi (Geo-tagging).", "Penilaian tingkat keparahan (Severity Scoring).", "Data siap olah untuk dinas terkait."].map((t, i) => (
                     <li key={i} className="flex items-start gap-3 group">
-                      <span className="w-6 h-6 rounded-full bg-accentGreen/20 text-accentGreen flex items-center justify-center font-bold text-xs group-hover:bg-accentGreen group-hover:text-white transition-colors">✓</span>
+                      <span className="w-6 h-6 rounded-full bg-accentGreen/20 text-accentGreen flex items-center justify-center font-bold text-xs group-hover:bg-accentGreen group-hover:text-white transition-colors"><i className="fas fa-check text-xs"></i></span>
                       <span className="group-hover:text-textDark transition-colors text-textSecondary">{t}</span>
                     </li>
                   ))}
@@ -566,14 +567,16 @@ export default function HomePage() {
             </div>
             <div className="grid gap-6 md:grid-cols-4">
               {[
-                { icon: "⚠️", badge: "KESELAMATAN", bc: "bg-amber-100 text-amber-600", bb: "text-amber-600 bg-amber-50 border-amber-100", title: "Jalan Bolong", desc: "Deteksi lubang (potholes)." },
-                { icon: "🗑️", badge: "KEBERSIHAN", bc: "bg-red-100 text-red-600", bb: "text-red-600 bg-red-50 border-red-100", title: "Sampah Liar", desc: "Deteksi tumpukan sampah liar." },
-                { icon: "💧", badge: "BANJIR", bc: "bg-blue-100 text-blue-600", bb: "text-blue-600 bg-blue-50 border-blue-100", title: "Genangan Air", desc: "Indikasi drainase buruk." },
-                { icon: "⚡", badge: "INFRA", bc: "bg-slate-200 text-slate-600", bb: "text-slate-600 bg-slate-100 border-slate-200", title: "Kabel Berantakan", desc: "Utilitas udara yang tak terurus." },
+                { icon: "fa-triangle-exclamation", badge: "KESELAMATAN", bc: "bg-amber-100 text-amber-600", bb: "text-amber-600 bg-amber-50 border-amber-100", title: "Jalan Bolong", desc: "Deteksi lubang (potholes)." },
+                { icon: "fa-trash-can", badge: "KEBERSIHAN", bc: "bg-red-100 text-red-600", bb: "text-red-600 bg-red-50 border-red-100", title: "Sampah Liar", desc: "Deteksi tumpukan sampah liar." },
+                { icon: "fa-droplet", badge: "BANJIR", bc: "bg-blue-100 text-blue-600", bb: "text-blue-600 bg-blue-50 border-blue-100", title: "Genangan Air", desc: "Indikasi drainase buruk." },
+                { icon: "fa-bolt", badge: "INFRA", bc: "bg-slate-200 text-slate-600", bb: "text-slate-600 bg-slate-100 border-slate-200", title: "Kabel Berantakan", desc: "Utilitas udara yang tak terurus." },
               ].map((c, i) => (
                 <div key={i} className={`group rounded-2xl border border-lightBorder bg-bgPage p-5 card-hover scroll-reveal stagger-${i + 1} transition-all duration-300 hover:-translate-y-2 hover:shadow-xl hover:bg-white cursor-default`}>
                   <div className="flex justify-between items-start mb-3">
-                    <div className={`w-10 h-10 rounded-full ${c.bc} flex items-center justify-center text-lg group-hover:scale-110 transition-transform`}>{c.icon}</div>
+                    <div className={`w-10 h-10 rounded-full ${c.bc} flex items-center justify-center text-lg group-hover:scale-110 transition-transform`}>
+                      <i className={`fas ${c.icon}`}></i>
+                    </div>
                     <span className={`text-[10px] font-bold ${c.bb} px-2 py-1 rounded border`}>{c.badge}</span>
                   </div>
                   <h3 className="font-semibold text-textDark">{c.title}</h3>
@@ -782,12 +785,12 @@ export default function HomePage() {
             </div>
             <div className="grid gap-8 md:grid-cols-2">
               {[
-                { emoji: "🌱", title: "Untuk Masyarakat", accent: "group-hover:text-primary", icon: "group-hover:bg-primary/10", dot: "text-primary", items: [
+                { icon: "fa-seedling", title: "Untuk Masyarakat", accent: "group-hover:text-primary", iconWrap: "group-hover:bg-primary/10", dot: "text-primary", items: [
                   ["Akses Mudah Melapor", "Warga cukup upload foto atau isi form tanpa birokrasi panjang sehingga partisipasi meningkat."],
                   ["Pantau Status Laporan", "Status laporan (pending, diproses, selesai) bisa dipantau langsung secara transparan dari aplikasi/web."],
                   ["Lingkungan Aman & Nyaman", "Perbaikan lebih cepat berarti jalan aman, sampah berkurang, dan banjir teratasi demi kualitas hidup warga."],
                 ] },
-                { emoji: "🎯", title: "Untuk Pemerintah", accent: "group-hover:text-accentTeal", icon: "group-hover:bg-accentTeal/10", dot: "text-accentTeal", items: [
+                { icon: "fa-bullseye", title: "Untuk Pemerintah", accent: "group-hover:text-accentTeal", iconWrap: "group-hover:bg-accentTeal/10", dot: "text-accentTeal", items: [
                   ["Monitoring Real-time", "Melihat sebaran masalah (jalan, sampah, genangan, dan utilitas udara taktertata) cepat & akurat tanpa harus mengirim petugas survei manual."],
                   ["Prioritas Berbasis Data", "Dashboard memberi skor severity & peringkat kecamatan, agar anggaran fokus ke area paling kritis."],
                   ["Efisiensi & Transparansi", "Data yang rapi dan otomatis mempermudah evaluasi kinerja dinas serta meningkatkan kepercayaan publik."],
@@ -795,7 +798,9 @@ export default function HomePage() {
               ].map((c, idx) => (
                 <div key={idx} className={`rounded-2xl border border-lightBorder p-6 hover:border-primary/50 transition-all hover:shadow-lg hover:-translate-y-1 scroll-reveal stagger-${idx + 1} group cursor-default bg-white`}>
                   <div className="flex items-center gap-3 mb-6">
-                    <div className={`w-12 h-12 rounded-full bg-gray-100 ${c.icon} transition-colors flex items-center justify-center text-2xl`}>{c.emoji}</div>
+                    <div className={`w-12 h-12 rounded-full bg-gray-100 ${c.iconWrap} transition-colors flex items-center justify-center text-xl`}>
+                      <i className={`fas ${c.icon}`}></i>
+                    </div>
                     <h3 className={`text-xl font-bold text-textDark ${c.accent} transition-colors`}>{c.title}</h3>
                   </div>
                   <ul className="space-y-4 text-sm text-textSecondary">
@@ -880,7 +885,9 @@ export default function HomePage() {
             <div className="grid gap-6 md:grid-cols-2 mb-8">
               <div className="group rounded-2xl border border-lightBorder bg-white p-6 card-hover scroll-reveal stagger-1 transition-all duration-300 hover:-translate-y-2 hover:shadow-xl cursor-default">
                 <div className="flex items-center gap-4 mb-4">
-                  <div className="w-12 h-12 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center text-xl group-hover:scale-110 transition-transform">⚠️</div>
+                  <div className="w-12 h-12 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center text-xl group-hover:scale-110 transition-transform">
+                    <i className="fas fa-triangle-exclamation"></i>
+                  </div>
                   <h3 className="text-lg font-bold text-textDark group-hover:text-amber-600 transition-colors">Limitasi Sistem Saat Ini</h3>
                 </div>
                 <ul className="space-y-3 text-sm text-textSecondary list-disc list-inside marker:text-amber-400 leading-relaxed">
@@ -893,7 +900,9 @@ export default function HomePage() {
               </div>
               <div className="group rounded-2xl border border-lightBorder bg-white p-6 card-hover scroll-reveal stagger-2 transition-all duration-300 hover:-translate-y-2 hover:shadow-xl cursor-default">
                 <div className="flex items-center gap-4 mb-4">
-                  <div className="w-12 h-12 rounded-full bg-accentTeal/10 text-accentTeal flex items-center justify-center text-xl group-hover:scale-110 transition-transform">🚀</div>
+                  <div className="w-12 h-12 rounded-full bg-accentTeal/10 text-accentTeal flex items-center justify-center text-xl group-hover:scale-110 transition-transform">
+                    <i className="fas fa-rocket"></i>
+                  </div>
                   <h3 className="text-lg font-bold text-textDark group-hover:text-accentTeal transition-colors">Rencana Pengembangan</h3>
                 </div>
                 <ul className="space-y-3 text-sm text-textSecondary list-disc list-inside marker:text-accentTeal leading-relaxed">
@@ -1009,62 +1018,39 @@ export default function HomePage() {
               <span className="font-semibold text-textDark">Catatan Etika:</span> Data citra difokuskan pada infrastruktur publik. Wajah & privasi disamarkan sesuai etika AI.
             </div>
 
-            <footer className="border-t border-lightBorder pt-12 mt-12 bg-slate-50/50">
-              <div className="mx-auto max-w-7xl px-4 md:px-8">
-                <div className="grid md:grid-cols-4 gap-8 mb-8">
-                  <div className="md:col-span-1">
-                    <div className="flex items-center gap-2 mb-3">
-                      <img src="/assets/BaliCivic_App_Icon_1_.png" alt="BaliCivic AI" className="h-8 w-8 rounded-lg" />
-                      <span className="font-bold text-textDark text-lg">BaliCivic AI</span>
-                    </div>
-                    <p className="text-xs text-textSecondary leading-relaxed mb-4">
-                      Platform pelaporan cerdas berbasis Vision AI untuk lingkungan Bali yang lebih baik.
-                    </p>
-                    <div className="flex gap-3">
-                      <a href="#" className="w-8 h-8 rounded-full bg-slate-100 hover:bg-primary hover:text-white transition-colors flex items-center justify-center text-slate-600">
-                        <i className="fab fa-github text-sm"></i>
-                      </a>
-                      <a href="#" className="w-8 h-8 rounded-full bg-slate-100 hover:bg-primary hover:text-white transition-colors flex items-center justify-center text-slate-600">
-                        <i className="fab fa-linkedin text-sm"></i>
-                      </a>
-                      <a href="#" className="w-8 h-8 rounded-full bg-slate-100 hover:bg-primary hover:text-white transition-colors flex items-center justify-center text-slate-600">
-                        <i className="fas fa-envelope text-sm"></i>
-                      </a>
-                    </div>
+            <footer className="border-t border-lightBorder pt-16 mt-16 bg-white">
+              <div className="mx-auto max-w-6xl px-4">
+                <div className="flex flex-col items-center text-center gap-6 mb-10">
+                  <div className="flex items-center gap-2">
+                    <img src="/assets/BaliCivic_App_Icon_1_.png" alt="BaliCivic AI" className="h-9 w-9 rounded-lg" />
+                    <span className="font-bold text-textDark text-lg">BaliCivic AI</span>
                   </div>
-                  <div>
-                    <h4 className="font-bold text-textDark text-sm mb-4">Platform</h4>
-                    <ul className="space-y-2 text-xs text-textSecondary">
-                      <li><Link href="/dashboard" className="hover:text-primary transition-colors">Dashboard</Link></li>
-                      <li><Link href="/peta" className="hover:text-primary transition-colors">Heatmap</Link></li>
-                      <li><Link href="/laporan" className="hover:text-primary transition-colors">Semua Laporan</Link></li>
-                      <li><Link href="/lapor" className="hover:text-primary transition-colors">Buat Laporan</Link></li>
-                    </ul>
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-textDark text-sm mb-4">Informasi</h4>
-                    <ul className="space-y-2 text-xs text-textSecondary">
-                      <li><a href="#methodology" className="hover:text-primary transition-colors">Metodologi</a></li>
-                      <li><a href="#dataset" className="hover:text-primary transition-colors">Dataset</a></li>
-                      <li><a href="#metrics" className="hover:text-primary transition-colors">Performa Model</a></li>
-                      <li><a href="#faq" className="hover:text-primary transition-colors">FAQ</a></li>
-                    </ul>
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-textDark text-sm mb-4">Bantuan</h4>
-                    <ul className="space-y-2 text-xs text-textSecondary">
-                      <li><Link href="/bantuan" className="hover:text-primary transition-colors">Panduan Pengguna</Link></li>
-                      <li><a href="#" className="hover:text-primary transition-colors">Dokumentasi API</a></li>
-                      <li><a href="#contact" className="hover:text-primary transition-colors">Hubungi Kami</a></li>
-                      <li><a href="#" className="hover:text-primary transition-colors">Laporkan Bug</a></li>
-                    </ul>
+                  <p className="text-sm text-textSecondary leading-relaxed max-w-md">
+                    Platform pelaporan cerdas berbasis Vision AI untuk lingkungan Bali yang lebih baik.
+                  </p>
+                  <div className="flex gap-3">
+                    <a
+                      href="#"
+                      aria-label="GitHub"
+                      className="group w-10 h-10 rounded-full bg-slate-100 hover:bg-primary hover:text-white transition-all duration-300 flex items-center justify-center text-slate-600 hover:scale-110 hover:shadow-md"
+                    >
+                      <i className="fab fa-github text-base group-hover:scale-110 transition-transform duration-300"></i>
+                    </a>
+                    <a
+                      href="#"
+                      aria-label="Email"
+                      className="group w-10 h-10 rounded-full bg-slate-100 hover:bg-primary hover:text-white transition-all duration-300 flex items-center justify-center text-slate-600 hover:scale-110 hover:shadow-md"
+                    >
+                      <i className="fas fa-envelope text-base group-hover:scale-110 transition-transform duration-300"></i>
+                    </a>
                   </div>
                 </div>
-                <div className="border-t border-lightBorder pt-6 flex flex-col md:flex-row justify-between items-center text-xs text-textSecondary">
-                  <div className="mb-2 md:mb-0">
-                    <span className="font-semibold text-textDark">BaliCivic AI</span> © 2025 - Proyek Karya Tulis Ilmiah
+
+                <div className="border-t border-lightBorder/60 pt-6 flex flex-col-reverse md:flex-row justify-between items-center gap-3 text-xs text-textSecondary">
+                  <div>
+                    BaliCivic AI &copy; 2025 &middot; Proyek Karya Tulis Ilmiah
                   </div>
-                  <div className="flex gap-4">
+                  <div className="flex gap-5">
                     <a href="#" className="hover:text-primary transition-colors">Kebijakan Privasi</a>
                     <a href="#" className="hover:text-primary transition-colors">Syarat & Ketentuan</a>
                   </div>
