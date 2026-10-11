@@ -1,5 +1,7 @@
 # BaliCivic AI
 
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
+
 Sistem pelaporan kerusakan infrastruktur berbasis AI untuk pemerintah (Bali).
 Warga mengirim foto + lokasi kerusakan, sistem mendeteksi jenis & tingkat
 keparahan otomatis, lalu menghasilkan laporan warga + laporan teknis Dinas PUPR.
@@ -103,7 +105,32 @@ NEXT_PUBLIC_API_BASE=http://127.0.0.1:8000
 - Ganti Gmail app password di `.env` (`SMTP_APP_PASSWORD`) sebelum produksi.
 - Database produksi pakai PostgreSQL (`DATABASE_URL`), bukan SQLite.
 
-## Lisensi & Etika Data
+## Lisensi
+
+Project ini dirilis di bawah **GNU Affero General Public License v3.0 (AGPL-3.0)**.
+
+Copyright (C) 2025 I Putu Rio Ferdinand Satya Utama & I Putu Bagus Dharma Wijaya.
+
+Artinya, kamu **boleh**:
+
+- ✅ Melihat dan mempelajari seluruh source code.
+- ✅ Memodifikasi, menyalin, dan mendistribusikan ulang.
+- ✅ Memakai project ini untuk keperluan apa pun, termasuk komersial.
+
+Dengan **syarat wajib**:
+
+- 📢 Jika kamu memodifikasi dan **mempublikasikan** atau **menjalankannya
+  sebagai layanan (termasuk web service/SaaS)**, kamu **wajib merilis source
+  code hasil modifikasimu** di bawah lisensi yang sama (AGPL-3.0).
+- 📝 Cantumkan atribusi ke penulis asli dan sertakan salinan lisensi ini.
+- 🚫 Kamu **tidak boleh** mengambil kode ini lalu menjadikannya produk
+  closed-source / proprietary.
+
+Singkatnya: **bebas dipakai dan dikembangkan, tetapi harus tetap open-source
+di bawah lisensi yang sama.** Teks lengkap lisensi ada di file [LICENSE](./LICENSE)
+atau di <https://www.gnu.org/licenses/agpl-3.0>.
+
+## Etika Data
 
 Seluruh citra difokuskan pada infrastruktur publik. Wajah & data pribadi
 disamarkan sesuai etika AI dan UU PDP No. 27/2022.
