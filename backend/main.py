@@ -36,47 +36,81 @@ from utils import process_analysis, TOKEN
 load_dotenv()
 
 # 2. LIFESPAN MANAGER
+def _find_raw_file(issue) -> str | None:
+    """
+    Cari file raw untuk sebuah Issue di disk.
+
+    Upload menyimpan file dengan nama uuid (uploads_raw/{fid}.jpg), BUKAN
+    pakai id DB. Jadi kita simpan nama file itu di meta_data["raw_file"]
+    saat upload, dan di sini baca dari situ. Fallback ke pola lama
+    uploads_raw/{id}.jpg supaya data lama tetap ketemu.
+    """
+    # 1) Cara baru: baca dari meta_data (paling akurat)
+    meta = issue.meta_data if isinstance(issue.meta_data, dict) else {}
+    raw_name = meta.get("raw_file")
+    if raw_name:
+        cand = os.path.join(UPLOAD_RAW_DIR, os.path.basename(raw_name))
+        if os.path.exists(cand):
+            return cand
+    # 2) Fallback: pola lama berbasis id
+    cand = f"{UPLOAD_RAW_DIR}/{issue.id}.jpg"
+    if os.path.exists(cand):
+        return cand
+    return None
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Bikin tabel kalau belum ada
-    create_db_and_tables()
-    print("[SYSTEM] Database Connected & Tables Ready.")
+    # Bikin tabel kalau belum ada.
+    # Kalau DB belum siap (mis. PostgreSQL belum jalan), JANGAN crash total:
+    # beri pesan jelas supaya operator tau harus ngapain. Server tetap hidup
+    # dalam mode "degraded" (endpoint akan balas error sampai DB nyala).
+    db_ready = True
+    try:
+        create_db_and_tables()
+        print("[SYSTEM] Database Connected & Tables Ready.")
+    except Exception as e:
+        db_ready = False
+        print("\n" + "=" * 60)
+        print("[SYSTEM][FATAL] Gagal konek / siapkan database.")
+        print(f"   Penyebab: {e}")
+        print("   Cek DATABASE_URL di backend/.env.")
+        print("   Kalau pakai PostgreSQL lokal, jalankan dulu: ./pg.sh start")
+        print("   Server tetap jalan tapi API akan error sampai DB siap.")
+        print("=" * 60 + "\n")
 
     # Recovery: cari Issue yang nyangkut di PENDING karena server restart
     # atau crash. Kalau raw file-nya masih ada di disk, proses ulang.
-    try:
-        from sqlmodel import Session as _Session
-        with _Session(engine) as s:
-            stuck = s.exec(
-                select(Issue).where(Issue.status == "PENDING")
-            ).all()
-            if stuck:
-                print(f"[RECOVERY] {len(stuck)} laporan PENDING ditemukan, "
-                      "cek apakah file-nya masih ada...")
-                recovered = 0
-                for iss in stuck:
-                    # Cari raw_path dari fid. id field bisa dipake karena
-                    # upload pakai uuid4().hex[:8] untuk nama file,
-                    # tapi field id DB autoincrement. Pakai pattern fallback:
-                    # uploads_raw/{iss.id}.jpg.
-                    cand_raw = f"uploads_raw/{iss.id}.jpg"
-                    if os.path.exists(cand_raw):
-                        print(f"[RECOVERY] Re-queue Issue #{iss.id}")
-                        # langsung panggil worker-nya (sync, aman di startup)
-                        run_analysis_background(iss.id, cand_raw)
-                        recovered += 1
-                    else:
-                        # File hilang, tandai error biar gak nyangkut selamanya
-                        iss.status = "ERROR"
-                        if not isinstance(iss.meta_data, dict):
-                            iss.meta_data = {}
-                        iss.meta_data["recovery_error"] = "Raw file tidak ditemukan saat startup"
-                        s.add(iss)
-                if recovered:
-                    s.commit()
-                    print(f"[RECOVERY] Selesai, {recovered} laporan diproses ulang.")
-    except Exception as e:
-        print(f"[RECOVERY][ERROR] {e}")
+    if db_ready:
+        try:
+            from sqlmodel import Session as _Session
+            with _Session(engine) as s:
+                stuck = s.exec(
+                    select(Issue).where(Issue.status == "PENDING")
+                ).all()
+                if stuck:
+                    print(f"[RECOVERY] {len(stuck)} laporan PENDING ditemukan, "
+                          "cek apakah file-nya masih ada...")
+                    recovered = 0
+                    for iss in stuck:
+                        raw_path = _find_raw_file(iss)
+                        if raw_path:
+                            print(f"[RECOVERY] Re-queue Issue #{iss.id} ({raw_path})")
+                            # langsung panggil worker-nya (sync, aman di startup)
+                            run_analysis_background(iss.id, raw_path)
+                            recovered += 1
+                        else:
+                            # File hilang, tandai error biar gak nyangkut selamanya
+                            iss.status = "ERROR"
+                            if not isinstance(iss.meta_data, dict):
+                                iss.meta_data = {}
+                            iss.meta_data["recovery_error"] = "Raw file tidak ditemukan saat startup"
+                            s.add(iss)
+                    if recovered:
+                        s.commit()
+                        print(f"[RECOVERY] Selesai, {recovered} laporan diproses ulang.")
+        except Exception as e:
+            print(f"[RECOVERY][ERROR] {e}")
 
     yield
 
@@ -97,8 +131,21 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 # CORS: whitelist domain dari env (CORS_ORIGINS, dipisah koma).
 # Default: hanya localhost dev. Di produksi isi domain resmi, contoh:
 #   CORS_ORIGINS=https://balicivicai.site,https://www.balicivicai.site
-_cors_env = os.getenv("CORS_ORIGINS", "http://127.0.0.1:8000,http://localhost:8000,http://localhost:3000")
+#
+# Origin dev lokal SELALU diizinkan (digabung), supaya `npm run dev` di
+# port 3000/3001 tidak kena blokir CORS walau .env cuma berisi domain
+# produksi. Aman karena origin ini hanya relevan di mesin lokal.
+_DEV_ORIGINS = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:3001",
+    "http://127.0.0.1:3001",
+]
+_cors_env = os.getenv("CORS_ORIGINS", "http://127.0.0.1:8000,http://localhost:8000")
 allow_origins = [o.strip() for o in _cors_env.split(",") if o.strip()]
+for _o in _DEV_ORIGINS:
+    if _o not in allow_origins:
+        allow_origins.append(_o)
 if allow_origins == ["*"]:
     print("[SECURITY][WARN] CORS_ORIGINS='*' (semua origin diizinkan). "
           "Ganti ke domain resmi sebelum produksi.")
@@ -187,17 +234,30 @@ async def analyze_endpoint(
     raw_path = f"{UPLOAD_RAW_DIR}/{fid}.jpg"
 
     try:
-        # Validasi input di trust boundary: harus gambar & maksimal 10MB
+        # Validasi input di trust boundary: harus gambar & maksimal 10MB.
+        # content_type dari client bisa kosong/dipalsukan, jadi kita juga cek
+        # magic bytes (signature) file-nya.
         if file.content_type and not file.content_type.startswith("image/"):
             raise HTTPException(status_code=400, detail="File harus berupa gambar (jpg/png)")
+
         MAX_UPLOAD = 10 * 1024 * 1024
         size = 0
+        head = b""
         with open(raw_path, "wb") as f:
             while chunk := file.file.read(1024 * 1024):
+                if not head:
+                    head = chunk[:16]
                 size += len(chunk)
                 if size > MAX_UPLOAD:
                     raise HTTPException(status_code=413, detail="Ukuran file maksimal 10MB")
                 f.write(chunk)
+
+        # Signature gambar umum: JPEG (FF D8 FF), PNG (89 50 4E 47), WEBP (RIFF....WEBP)
+        is_jpeg = head[:3] == b"\xff\xd8\xff"
+        is_png = head[:4] == b"\x89PNG"
+        is_webp = head[:4] == b"RIFF" and head[8:12] == b"WEBP"
+        if not (is_jpeg or is_png or is_webp):
+            raise HTTPException(status_code=400, detail="File harus berupa gambar (jpg/png)")
     except HTTPException:
         if os.path.exists(raw_path):
             os.remove(raw_path)
@@ -223,7 +283,9 @@ async def analyze_endpoint(
         status="PENDING",
         breakdown_score={},
         secondary_issues=[],
-        meta_data={},
+        # Simpan nama file raw di meta_data supaya recovery & delete bisa
+        # menemukan file aslinya (nama file pakai uuid, bukan id DB).
+        meta_data={"raw_file": f"{fid}.jpg"},
     )
 
     session.add(new_issue)
@@ -385,8 +447,8 @@ def delete_issue(
             deleted_files.append(path)
 
     # Hapus raw kalau masih ada (mungkin gagal analyze)
-    raw_path = f"uploads_raw/{issue_id}.jpg"
-    if os.path.exists(raw_path):
+    raw_path = _find_raw_file(issue)
+    if raw_path and os.path.exists(raw_path):
         os.remove(raw_path)
         deleted_files.append(raw_path)
 

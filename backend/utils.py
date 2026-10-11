@@ -54,7 +54,7 @@ def reverse_geocode(lat: Optional[float], lon: Optional[float]) -> Tuple[Optiona
             "normalizeaddress": 1,
         }
         headers = {
-            "User-Agent": "BalicivilAI/1.0 (+https://balicivilai.site)"
+            "User-Agent": "BaliCivicAI/1.0 (+https://balicivicai.site)"
         }
 
         resp = requests.get(LOCATIONIQ_URL, params=params, headers=headers, timeout=5)
@@ -780,7 +780,12 @@ def process_analysis(issue_id: str, image_path: str, session: Session):
             issue.final_score = 0
             issue.breakdown_score = {}
             issue.secondary_issues = []
-            issue.meta_data = {"note": "Tidak ada objek valid terdeteksi oleh model."}
+            # Pertahankan raw_file (dipakai recovery & delete) — jangan timpa total
+            _prev_meta = issue.meta_data if isinstance(issue.meta_data, dict) else {}
+            issue.meta_data = {
+                **_prev_meta,
+                "note": "Tidak ada objek valid terdeteksi oleh model.",
+            }
             issue.title = "Tidak Ditemukan Kerusakan"
             issue.description = "Sistem tidak menemukan kerusakan signifikan pada foto yang dikirim."
             issue.image_url = f"/static/{detected_filename}"
@@ -838,8 +843,10 @@ def process_analysis(issue_id: str, image_path: str, session: Session):
             o for o in objects_meta if o.get("class") != primary_issue
         ]
 
-        # Meta data teknis full
+        # Meta data teknis full (pertahankan raw_file agar recovery/delete tetap jalan)
+        _prev_meta = issue.meta_data if isinstance(issue.meta_data, dict) else {}
         issue.meta_data = {
+            **_prev_meta,
             "geometry": geometry_dom,
             "objects": objects_meta,
             "llm_payload": payload,
