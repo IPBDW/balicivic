@@ -5,6 +5,9 @@ import BottomNav from "@/components/BottomNav";
 import { API_BASE } from "@/lib/api";
 import { waitForLeaflet } from "@/lib/leaflet";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { DUMMY_HEATMAP_POINTS, DUMMY_HEAT_DATA } from "@/lib/dummyDashboard";
+
+const IS_DUMMY_MODE = !API_BASE || API_BASE === "";
 
 const PAGE_CSS = `
 body { font-family: 'Inter', sans-serif; }
@@ -53,12 +56,15 @@ export default function PetaPage() {
     const map = mapRef.current;
     if (!map) return;
     const z = map.getZoom();
+    // Marker SELALU visible di semua zoom (sesuai permintaan user).
+    if (markerLayerRef.current && !map.hasLayer(markerLayerRef.current)) {
+      markerLayerRef.current.addTo(map);
+    }
+    // Heatmap blob hanya di zoom rendah (supaya tidak menutupi marker di zoom tinggi).
     if (z < DETAIL_ZOOM_THRESHOLD) {
       if (heatRef.current && !map.hasLayer(heatRef.current)) heatRef.current.addTo(map);
-      if (markerLayerRef.current) map.removeLayer(markerLayerRef.current);
     } else {
       if (heatRef.current && map.hasLayer(heatRef.current)) map.removeLayer(heatRef.current);
-      if (markerLayerRef.current) markerLayerRef.current.addTo(map);
     }
   }, []);
 
@@ -66,8 +72,7 @@ export default function PetaPage() {
     const map = mapRef.current;
     if (!map) return;
     try {
-      const res = await fetch(`${API_BASE}/api/issues`);
-      const allData = await res.json();
+      const allData = IS_DUMMY_MODE ? DUMMY_HEATMAP_POINTS : await fetch(`${API_BASE}/api/issues`).then((r) => r.json());
       const points = allData.filter((p) => {
         const pClass = p.issue_class || p.class;
         const pStatus = p.status;
@@ -130,22 +135,11 @@ export default function PetaPage() {
                 ? "text-orange-500"
                 : "text-gray-700";
 
-        const iconHtml = `
-          <div class="relative group cursor-pointer transform transition-transform hover:scale-110 hover:z-50">
-            <div class="relative z-10 drop-shadow-md">
-              <i class="fas fa-map-marker-alt text-3xl ${colorClass} drop-shadow-sm"></i>
-              <div class="absolute top-1.5 left-1/2 -translate-x-1/2 w-2 h-2 bg-white rounded-full shadow-inner"></div>
-            </div>
-            <div class="absolute left-1/2 -translate-x-1/2 top-full mt-1 whitespace-nowrap z-20">
-              <div class="bg-white/95 backdrop-blur-sm border border-gray-200 px-2 py-1 rounded-lg shadow-lg flex flex-col items-center gap-0.5">
-                <span class="text-[10px] font-bold text-gray-800 uppercase tracking-wide leading-none">${String(pClass).replace("_", " ")}</span>
-                <span class="text-[9px] font-mono text-gray-500 leading-none">#${pId}</span>
-              </div>
-              <div class="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-white rotate-45 border-t border-l border-gray-200"></div>
-            </div>
-          </div>`;
+        // Icon sederhana: fa-map-pin solid warna sesuai class, ukuran kecil.
+        // Tidak ada label bawaan di marker (supaya tidak crowded di zoom rendah).
+        const iconHtml = `<i class="fas fa-map-pin text-2xl ${colorClass} drop-shadow-md"></i>`;
 
-        const customIcon = L.divIcon({ html: iconHtml, className: "", iconSize: [30, 42], iconAnchor: [15, 42], popupAnchor: [0, -45] });
+        const customIcon = L.divIcon({ html: iconHtml, className: "", iconSize: [20, 28], iconAnchor: [10, 28], popupAnchor: [0, -28] });
         const marker = L.marker([pLat, pLon], { icon: customIcon });
         const popupHtml = `
           <div class="font-sans p-1 min-w-[150px]">
@@ -193,9 +187,10 @@ export default function PetaPage() {
           zoomControlContainer.style.marginBottom = "80px";
           zoomControlContainer.classList.add("md:mb-0");
         }
-        L.tileLayer("https://cartodb-basemaps-a.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png", {
+        L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
           maxZoom: 19,
-          attribution: "&copy; OpenStreetMap contributors",
+          attribution: "&copy; OpenStreetMap contributors &copy; CARTO",
+          subdomains: "abcd",
         }).addTo(map);
         mapRef.current = map;
         markerLayerRef.current = L.layerGroup().addTo(map);
@@ -231,10 +226,10 @@ export default function PetaPage() {
   return (
     <div className="bg-bgPage text-textDark h-screen flex flex-col overflow-hidden">
       <style dangerouslySetInnerHTML={{ __html: PAGE_CSS }} />
-      <NavbarApp active="/peta" variant="heatmap" sublabel="Heatmap" />
+      <NavbarApp active="/peta" sublabel="Heatmap" />
       {/*__JSX_SIDEBAR__*/}
-      <div className="relative flex-1 w-full h-full pt-16">
-        <div id="heatmap-map" className="absolute inset-0 z-0 bg-gray-100"></div>
+      <div className="relative flex-1 w-full h-full">
+        <div id="heatmap-map" className="absolute inset-0 z-0 bg-gray-100 w-full h-full"></div>
 
         <button
           onClick={() => setSidebarOpen(true)}

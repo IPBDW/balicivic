@@ -23,7 +23,7 @@ export default function BantuanPage() {
       <style dangerouslySetInnerHTML={{ __html: PAGE_CSS }} />
       <NavbarApp active="/bantuan" />
 
-      <main className="mx-auto max-w-6xl px-4 py-12">
+      <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12">
         {/* Header */}
         <div className="text-center mb-12">
           <h1 className="text-4xl md:text-5xl font-bold text-textDark mb-4">Pusat Bantuan</h1>

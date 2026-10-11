@@ -6,6 +6,17 @@ import BottomNav from "@/components/BottomNav";
 import { API_BASE } from "@/lib/api";
 import { waitForLeaflet } from "@/lib/leaflet";
 import { useCallback, useEffect, useState } from "react";
+import {
+  DUMMY_STATS,
+  DUMMY_TOP_LOCATIONS,
+  DUMMY_DISTRIBUTION,
+  DUMMY_RECENT_ISSUES,
+  DUMMY_HEAT_DATA,
+} from "@/lib/dummyDashboard";
+
+// Deteksi apakah lagi di mode dummy (API_BASE kosong → Next.js route handler
+// dummy dipakai). Pakai dummy data biar preview dashboard tetap berisi data.
+const IS_DUMMY_MODE = !API_BASE || API_BASE === "";
 
 const PAGE_CSS = `
 body { font-family: 'Inter', sans-serif; background-color: #F8FAFC; background-image: radial-gradient(at 0% 0%, rgba(201, 75, 75, 0.03) 0px, transparent 50%), radial-gradient(at 100% 0%, rgba(201, 75, 75, 0.03) 0px, transparent 50%); }
@@ -53,14 +64,18 @@ function getStatusColors(status, withBorder = false) {
 }
 
 export default function DashboardPage() {
-  const [stats, setStats] = useState({ total: "-", antrean: "-", perlu_tindakan: "-", selesai: "-" });
-  const [topLocs, setTopLocs] = useState([]);
-  const [distribution, setDistribution] = useState([]);
+  const [stats, setStats] = useState(IS_DUMMY_MODE ? DUMMY_STATS : { total: "-", antrean: "-", perlu_tindakan: "-", selesai: "-" });
+  const [topLocs, setTopLocs] = useState(IS_DUMMY_MODE ? DUMMY_TOP_LOCATIONS : []);
+  const [distribution, setDistribution] = useState(IS_DUMMY_MODE ? DUMMY_DISTRIBUTION : []);
   const [barWidths, setBarWidths] = useState({});
-  const [issues, setIssues] = useState([]);
+  const [issues, setIssues] = useState(IS_DUMMY_MODE ? DUMMY_RECENT_ISSUES : []);
   const [updatedAt, setUpdatedAt] = useState("");
 
   const fetchStats = useCallback(async () => {
+    if (IS_DUMMY_MODE) {
+      setStats(DUMMY_STATS);
+      return;
+    }
     try {
       const res = await fetch(`${API_BASE}/api/sumary`);
       setStats(await res.json());
@@ -68,6 +83,10 @@ export default function DashboardPage() {
   }, []);
 
   const fetchTopLocations = useCallback(async () => {
+    if (IS_DUMMY_MODE) {
+      setTopLocs(DUMMY_TOP_LOCATIONS);
+      return;
+    }
     try {
       const res = await fetch(`${API_BASE}/api/top-locations`);
       setTopLocs(await res.json());
@@ -77,6 +96,14 @@ export default function DashboardPage() {
   }, []);
 
   const fetchDistribution = useCallback(async () => {
+    if (IS_DUMMY_MODE) {
+      setDistribution(DUMMY_DISTRIBUTION);
+      const widths = {};
+      DUMMY_DISTRIBUTION.forEach((item, index) => {
+        setTimeout(() => setBarWidths((prev) => ({ ...prev, [`bar-${index}`]: item.percent + "%" })), 100 + index * 100);
+      });
+      return;
+    }
     try {
       const res = await fetch(`${API_BASE}/api/issues`);
       const issuesArr = await res.json();
@@ -103,6 +130,11 @@ export default function DashboardPage() {
   }, []);
 
   const fetchRecentIssues = useCallback(async () => {
+    if (IS_DUMMY_MODE) {
+      setIssues(DUMMY_RECENT_ISSUES);
+      setUpdatedAt(new Date().toLocaleTimeString());
+      return;
+    }
     try {
       const res = await fetch(`${API_BASE}/api/issues`);
       const data = await res.json();
@@ -116,7 +148,9 @@ export default function DashboardPage() {
   const initDashboardMap = useCallback(async () => {
     const mapContainer = document.getElementById("mini-heatmap");
     if (!mapContainer) return;
-    if (window.getComputedStyle(mapContainer).display === "none") return;
+    // Skip kalau container benar-benar zero-size (hidden by parent).
+    const rect = mapContainer.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) return;
     let L;
     try {
       L = await waitForLeaflet();
@@ -132,30 +166,39 @@ export default function DashboardPage() {
       dragging: true,
       doubleClickZoom: true,
     }).setView([-8.4095, 115.1889], 9);
-    L.tileLayer("https://cartodb-basemaps-a.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png", {
+    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
       maxZoom: 19,
       attribution: "&copy; OpenStreetMap contributors",
     }).addTo(map);
     setTimeout(() => map.invalidateSize(), 100);
-    fetch(`${API_BASE}/api/issues`)
-      .then((r) => r.json())
-      .then((points) => {
-        const heatData = points
+    const fetchHeatPoints = async () => {
+      if (IS_DUMMY_MODE) {
+        return DUMMY_HEAT_DATA;
+      }
+      try {
+        const r = await fetch(`${API_BASE}/api/issues`);
+        const points = await r.json();
+        return points
           .filter((p) => (p.latitude || p.lat) && (p.longitude || p.long || p.lon))
           .map((p) => {
             const score = p.final_score || p.severity_score || p.score || 0;
             return [p.latitude || p.lat, p.longitude || p.long || p.lon, Math.max(score / 100, 0.2)];
           });
-        if (heatData.length > 0) {
-          L.heatLayer(heatData, {
-            radius: 20,
-            blur: 15,
-            maxZoom: 14,
-            gradient: { 0.2: "blue", 0.4: "cyan", 0.6: "lime", 0.8: "yellow", 1.0: "red" },
-          }).addTo(map);
-        }
-      })
-      .catch((e) => console.error("Dashboard map error:", e));
+      } catch (e) {
+        console.error("Dashboard map error:", e);
+        return [];
+      }
+    };
+    fetchHeatPoints().then((heatData) => {
+      if (heatData.length > 0) {
+        L.heatLayer(heatData, {
+          radius: 25,
+          blur: 20,
+          maxZoom: 16,
+          gradient: { 0.2: "blue", 0.4: "cyan", 0.6: "lime", 0.8: "yellow", 1.0: "red" },
+        }).addTo(map);
+      }
+    });
   }, []);
 
   useEffect(() => {
@@ -182,9 +225,9 @@ export default function DashboardPage() {
   return (
     <div className="pb-16">
       <style dangerouslySetInnerHTML={{ __html: PAGE_CSS }} />
-      <NavbarApp active="/dashboard" variant="glass" />
+      <NavbarApp active="/dashboard" />
 
-      <main className="flex-1 mx-auto w-full max-w-7xl p-4 md:p-8">
+      <main className="flex-1 mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 p-4 md:p-8">
         <div className="mb-8 flex flex-col md:flex-row md:items-end md:justify-between gap-4 animate-fade-in-up">
           <div>
             <h1 className="text-3xl md:text-4xl font-bold text-slate-900 tracking-tight">Dashboard & Heatmap</h1>
@@ -281,10 +324,10 @@ export default function DashboardPage() {
                   Buka Peta Penuh <i className="fas fa-arrow-right"></i>
                 </Link>
               </div>
-              <div className="relative flex-1 w-full bg-slate-100 rounded-xl border border-dashed border-slate-200 overflow-hidden flex items-center justify-center group-hover:border-primary/20 transition-colors">
-                <div id="mini-heatmap" className="absolute inset-0 z-10 hidden lg:block rounded-xl"></div>
-                <div className="absolute inset-0 z-0 lg:hidden flex items-center justify-center bg-slate-200/50 backdrop-blur-md">
-                  <Link href="/peta" className="px-6 py-3 bg-white text-slate-800 font-bold rounded-xl shadow-lg border border-white/50 hover:scale-105 transition-transform flex items-center gap-2">
+              <div className="relative flex-1 w-full h-[280px] sm:h-[320px] lg:h-auto bg-slate-100 rounded-xl border border-dashed border-slate-200 overflow-hidden flex items-center justify-center group-hover:border-primary/20 transition-colors">
+                <div id="mini-heatmap" className="absolute inset-0 z-10 rounded-xl"></div>
+                <div className="absolute inset-0 z-0 flex items-center justify-center bg-slate-200/50 backdrop-blur-md pointer-events-none">
+                  <Link href="/peta" className="lg:hidden px-6 py-3 bg-white text-slate-800 font-bold rounded-xl shadow-lg border border-white/50 hover:scale-105 transition-transform flex items-center gap-2">
                     <i className="fas fa-map-marked-alt text-primary"></i> Buka Heatmap
                   </Link>
                 </div>
@@ -494,7 +537,7 @@ export default function DashboardPage() {
         </div>
       </main>
 
-      <BottomNav />
+      <BottomNav raised="/dashboard" />
     </div>
   );
 }

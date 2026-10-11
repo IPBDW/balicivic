@@ -4,6 +4,7 @@ import { API_BASE, imgUrl } from "@/lib/api";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import BottomNav from "@/components/BottomNav";
+import NavbarApp from "@/components/NavbarApp";
 
 const PAGE_CSS = `
 body { background-color: #F0F4F8; background-image: radial-gradient(circle at 10% 20%, rgba(201, 75, 75, 0.05) 0%, transparent 40%), radial-gradient(circle at 90% 80%, rgba(27, 156, 133, 0.05) 0%, transparent 40%); }
@@ -86,7 +87,7 @@ export default function DetailPage() {
             }
             if (container._leaflet_id) container._leaflet_id = null;
             const map = L.map(container, { zoomControl: false, attributionControl: false }).setView([d.latitude, d.longitude], 15);
-            L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", { maxZoom: 19 }).addTo(map);
+            L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: "&copy; OpenStreetMap contributors" }).addTo(map);
             const customIcon = L.divIcon({
               className: "custom-div-icon",
               html: `<div style="background-color: #C94B4B; width: 24px; height: 24px; border-radius: 50%; border: 3px solid white; box-shadow: 0 4px 6px rgba(0,0,0,0.3);"></div>`,
@@ -166,30 +167,9 @@ export default function DetailPage() {
   return (
     <div className="text-slate-800 antialiased min-h-screen pb-28 md:pb-12">
       <style dangerouslySetInnerHTML={{ __html: PAGE_CSS }} />
-      <nav className="sticky top-0 z-50 w-full glass-panel border-b border-white/50 transition-all duration-300 print:hidden">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
-          <a href="/dashboard" className="flex items-center gap-3 text-slate-500 hover:text-primary transition-all group">
-            <div className="w-10 h-10 rounded-full bg-white/80 border border-white shadow-sm flex items-center justify-center group-hover:bg-primary group-hover:text-white group-hover:border-primary transition-all duration-300">
-              <i className="fas fa-arrow-left text-sm group-hover:-translate-x-0.5 transition-transform"></i>
-            </div>
-            <span className="font-medium text-sm tracking-wide">Kembali ke Dashboard</span>
-          </a>
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-rose-600 flex items-center justify-center text-white shadow-glow">
-              <i className="fas fa-file-alt text-xs"></i>
-            </div>
-            <span className="font-display font-bold text-xl tracking-tight text-slate-800">Detail Laporan</span>
-          </div>
-          <div className="flex items-center gap-3">
-            <button onClick={() => window.print()} className="group flex items-center gap-2 px-4 py-2 rounded-xl bg-white/50 hover:bg-white border border-white/60 hover:border-white shadow-sm hover:shadow-md transition-all duration-300">
-              <i className="fas fa-print text-slate-400 group-hover:text-primary transition-colors"></i>
-              <span className="text-xs font-bold text-slate-600 group-hover:text-slate-900 hidden md:inline">Cetak PDF</span>
-            </button>
-          </div>
-        </div>
-      </nav>
+      <NavbarApp active="/laporan" />
       {/*__REST__*/}
-      <main className="max-w-7xl mx-auto p-4 md:p-8 lg:p-10">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 p-4 md:p-8 lg:p-10">
         {!data && (
           <div className="flex flex-col items-center justify-center min-h-[60vh] gap-8 animate-fade-in print:hidden">
             <div className="relative w-24 h-24">

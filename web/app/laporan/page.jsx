@@ -135,35 +135,14 @@ export default function LaporanPage() {
         </div>
       )}
 
-      <main className="max-w-7xl mx-auto px-4 pb-24 pt-8 md:pt-12 animate-fade-in">
-        {/* Breadcrumb */}
-        <nav className="flex mb-4 text-xs text-textSecondary" aria-label="Breadcrumb">
-          <ol className="inline-flex items-center space-x-1 md:space-x-3">
-            <li className="inline-flex items-center">
-              <Link href="/dashboard" className="inline-flex items-center hover:text-primary transition-colors">
-                <i className="fas fa-chart-pie mr-2"></i> Dashboard
-              </Link>
-            </li>
-            <li>
-              <div className="flex items-center">
-                <i className="fas fa-chevron-right text-gray-300 mx-1"></i>
-                <span className="text-textDark font-medium">Semua Laporan</span>
-              </div>
-            </li>
-          </ol>
-        </nav>
-
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-24 pt-8 md:pt-12 animate-fade-in">
         {/* Header Section */}
-        <div className="flex flex-col md:flex-row justify-between items-end md:items-center gap-4 mb-8">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-textDark tracking-tight flex items-center gap-3">
-              Semua Laporan
-              <span className="text-xs font-normal text-textSecondary bg-gray-100 px-2 py-1 rounded-full border border-gray-200">{count} Laporan</span>
-            </h1>
-            <p className="text-textSecondary text-xs md:text-sm mt-1">Arsip lengkap laporan masyarakat Bali.</p>
-          </div>
-          <div className="flex items-center gap-3 w-full md:w-auto">
-            <div className="relative w-full md:w-64">
+        <div className="flex flex-col items-center text-center gap-3 mb-8">
+          <h1 className="text-2xl md:text-3xl font-bold text-textDark tracking-tight">Semua Laporan</h1>
+          <span className="text-xs font-normal text-textSecondary bg-gray-100 px-2.5 py-1 rounded-full border border-gray-200 w-fit">{count} Laporan</span>
+          <p className="text-textSecondary text-xs md:text-sm">Arsip lengkap laporan masyarakat Bali.</p>
+          <div className="flex items-center justify-center w-full md:w-72 mt-2">
+            <div className="relative w-full">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <i className="fas fa-search text-gray-400 text-xs"></i>
               </div>
@@ -173,10 +152,6 @@ export default function LaporanPage() {
                 className="bg-white border border-lightBorder text-gray-900 text-sm rounded-xl focus:ring-primary focus:border-primary block w-full pl-10 p-2.5 shadow-sm transition-all"
                 placeholder="Cari laporan..."
               />
-            </div>
-            <div className="bg-white px-4 py-2.5 rounded-xl border border-lightBorder shadow-sm flex items-center gap-2 whitespace-nowrap">
-              <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-              <span className="text-xs font-bold text-textSecondary">Live</span>
             </div>
           </div>
         </div>
