@@ -58,6 +58,28 @@ npm run dev                   # http://localhost:3000
 
 > Database: `./pg.sh start|stop|status|psql|reset`. Detail di `backend/DATABASE.md`.
 
+## ATURAN GIT: Commit & Push Setiap Selesai Task (WAJIB)
+
+Setiap **selesai mengerjakan satu task**, agent WAJIB:
+
+1. **Commit** perubahan dengan pesan jelas (conventional commit: `feat:`, `fix:`,
+   `refactor:`, `chore:`, `docs:`, `test:`).
+2. **Push** ke `origin main` supaya ada checkpoint yang bisa di-rollback.
+3. **Kelompokkan commit secara logis** — jangan satu commit raksasa untuk semua
+   perubahan yang tidak berhubungan (mis. dummy infra ≠ UI ≠ halaman).
+4. **Jangan commit** file runtime/sensitif: `.env`, `*.pt`, database, `uploads/`,
+   `node_modules/`, `.next/`, `.openchamber/`.
+
+Tujuan: setiap perubahan punya titik rollback. Kalau ada kesalahan, tinggal
+`git revert <commit>` atau `git reset` ke commit sebelumnya.
+
+```bash
+# Contoh alur
+git add <file-spesifik>
+git commit -m "fix(ui): deskripsi singkat perubahan"
+git push origin main
+```
+
 ## Konvensi Project
 
 - **Bahasa**: UI, komentar kode, dan pesan (print/log) dalam Bahasa Indonesia.
