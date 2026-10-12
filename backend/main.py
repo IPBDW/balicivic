@@ -19,7 +19,7 @@ from fastapi import (
 )
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from sqlmodel import Session, select
+from sqlmodel import Session, select, func
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
@@ -309,7 +309,7 @@ def read_issues(
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
     status_filter: str | None = Query(
-        None, alias="status", pattern="^(PENDING|IN_PROGRESS|DONE|ERROR)$"
+        None, alias="status", pattern="^(PENDING|OPEN|IN_PROGRESS|DONE|ERROR)$"
     ),
     issue_class: str | None = Query(None),
     session: Session = Depends(get_session),
@@ -318,10 +318,15 @@ def read_issues(
     Ambil issue dengan pagination + filter.
     Query params:
       ?limit=50&offset=0&status=PENDING&issue_class=jalan_bolong
+
+    Catatan: "OPEN" diterima demi kompatibilitas data lama dan otomatis
+    dipetakan ke "IN_PROGRESS" (status kanonik sekarang).
     """
     stmt = select(Issue).order_by(Issue.created_at.desc())
     if status_filter:
-        stmt = stmt.where(Issue.status == status_filter)
+        # Normalisasi alias lama -> kanonik
+        normalized = "IN_PROGRESS" if status_filter == "OPEN" else status_filter
+        stmt = stmt.where(Issue.status == normalized)
     if issue_class:
         stmt = stmt.where(Issue.issue_class == issue_class)
     stmt = stmt.limit(limit).offset(offset)
@@ -331,7 +336,8 @@ def read_issues(
 @app.get("/api/issues/count")
 def count_issues(session: Session = Depends(get_session)):
     """Total jumlah issue untuk pagination UI."""
-    total = len(session.exec(select(Issue)).all())
+    # func.count() menghitung di sisi DB — tidak memuat semua baris ke memory.
+    total = session.exec(select(func.count()).select_from(Issue)).one()
     return {"total": total}
 
 
@@ -372,7 +378,10 @@ def update_status(
     Update status oleh admin (Dinas) & Catat di Timeline.
     Flow: PENDING -> OPEN (Dikerjakan) -> DONE (Selesai)
     """
-    # 1. Whitelist status (jangan terima string asal)
+    # 1. Whitelist status (jangan terima string asal).
+    #    "OPEN" (alias lama) dinormalkan ke "IN_PROGRESS".
+    if status == "OPEN":
+        status = "IN_PROGRESS"
     if status not in {"PENDING", "IN_PROGRESS", "DONE", "ERROR"}:
         raise HTTPException(status_code=422, detail=f"Status '{status}' tidak dikenal")
 
@@ -481,19 +490,19 @@ def get_dashboard(session: Session = Depends(get_session)):
     total laporan, jumlah antrean, butuh tindakan, selesai.
     Dua route: /api/sumary (nama lama, tetap didukung) dan /api/summary.
     """
-    all_issues = session.exec(select(Issue)).all()
-    total = len(all_issues)
-    pending = len([i for i in all_issues if i.status == "PENDING"])
-    action_needed = len([i for i in all_issues if i.status == "IN_PROGRESS"])
-    completed = len([i for i in all_issues if i.status == "DONE"])
-    errors = len([i for i in all_issues if i.status == "ERROR"])
+    # Hitung per-status di sisi DB (GROUP BY) — hemat, tidak load semua baris.
+    rows = session.exec(
+        select(Issue.status, func.count()).group_by(Issue.status)
+    ).all()
+    by_status = {status: count for status, count in rows}
+    total = sum(by_status.values())
 
     return {
         "total": total,
-        "antrean": pending,
-        "perlu_tindakan": action_needed,
-        "selesai": completed,
-        "error": errors,
+        "antrean": by_status.get("PENDING", 0),
+        "perlu_tindakan": by_status.get("IN_PROGRESS", 0),
+        "selesai": by_status.get("DONE", 0),
+        "error": by_status.get("ERROR", 0),
     }
 
 
@@ -502,20 +511,18 @@ def get_issue_distribution(session: Session = Depends(get_session)):
     """
     Distribusi jenis kerusakan (pie chart / donut chart di frontend).
     """
-    all_issues = session.exec(select(Issue)).all()
-    total = len(all_issues) or 1  # hindari bagi 0
+    # Hitung per-kelas di sisi DB (GROUP BY), bukan memuat semua baris.
+    rows = session.exec(
+        select(Issue.issue_class, func.count()).group_by(Issue.issue_class)
+    ).all()
+    by_class = {cls: count for cls, count in rows}
+    total = sum(by_class.values()) or 1  # hindari bagi 0
 
     counts = {
-        "jalan_bolong": len(
-            [i for i in all_issues if i.issue_class == "jalan_bolong"]
-        ),
-        "sampah_liar": len(
-            [i for i in all_issues if i.issue_class == "sampah_liar"]
-        ),
-        "genangan_air": len([i for i in all_issues if i.issue_class == "genangan_air"]),
-        "kabel_semrawut": len(
-            [i for i in all_issues if i.issue_class == "kabel_semrawut"]
-        ),
+        "jalan_bolong": by_class.get("jalan_bolong", 0),
+        "sampah_liar": by_class.get("sampah_liar", 0),
+        "genangan_air": by_class.get("genangan_air", 0),
+        "kabel_semrawut": by_class.get("kabel_semrawut", 0),
     }
 
     data = [

@@ -45,4 +45,7 @@ class Issue(SQLModel, table=True):
     status: str = Field(default="PENDING", max_length=20)
 
     created_at: datetime = Field(default_factory=wita_now)
-    updated_at: Optional[datetime] = Field(default=None)
+    # Diisi otomatis saat create (= waktu dibuat), lalu diperbarui tiap
+    # admin mengubah status. Sebelumnya default None sehingga tidak pernah
+    # ada nilainya sampai status pertama kali diubah.
+    updated_at: Optional[datetime] = Field(default_factory=wita_now)
