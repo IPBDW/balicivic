@@ -28,10 +28,13 @@ const CLASS_FILTERS = [
   { id: "kabel_semrawut", label: "Kabel Berantakan", dot: "bg-gray-800", box: "text-gray-800 group-hover:border-gray-600" },
 ];
 
+// Samakan dengan status kanonik backend (models/main.py):
+// PENDING -> IN_PROGRESS -> DONE, plus ERROR. Jangan pakai "OPEN"
+// (tidak pernah ada di DB, filter-nya pasti kosong).
 const STATUS_FILTERS = [
   { v: "", label: "SEMUA" },
-  { v: "PENDING", label: "PENDING" },
-  { v: "OPEN", label: "OPEN" },
+  { v: "PENDING", label: "MENUNGGU" },
+  { v: "IN_PROGRESS", label: "PROSES" },
   { v: "DONE", label: "SELESAI" },
 ];
 
@@ -121,7 +124,9 @@ export default function PetaPage() {
         const pClass = p.issue_class || p.class || "unknown";
         const pId = p.id;
         const pScore = p.final_score || p.severity_score || p.score || "-";
-        const pStatus = p.status || "OPEN";
+        // Status kanonik backend: PENDING/IN_PROGRESS/DONE/ERROR.
+        // Fallback "PENDING" (bukan "OPEN" yang tidak pernah ada).
+        const pStatus = p.status || "PENDING";
         const pLat = p.latitude || p.lat;
         const pLon = p.longitude || p.long || p.lon;
         if (!pLat || !pLon) return;
@@ -141,12 +146,20 @@ export default function PetaPage() {
 
         const customIcon = L.divIcon({ html: iconHtml, className: "", iconSize: [20, 28], iconAnchor: [10, 28], popupAnchor: [0, -28] });
         const marker = L.marker([pLat, pLon], { icon: customIcon });
+        const statusColor =
+          pStatus === "PENDING"
+            ? "bg-yellow-100 text-yellow-600"
+            : pStatus === "IN_PROGRESS"
+              ? "bg-sky-100 text-sky-600"
+              : pStatus === "ERROR"
+                ? "bg-slate-200 text-slate-600"
+                : "bg-green-100 text-green-600";
         const popupHtml = `
           <div class="font-sans p-1 min-w-[150px]">
             <div class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">${String(pClass).replace("_", " ")}</div>
             <div class="flex items-center justify-between mb-2">
               <span class="text-sm font-bold text-gray-800">Skor: ${pScore}</span>
-              <span class="text-[10px] px-2 py-0.5 rounded-full ${pStatus === "OPEN" ? "bg-red-100 text-red-600" : pStatus === "PENDING" ? "bg-yellow-100 text-yellow-600" : "bg-green-100 text-green-600"} font-bold">${pStatus}</span>
+              <span class="text-[10px] px-2 py-0.5 rounded-full ${statusColor} font-bold">${pStatus}</span>
             </div>
             <div class="text-[10px] text-gray-400">ID: #${pId}</div>
             <div class="mt-2 text-[10px] text-primary font-bold cursor-pointer hover:underline" onclick="window.location.href='/detail/${pId}'">Lihat Detail &rarr;</div>

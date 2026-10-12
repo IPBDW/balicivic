@@ -192,7 +192,25 @@ export default function DetailPage() {
   const isAnalyzing = data?.issue_class === "processing";
   const desc = isAnalyzing
     ? "Laporan sedang dianalisis oleh AI. Hasil akan muncul otomatis dalam beberapa detik."
-    : (data?.meta_data?.llm_result?.public?.message ?? "Tidak ada analisis tersedia.");
+    : (data?.meta_data?.llm_result?.public?.message
+        ?? data?.description
+        ?? "Tidak ada analisis tersedia.");
+
+  // Timeline: riwayat perubahan status (diisi backend saat admin update status).
+  const timeline = Array.isArray(data?.timeline) ? data.timeline : [];
+  const STATUS_LABEL = { PENDING: "Menunggu Verifikasi", IN_PROGRESS: "Sedang Ditangani", DONE: "Selesai", ERROR: "Ditolak / Invalid" };
+  const STATUS_DOT = { PENDING: "bg-amber-400", IN_PROGRESS: "bg-sky-500", DONE: "bg-emerald-500", ERROR: "bg-slate-400" };
+  function fmtTimelineTime(ts) {
+    if (!ts) return "-";
+    // Backend menyimpan "YYYY-MM-DD HH:MM:SS" (WITA); dummy pakai ISO.
+    const d = new Date(typeof ts === "string" ? ts.replace(" ", "T") : ts);
+    if (isNaN(d.getTime())) return String(ts);
+    return (
+      d.toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" }) +
+      " • " +
+      d.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })
+    );
+  }
   const locText = `${data?.kecamatan || "Lokasi Unknown"}, ${data?.kabupaten || "Lokasi Unknown"}`;
   const gmapsHref = data?.latitude && data?.longitude ? `https://www.google.com/maps/search/?api=1&query=${data.latitude},${data.longitude}` : "#";
   const imgSrc = data?.image_url ? imgUrl(data.image_url) : "";
@@ -330,6 +348,28 @@ export default function DetailPage() {
                   </button>
                 </div>
               </div>
+
+              {/* Timeline: riwayat penanganan (diisi backend saat admin ubah status) */}
+              {timeline.length > 0 && (
+                <div className="glass-panel rounded-3xl p-8 shadow-glass glass-card-hover">
+                  <h3 className="font-display font-bold text-slate-700 flex items-center gap-2 mb-6">
+                    <i className="fas fa-clock-rotate-left text-primary/70"></i> Riwayat Penanganan
+                  </h3>
+                  <ol className="relative border-l-2 border-slate-100 ml-2 space-y-6">
+                    {timeline.map((ev, idx) => (
+                      <li key={idx} className="ml-6">
+                        <span className={`absolute -left-[9px] mt-1 w-4 h-4 rounded-full border-2 border-white shadow ${STATUS_DOT[ev.status] || "bg-slate-300"}`}></span>
+                        <p className="text-sm font-bold text-slate-800">{STATUS_LABEL[ev.status] || ev.status}</p>
+                        {ev.message && <p className="text-sm text-slate-600 mt-0.5">{ev.message}</p>}
+                        <p className="text-[11px] text-slate-400 mt-1">
+                          <i className="far fa-clock mr-1"></i>{fmtTimelineTime(ev.timestamp)}
+                          {ev.actor ? ` • ${ev.actor}` : ""}
+                        </p>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              )}
             </div>
           </div>
         )}

@@ -39,7 +39,7 @@ export function addIssue(issue) {
     timeline: null,
     status: 'PENDING',
     created_at: now,
-    updated_at: null,
+    updated_at: now,
     ...issue,
     id,
   };
@@ -78,14 +78,17 @@ export function deleteIssue(id) {
 }
 
 // Simulasi proses analisis. Dipanggil setelah /api/analyze menerima upload.
-// Update PENDING → DONE dalam 4–8 detik dengan skor random.
+// Hasil DETERMINISTIK dari id (bukan acak) supaya konsisten tiap kali:
+// laporan id yang sama selalu dapat kelas & skor yang sama.
 export function simulateAnalysis(id) {
+  const numericId = Number(id) || 0;
+  const delay = 4000 + (numericId % 5) * 800; // 4.0–7.2 detik, tetap deterministik
   setTimeout(() => {
-    const issue = _store.find(x => x.id === Number(id));
+    const issue = _store.find(x => x.id === numericId);
     if (!issue) return;
     const kelas = ['jalan_bolong', 'genangan_air', 'sampah_liar', 'kabel_semrawut'];
-    issue.issue_class = kelas[Math.floor(Math.random() * kelas.length)];
-    issue.final_score = 30 + Math.floor(Math.random() * 60);
+    issue.issue_class = kelas[numericId % kelas.length];
+    issue.final_score = 30 + ((numericId * 17) % 60);
     issue.severity_label = issue.final_score >= 75 ? 'HIGH' : issue.final_score >= 45 ? 'MEDIUM' : 'LOW';
     issue.title = `Laporan: ${issue.issue_class.replace('_', ' ')}`;
     issue.description = 'Analisis AI selesai. Laporan terverifikasi dan siap ditindaklanjuti.';
@@ -97,5 +100,5 @@ export function simulateAnalysis(id) {
       perspective: Math.floor(issue.final_score * 0.1),
     };
     issue.updated_at = new Date().toISOString();
-  }, 4000 + Math.random() * 4000);
+  }, delay);
 }

@@ -17,6 +17,20 @@ export const DUMMY_KECAMATAN = [
   'Ubud', 'Gianyar', 'Tabanan', 'Mengwi',
 ];
 
+// Kecamatan yang VALID per kabupaten (biar tidak muncul "Kuta, Gianyar").
+// Kuta & Mengwi memang di Badung, Ubud/Gianyar di Gianyar, dst.
+export const KECAMATAN_BY_KABUPATEN = {
+  Denpasar:   ['Denpasar Selatan', 'Denpasar Utara', 'Denpasar Timur', 'Denpasar Barat'],
+  Badung:     ['Kuta', 'Kuta Utara', 'Kuta Selatan', 'Mengwi'],
+  Gianyar:    ['Ubud', 'Gianyar', 'Tegallalang', 'Payangan'],
+  Tabanan:    ['Tabanan', 'Kediri', 'Pupuan', 'Marga'],
+  Buleleng:   ['Buleleng', 'Singaraja', 'Sawan', 'Banjar'],
+  Klungkung:  ['Klungkung', 'Banjarangkan', 'Dawan', 'Nusa Penida'],
+  Bangli:     ['Bangli', 'Tembuku', 'Susut', 'Kintamani'],
+  Karangasem: ['Karangasem', 'Rendang', 'Selat', 'Abang'],
+  Jembrana:   ['Negara', 'Jembrana', 'Mendoyo', 'Melaya'],
+};
+
 // 30 laporan sample dengan variasi realistik
 export const SAMPLE_ISSUES = (() => {
   const now = Date.now();
@@ -49,27 +63,53 @@ export const SAMPLE_ISSUES = (() => {
     ],
   };
 
-  const statuses = ['PENDING', 'IN_PROGRESS', 'DONE', 'PENDING', 'IN_PROGRESS'];
-  const sevs = ['LOW', 'MEDIUM', 'HIGH'];
+  // Deret status deterministik (bukan acak) — rotasi tetap.
+  const statuses = ['PENDING', 'IN_PROGRESS', 'DONE', 'PENDING', 'IN_PROGRESS', 'DONE', 'PENDING'];
+
+  // Pusat tiap kabupaten (koordinat sudah diverifikasi ADA DI DARATAN,
+  // sama dengan yang dipakai dummyDashboard.js). Offset di bawah kecil
+  // (maks ±0.005° ≈ 550 m) sehingga titik tidak pernah jatuh ke laut.
+  const KAB_CENTER = {
+    Denpasar:   [-8.6705, 115.2126],
+    Badung:     [-8.7220, 115.1700],
+    Gianyar:    [-8.5069, 115.2625],
+    Tabanan:    [-8.5396, 115.1256],
+    Buleleng:   [-8.1140, 115.0900],
+    Klungkung:  [-8.5494, 115.4039],
+    Bangli:     [-8.4567, 115.3547],
+    Karangasem: [-8.4479, 115.6087],
+    Jembrana:   [-8.3600, 114.6297],
+  };
+  const OFFSETS = [
+    [0, 0], [0.004, 0.003], [-0.004, 0.002], [0.003, -0.004],
+    [-0.003, -0.003], [0.005, 0.001], [-0.002, 0.004],
+  ];
 
   const list = [];
   let id = 1;
-  for (const kelas of KELAS) {
+  KELAS.forEach((kelas, kIdx) => {
     const arr = titles[kelas] || [];
     for (let i = 0; i < 7; i++) {
       const t = arr[i % arr.length] || `Laporan ${kelas}`;
-      const kab = KABUPATEN_BALI[Math.floor(Math.random() * KABUPATEN_BALI.length)];
-      const kec = DUMMY_KECAMATAN[Math.floor(Math.random() * DUMMY_KECAMATAN.length)];
-      const score = 30 + Math.floor(Math.random() * 60);
+      // Rotasi deterministik supaya 9 kabupaten kebagian merata.
+      const kab = KABUPATEN_BALI[(kIdx * 7 + i) % KABUPATEN_BALI.length];
+      // Kecamatan dipilih dari daftar yang VALID untuk kabupaten itu.
+      const kecList = KECAMATAN_BY_KABUPATEN[kab] || DUMMY_KECAMATAN;
+      const kec = kecList[(kIdx * 3 + i) % kecList.length];
+      // Skor deterministik dari indeks (rentang 28..90).
+      const score = 28 + ((kIdx * 13 + i * 9) % 63);
       const sev = score >= 75 ? 'HIGH' : score >= 45 ? 'MEDIUM' : 'LOW';
-      const status = statuses[Math.floor(Math.random() * statuses.length)];
-      const lat = -8.4 - Math.random() * 0.8;
-      const lon = 114.8 + Math.random() * 0.8;
+      const status = statuses[(kIdx + i) % statuses.length];
+      const center = KAB_CENTER[kab] || [-8.5, 115.2];
+      const off = OFFSETS[i % OFFSETS.length];
+      const lat = +(center[0] + off[0]).toFixed(4);
+      const lon = +(center[1] + off[1]).toFixed(4);
+      const ageDays = ((kIdx * 5 + i * 2) % 14) + 1;
 
       list.push({
         id: id++,
         title: t,
-        description: `Laporan dari warga: ${t}. Sudah berlangsung ${Math.floor(Math.random() * 14) + 1} hari. Mohon tindak lanjut dari dinas terkait.`,
+        description: `Laporan dari warga: ${t}. Sudah berlangsung ${ageDays} hari. Mohon tindak lanjut dari dinas terkait.`,
         image_url: `https://picsum.photos/seed/${kelas}${i}/640/480`,
         latitude: lat,
         longitude: lon,
@@ -94,11 +134,11 @@ export const SAMPLE_ISSUES = (() => {
           { status: 'IN_PROGRESS', timestamp: days(1), actor: 'Admin Dinas', message: 'Tim diterjunkan' },
         ] : null,
         status,
-        created_at: days(Math.floor(Math.random() * 14) + 1),
-        updated_at: days(Math.floor(Math.random() * 3)),
+        created_at: days(ageDays),
+        updated_at: days(Math.min(ageDays, 3)),
       });
     }
-  }
+  });
   return list;
 })();
 
