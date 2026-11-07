@@ -268,25 +268,37 @@ async def analyze_endpoint(
                 width, height = img.size
                 if width > 4096 or height > 4096:
                     raise HTTPException(status_code=400, detail="Dimensi gambar maksimal 4096x4096 piksel.")
-        except Exception as e:
+        except HTTPException:
+            raise
+        except Exception:
             raise HTTPException(status_code=400, detail="Gambar tidak valid atau rusak.")
     except HTTPException:
         if os.path.exists(raw_path):
             os.remove(raw_path)
         raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Gagal simpan file: {str(e)}")
+    except Exception:
+        if os.path.exists(raw_path):
+            os.remove(raw_path)
+        raise HTTPException(status_code=500, detail="Gagal simpan file gambar.")
 
     if lat is not None and not (-90 <= lat <= 90):
         raise HTTPException(status_code=400, detail="Latitude tidak valid")
     if long is not None and not (-180 <= long <= 180):
         raise HTTPException(status_code=400, detail="Longitude tidak valid")
 
+    # Filter (0, 0) koordinat kosong dari GPS tidak terkunci
+    clean_lat = lat
+    clean_long = long
+    if lat is not None and long is not None:
+        if abs(lat) < 1e-5 and abs(long) < 1e-5:
+            clean_lat = None
+            clean_long = None
+
     new_issue = Issue(
         title="Sedang Menganalisis",
         description="Menunggu antrean pemrosesan AI.",
-        latitude=lat,
-        longitude=long,
+        latitude=clean_lat,
+        longitude=clean_long,
         issue_class="processing",
         severity_label="LOW",
         final_score=0,

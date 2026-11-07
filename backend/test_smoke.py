@@ -15,7 +15,9 @@ from fastapi.testclient import TestClient
 sys.path.insert(0, os.path.join(os.path.dirname(__file__)))
 
 from main import app
+from database import create_db_and_tables
 
+create_db_and_tables()
 client = TestClient(app)
 
 
@@ -118,6 +120,18 @@ def test_admin_verify_good_token():
     assert r.json()["valid"] is True
 
 
+def test_admin_verify_scoped_token():
+    from utils import generate_issue_token
+    scoped = generate_issue_token(42)
+    r = client.get(f"/api/admin/verify?token={scoped}&issue_id=42")
+    assert r.status_code == 200
+    assert r.json()["valid"] is True
+
+    # Scoped token untuk id=42 tidak boleh berlaku untuk id=99
+    r_bad = client.get(f"/api/admin/verify?token={scoped}&issue_id=99")
+    assert r_bad.status_code == 401
+
+
 def test_admin_delete_no_token():
     r = client.delete("/api/issues/1")
     assert r.status_code == 401
@@ -181,3 +195,17 @@ def test_upload_invalid_lat():
     r = client.post("/api/analyze", files=files, data=data)
     # Either 400 untuk koordinat atau 422 validation
     assert r.status_code in (400, 422)
+
+
+def test_upload_image_dimension_limit():
+    """Gambar dengan dimensi > 4096px harus ditolak (DoS mitigation)."""
+    import io
+    from PIL import Image
+    img = Image.new("RGB", (4097, 100), color="red")
+    buf = io.BytesIO()
+    img.save(buf, format="JPEG")
+    buf.seek(0)
+    files = {"file": ("huge.jpg", buf.getvalue(), "image/jpeg")}
+    r = client.post("/api/analyze", files=files)
+    assert r.status_code == 400
+    assert "maksimal 4096x4096" in r.json().get("detail", "")
