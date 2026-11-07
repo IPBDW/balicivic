@@ -1,5 +1,6 @@
 import os
 import math
+import html
 import json
 import cv2
 from ultralytics import YOLO
@@ -654,10 +655,10 @@ def send_email_alert(issue_data: Issue):
                 </div>
                 
                 <table style="width:100%; border-collapse: collapse; margin-bottom: 20px; border-left: 4px solid #d32f2f; background: #fff5f5;">
-                    <tr><td style="padding:8px; border-bottom:1px solid #eee;"><strong>Masalah</strong></td><td style="padding:8px; border-bottom:1px solid #eee;">{issue_data.issue_class.replace('_', ' ').title()}</td></tr>
-                    <tr><td style="padding:8px; border-bottom:1px solid #eee;"><strong>Lokasi</strong></td><td style="padding:8px; border-bottom:1px solid #eee;">{issue_data.kecamatan or 'Lokasi GPS'}</td></tr>
-                    <tr><td style="padding:8px; border-bottom:1px solid #eee;"><strong>Skor Bahaya</strong></td><td style="padding:8px; border-bottom:1px solid #eee;"><strong style="color:red">{issue_data.final_score}/100</strong></td></tr>
-                    <tr><td style="padding:8px;"><strong>Analisis AI</strong></td><td style="padding:8px; font-style: italic;">"{issue_data.description}"</td></tr>
+                    <tr><td style="padding:8px; border-bottom:1px solid #eee;"><strong>Masalah</strong></td><td style="padding:8px; border-bottom:1px solid #eee;">{html.escape(issue_data.issue_class.replace('_', ' ').title())}</td></tr>
+                    <tr><td style="padding:8px; border-bottom:1px solid #eee;"><strong>Lokasi</strong></td><td style="padding:8px; border-bottom:1px solid #eee;">{html.escape(issue_data.kecamatan or 'Lokasi GPS')}</td></tr>
+                    <tr><td style="padding:8px; border-bottom:1px solid #eee;"><strong>Skor Bahaya</strong></td><td style="padding:8px; border-bottom:1px solid #eee;"><strong style="color:red">{html.escape(str(issue_data.final_score))}/100</strong></td></tr>
+                    <tr><td style="padding:8px;"><strong>Analisis AI</strong></td><td style="padding:8px; font-style: italic;">"{html.escape(issue_data.description or '')}"</td></tr>
                 </table>
 
                 <div style="text-align: center; margin: 30px 0;">

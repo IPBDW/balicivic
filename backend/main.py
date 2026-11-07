@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 from typing import List
 from collections import Counter
 
+from PIL import Image
 from fastapi import (
     FastAPI,
     UploadFile,
@@ -143,9 +144,11 @@ _DEV_ORIGINS = [
 ]
 _cors_env = os.getenv("CORS_ORIGINS", "http://127.0.0.1:8000,http://localhost:8000")
 allow_origins = [o.strip() for o in _cors_env.split(",") if o.strip()]
-for _o in _DEV_ORIGINS:
-    if _o not in allow_origins:
-        allow_origins.append(_o)
+_is_production = os.getenv("ENV", "").lower() == "production"
+if not _is_production:
+    for _o in _DEV_ORIGINS:
+        if _o not in allow_origins:
+            allow_origins.append(_o)
 if allow_origins == ["*"]:
     print("[SECURITY][WARN] CORS_ORIGINS='*' (semua origin diizinkan). "
           "Ganti ke domain resmi sebelum produksi.")
@@ -258,6 +261,15 @@ async def analyze_endpoint(
         is_webp = head[:4] == b"RIFF" and head[8:12] == b"WEBP"
         if not (is_jpeg or is_png or is_webp):
             raise HTTPException(status_code=400, detail="File harus berupa gambar (jpg/png)")
+
+        # Validasi dimensi piksel untuk mencegah DoS
+        try:
+            with Image.open(raw_path) as img:
+                width, height = img.size
+                if width > 4096 or height > 4096:
+                    raise HTTPException(status_code=400, detail="Dimensi gambar maksimal 4096x4096 piksel.")
+        except Exception as e:
+            raise HTTPException(status_code=400, detail="Gambar tidak valid atau rusak.")
     except HTTPException:
         if os.path.exists(raw_path):
             os.remove(raw_path)
