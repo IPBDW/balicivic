@@ -75,8 +75,16 @@ export default function PetaPage() {
     const map = mapRef.current;
     if (!map) return;
     try {
-      const allData = IS_DUMMY_MODE ? DUMMY_HEATMAP_POINTS : await fetchAllIssues();
-      const points = allData.filter((p) => {
+      let rawPoints;
+      if (IS_DUMMY_MODE) {
+        rawPoints = DUMMY_HEATMAP_POINTS;
+      } else {
+        const res = await fetch(`${API_BASE}/api/heatmap`);
+        if (!res.ok) throw new Error("Gagal ambil data heatmap");
+        const data = await res.json();
+        rawPoints = data.points;
+      }
+      const points = rawPoints.filter((p) => {
         const pClass = p.issue_class || p.class;
         const pStatus = p.status;
         const classMatch = selected.length === 0 || selected.includes(pClass);

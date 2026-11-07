@@ -58,8 +58,9 @@ function AdminContent() {
 
   async function fetchIssueDetail(targetId) {
     try {
-      const allIssues = await fetchAllIssues();
-      const item = allIssues.find((x) => String(x.id) === String(targetId));
+      const res = await fetch(`${API_BASE}/api/issues/${targetId}`);
+      if (!res.ok) throw new Error("Data tidak ditemukan");
+      const item = await res.json();
       if (!item) throw new Error("Data tidak ditemukan");
       setData(item);
     } catch (error) {
