@@ -31,7 +31,7 @@ import hmac
 # Pastikan file database.py, models.py, utils.py ada di folder yang sama!
 from database import create_db_and_tables, get_session, engine
 from models import Issue, wita_now
-from utils import process_analysis, TOKEN
+from utils import process_analysis, TOKEN, generate_issue_token
 
 # 1. LOAD ENVIRONMENT
 load_dotenv()
@@ -365,6 +365,7 @@ def read_single_issue(issue_id: int, session: Session = Depends(get_session)):
 
 
 def verify_admin_token(
+    issue_id: int | None = Query(None),
     token: str | None = Query(None),
     x_admin_token: str | None = Header(None),
 ):
@@ -374,9 +375,20 @@ def verify_admin_token(
     lewat timing attack.
     """
     provided = token or x_admin_token or ""
-    # hmac.compare_digest butuh dua str/bytes; pastikan dibandingkan dengan aman
-    if not provided or not hmac.compare_digest(str(provided), str(TOKEN)):
+    if not provided:
         raise HTTPException(status_code=401, detail="Token admin tidak valid")
+
+    # 1. Cek Master Token
+    if hmac.compare_digest(str(provided), str(TOKEN)):
+        return True
+
+    # 2. Cek Scoped Token (kalau issue_id ada)
+    if issue_id:
+        scoped = generate_issue_token(issue_id)
+        if hmac.compare_digest(str(provided), str(scoped)):
+            return True
+
+    raise HTTPException(status_code=401, detail="Token admin tidak valid")
 
 
 @app.put("/api/issues/{issue_id}/status")
@@ -384,8 +396,10 @@ def update_status(
     issue_id: int,
     status: str,
     session: Session = Depends(get_session),
-    _: None = Depends(verify_admin_token),
+    token: str | None = Query(None),
+    x_admin_token: str | None = Header(None),
 ):
+    verify_admin_token(issue_id, token, x_admin_token)
     """
     Update status oleh admin (Dinas) & Catat di Timeline.
     Flow: PENDING -> OPEN (Dikerjakan) -> DONE (Selesai)
@@ -447,8 +461,10 @@ def update_status(
 def delete_issue(
     issue_id: int,
     session: Session = Depends(get_session),
-    _: None = Depends(verify_admin_token),
+    token: str | None = Query(None),
+    x_admin_token: str | None = Header(None),
 ):
+    verify_admin_token(issue_id, token, x_admin_token)
     """
     Hapus laporan oleh admin (untuk laporan spam/palsu/invalid).
     Menghapus baris DB + file annotated di disk. Raw file (kalau masih ada)

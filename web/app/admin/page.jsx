@@ -35,7 +35,10 @@ function AdminContent() {
     (async () => {
       // Verifikasi token ke server (token tidak disimpan/hardcoded di client).
       try {
-        const res = await fetch(`${API_BASE}/api/admin/verify?token=${encodeURIComponent(token)}`);
+        const verifyUrl = id 
+          ? `${API_BASE}/api/admin/verify?token=${encodeURIComponent(token)}&id=${encodeURIComponent(id)}`
+          : `${API_BASE}/api/admin/verify?token=${encodeURIComponent(token)}`;
+        const res = await fetch(verifyUrl);
         if (cancelled) return;
         if (!res.ok) {
           setStage("locked");

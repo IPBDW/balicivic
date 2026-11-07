@@ -1,6 +1,8 @@
 import os
 import math
 import html
+import hmac
+import hashlib
 import json
 import cv2
 from ultralytics import YOLO
@@ -615,6 +617,16 @@ if not TOKEN:
 
 
 
+def generate_issue_token(issue_id: int | str) -> str:
+    """
+    Buat token tanda tangan HMAC terikat ke satu issue ID.
+    Mencegah master ADMIN_TOKEN bocor via query parameter di email link.
+    """
+    key = str(TOKEN).encode("utf-8")
+    msg = f"issue_access:{issue_id}".encode("utf-8")
+    return hmac.new(key, msg, hashlib.sha256).hexdigest()[:32]
+
+
 def send_email_alert(issue_data: Issue):
     try:
         if not SENDER_EMAIL or not SENDER_PASS:
@@ -628,7 +640,8 @@ def send_email_alert(issue_data: Issue):
         print(f"[EMAIL] Mempersiapkan pengiriman peringatan untuk ID {issue_data.id}...")
         # Base URL frontend admin — bisa diatur via env (FRONTEND_BASE_URL).
         frontend_base = os.getenv("FRONTEND_BASE_URL", "https://balicivicai.site").rstrip("/")
-        dashboard_url = f"{frontend_base}/admin?token={TOKEN}&id={issue_data.id}"
+        scoped_token = generate_issue_token(issue_data.id)
+        dashboard_url = f"{frontend_base}/admin?token={scoped_token}&id={issue_data.id}"
 
         # Setup Pesan Multipart
         msg = MIMEMultipart('related')
