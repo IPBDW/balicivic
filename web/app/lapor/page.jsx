@@ -118,7 +118,13 @@ export default function LaporPage() {
     try {
       const response = await fetch(`${API_BASE}/api/analyze`, { method: "POST", body: formData });
       if (!response.ok) {
-        const errorData = await response.json();
+        if (response.status === 429) {
+          const retry = response.headers.get("Retry-After");
+          throw new Error(
+            `Terlalu banyak laporan dari jaringan ini. Coba lagi${retry ? ` dalam ${retry} detik` : " sebentar"}.`
+          );
+        }
+        const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.detail || "Server Error");
       }
       const data = await response.json();

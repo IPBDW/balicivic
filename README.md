@@ -132,5 +132,7 @@ atau di <https://www.gnu.org/licenses/agpl-3.0>.
 
 ## Etika Data
 
-Seluruh citra difokuskan pada infrastruktur publik. Wajah & data pribadi
-disamarkan sesuai etika AI dan UU PDP No. 27/2022.
+Seluruh citra difokuskan pada infrastruktur publik. Metadata lokasi
+(EXIF/GPS) dihapus dari foto yang dipublikasikan. Sistem saat ini **belum**
+melakukan pemburaman wajah/plat nomor secara otomatis, sehingga kontributor
+diharapkan menghindari memotret identitas pribadi.

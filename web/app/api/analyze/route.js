@@ -1,8 +1,11 @@
+import { addIssue, simulateAnalysis } from '@/lib/dummyStore';
+import { DUMMY_BLOCKED, blockedResponse } from '@/lib/dummyGuard';
+
 // POST /api/analyze — terima upload gambar, simpan issue, simulasi analisis.
 // Mirror: backend/main.py:analyze_endpoint (simplified — no YOLO/LLM di dummy)
-import { addIssue, simulateAnalysis } from '@/lib/dummyStore';
 
 export async function POST(req) {
+  if (DUMMY_BLOCKED) return blockedResponse();
   let formData;
   try {
     formData = await req.formData();

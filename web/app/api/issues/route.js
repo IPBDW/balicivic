@@ -1,8 +1,10 @@
 // GET /api/issues — list dengan pagination & filter
 // Mirror: backend/main.py:read_issues
 import { getAllIssues } from '@/lib/dummyStore';
+import { DUMMY_BLOCKED, blockedResponse } from '@/lib/dummyGuard';
 
 export async function GET(request) {
+  if (DUMMY_BLOCKED) return blockedResponse();
   const url = new URL(request.url);
   const limit = Math.min(Math.max(parseInt(url.searchParams.get('limit') || '50', 10), 1), 200);
   const offset = Math.max(parseInt(url.searchParams.get('offset') || '0', 10), 0);

@@ -486,7 +486,7 @@ export default function HomePage() {
               ))}
             </div>
             <p className="mt-6 text-[11px] text-textSecondary italic scroll-reveal stagger-4">
-              Catatan Etika Dataset: Seluruh foto yang digunakan dalam pelatihan model telah melalui proses <i>filtering</i> untuk menghapus wajah manusia dan plat nomor kendaraan. Beberapa dataset tidak dibuka untuk publik demi menjaga privasi lokasi dan identitas, namun seluruh proses anotasi dan sumber data dijelaskan secara transparan.
+              Catatan Etika Dataset: Fokus anotasi adalah kerusakan infrastruktur publik, bukan identitas orang. Sebagian dataset tidak dibuka untuk publik demi menjaga privasi lokasi dan identitas, namun seluruh proses anotasi dan sumber data dijelaskan secara transparan.
             </p>
           </div>
         </section>
@@ -831,7 +831,7 @@ export default function HomePage() {
             <div className="space-y-4 scroll-reveal stagger-1">
               {[
                 ["Bagaimana akurasi deteksi pada kondisi malam hari?", "Model dilatih dengan teknik augmentasi kecerahan untuk mengakomodasi variasi cahaya. Namun, performa optimal saat ini berada pada kondisi pencahayaan cukup (siang/sore). Untuk malam hari, disarankan menggunakan flash saat pengambilan foto agar fitur objek terlihat jelas oleh model YOLO."],
-                ["Apakah data privasi warga (wajah/plat nomor) aman?", "Ya, privasi adalah prioritas. Sebelum gambar masuk ke database publik atau dashboard pemerintah, sistem memiliki layer preprocessing otomatis yang mendeteksi dan memburamkan (blur) wajah orang serta plat nomor kendaraan, sesuai dengan prinsip etika AI."],
+                ["Apakah data privasi warga (wajah/plat nomor) aman?", "Ya. Foto difokuskan pada infrastruktur publik, dan sistem menghapus metadata lokasi (EXIF/GPS) dari foto yang dipublikasikan — yang tampil hanya foto hasil anotasi. Catatan jujur: sistem saat ini belum memburamkan wajah atau plat nomor secara otomatis, jadi mohon hindari memotret orang atau plat nomor secara sengaja."],
                 ["Apa keunggulan sistem ini dibanding pelaporan manual?", "Sistem konvensional hanya mencatat laporan, seringkali tanpa data lokasi yang presisi atau standar keparahan yang jelas. BaliCivic AI melakukan analisis otomatis (validasi objek, scoring tingkat kerusakan, dan geotagging), sehingga pemerintah menerima data yang sudah terstruktur, terverifikasi, dan terprioritas untuk penanganan lebih cepat."],
               ].map(([q, a], i) => (
                 <details key={i} className="group border border-lightBorder rounded-xl bg-white overflow-hidden hover:border-primary/30 transition-colors cursor-pointer">
@@ -1012,7 +1012,7 @@ export default function HomePage() {
             </div>
 
             <div className="bg-gray-50 rounded-xl p-4 mb-8 text-xs text-textSecondary border border-lightBorder/50 text-center max-w-3xl mx-auto">
-              <span className="font-semibold text-textDark">Catatan Etika:</span> Data citra difokuskan pada infrastruktur publik. Wajah & privasi disamarkan sesuai etika AI.
+              <span className="font-semibold text-textDark">Catatan Etika:</span> Data citra difokuskan pada infrastruktur publik. Metadata lokasi (EXIF/GPS) dihapus dari foto yang dipublikasikan.
             </div>
 
             <footer className="border-t border-lightBorder pt-16 mt-16 bg-white">

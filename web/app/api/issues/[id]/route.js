@@ -1,7 +1,12 @@
 // GET /api/issues/[id] — detail satu issue. PK int.
-import { getIssue } from '@/lib/dummyStore';
+// DELETE /api/issues/[id] — admin hapus laporan (moderasi)
+// Mirror: backend/main.py:read_single_issue, delete_issue
+import { getIssue, deleteIssue } from '@/lib/dummyStore';
+import { isAdminAuthorized } from '@/lib/dummyData';
+import { DUMMY_BLOCKED, blockedResponse } from '@/lib/dummyGuard';
 
 export async function GET(_req, ctx) {
+  if (DUMMY_BLOCKED) return blockedResponse();
   const { id } = await ctx.params;
   const numId = Number(id);
   if (!Number.isInteger(numId) || numId < 1) {
@@ -16,10 +21,9 @@ export async function GET(_req, ctx) {
 
 // DELETE /api/issues/[id] — admin hapus laporan (moderasi)
 // Mirror: backend/main.py:delete_issue
-import { deleteIssue } from '@/lib/dummyStore';
-import { isAdminAuthorized } from '@/lib/dummyData';
 
 export async function DELETE(req, ctx) {
+  if (DUMMY_BLOCKED) return blockedResponse();
   if (!isAdminAuthorized(req)) {
     return Response.json({ detail: 'Token admin tidak valid' }, { status: 401 });
   }
