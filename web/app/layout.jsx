@@ -30,7 +30,9 @@ export default function RootLayout({ children }) {
         {children}
         {/* CDN script global (leaflet dipakai dashboard/peta/index) */}
         <Script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" strategy="afterInteractive" />
-        <Script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js" strategy="afterInteractive" />
+        {/* Pin 0.2.0: versi >=1.0.0 dikirim sebagai ES module ("import * as e from 'leaflet'")
+            sehingga gagal dimuat sebagai script klasik dan heatmap tidak pernah aktif. */}
+        <Script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js" strategy="afterInteractive" />
         <Script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" strategy="afterInteractive" />
       </body>
     </html>

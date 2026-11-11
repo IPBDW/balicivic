@@ -1,6 +1,6 @@
 "use client";
 
-import { API_BASE, imgUrl, fetchAllIssues } from "@/lib/api";
+import { imgUrl, apiGet, apiPut } from "@/lib/api";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useRef, useState } from "react";
@@ -35,16 +35,11 @@ function AdminContent() {
     (async () => {
       // Verifikasi token ke server (token tidak disimpan/hardcoded di client).
       try {
-        const verifyUrl = id 
-          ? `${API_BASE}/api/admin/verify?token=${encodeURIComponent(token)}&id=${encodeURIComponent(id)}`
-          : `${API_BASE}/api/admin/verify?token=${encodeURIComponent(token)}`;
-        const res = await fetch(verifyUrl);
+        const verifyPath = id
+          ? `/api/admin/verify?token=${encodeURIComponent(token)}&id=${encodeURIComponent(id)}`
+          : `/api/admin/verify?token=${encodeURIComponent(token)}`;
+        await apiGet(verifyPath);
         if (cancelled) return;
-        if (!res.ok) {
-          setStage("locked");
-          setErrorMsg("Token tidak valid.");
-          return;
-        }
         setStage("open");
         fetchIssueDetail(id);
       } catch (e) {
@@ -56,14 +51,11 @@ function AdminContent() {
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, id]);
 
   async function fetchIssueDetail(targetId) {
     try {
-      const res = await fetch(`${API_BASE}/api/issues/${targetId}`);
-      if (!res.ok) throw new Error("Data tidak ditemukan");
-      const item = await res.json();
+      const item = await apiGet(`/api/issues/${targetId}`);
       if (!item) throw new Error("Data tidak ditemukan");
       setData(item);
     } catch (error) {
@@ -91,19 +83,15 @@ function AdminContent() {
     if (!data) return;
     setActionBusy(true);
     try {
-      const res = await fetch(`${API_BASE}/api/issues/${data.id}/status?status=${newStatus}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json", "X-Admin-Token": token || "" },
-      });
-      if (res.ok) {
-        showToast("Berhasil!", "Status diperbarui.");
-        fetchIssueDetail(data.id);
-      } else {
-        const err = await res.json().catch(() => ({}));
-        showToast("Gagal", err.detail || "Error");
-      }
+      await apiPut(
+        `/api/issues/${data.id}/status?status=${newStatus}`,
+        null,
+        { headers: { "X-Admin-Token": token || "" } }
+      );
+      showToast("Berhasil!", "Status diperbarui.");
+      fetchIssueDetail(data.id);
     } catch (e) {
-      showToast("Error", e.message);
+      showToast("Gagal", e.message);
     } finally {
       setActionBusy(false);
     }
