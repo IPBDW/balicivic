@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
 
 const LINKS = [
   { label: "Beranda", href: "/" },
@@ -12,8 +11,6 @@ const LINKS = [
 ];
 
 export default function NavbarApp({ active = "", sublabel = "" }) {
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-
   return (
     <header className="sticky top-0 z-50 w-full border-b border-slate-200/80 bg-white/95 backdrop-blur-md shadow-[0_2px_8px_-2px_rgba(0,0,0,0.03)]">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
@@ -38,7 +35,7 @@ export default function NavbarApp({ active = "", sublabel = "" }) {
           </Link>
         </div>
 
-        {/* Desktop Links */}
+        {/* Desktop Links (Hanya tampil di layar desktop md ke atas; mobile memakai BottomNav di bawah) */}
         <nav aria-label="Navigasi Utama" className="hidden md:flex items-center space-x-1">
           {LINKS.map((l) => {
             const isActive = active === l.href;
@@ -64,50 +61,7 @@ export default function NavbarApp({ active = "", sublabel = "" }) {
             <span>Lapor Kerusakan</span>
           </Link>
         </nav>
-
-        {/* Mobile quick action */}
-        <div className="flex items-center gap-2 md:hidden">
-          <Link
-            href="/lapor"
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-primary rounded-lg shadow-sm"
-          >
-            <i className="fas fa-plus"></i>
-            <span>Lapor</span>
-          </Link>
-          <button
-            type="button"
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
-            aria-label="Toggle menu"
-            aria-expanded={mobileMenuOpen}
-          >
-            <i className={`fas ${mobileMenuOpen ? "fa-times" : "fa-bars"} text-base`}></i>
-          </button>
-        </div>
       </div>
-
-      {/* Mobile menu dropdown */}
-      {mobileMenuOpen && (
-        <div className="md:hidden border-t border-slate-200 bg-white px-4 py-3 space-y-1 shadow-lg">
-          {LINKS.map((l) => {
-            const isActive = active === l.href;
-            return (
-              <Link
-                key={l.href}
-                href={l.href}
-                onClick={() => setMobileMenuOpen(false)}
-                className={`block px-3 py-2 rounded-lg text-sm font-medium ${
-                  isActive
-                    ? "font-bold text-primary bg-primary/10"
-                    : "text-slate-700 hover:bg-slate-100"
-                }`}
-              >
-                {l.label}
-              </Link>
-            );
-          })}
-        </div>
-      )}
     </header>
   );
 }

@@ -108,15 +108,19 @@ export default function HomePage() {
 
   useEffect(() => {
     let mapInstance = null;
+    let isCancelled = false;
+    const container = mapContainerRef.current;
 
     async function initMiniMap() {
-      if (!mapContainerRef.current) return;
+      if (!container) return;
+      if (container._leaflet_id) return;
       try {
         const L = await waitForLeaflet();
-        if (!L || !mapContainerRef.current) return;
+        if (!L || isCancelled) return;
+        if (container._leaflet_id) return;
 
         // Pusatkan peta di Pulau Bali
-        mapInstance = L.map(mapContainerRef.current, {
+        mapInstance = L.map(container, {
           center: [-8.5, 115.18],
           zoom: 10,
           scrollWheelZoom: false,
@@ -129,6 +133,7 @@ export default function HomePage() {
 
         // Tambahkan pin dari titik contoh Bali
         DUMMY_HEATMAP_POINTS.slice(0, 15).forEach((p) => {
+          if (isCancelled || !mapInstance) return;
           const lat = p.latitude || p.lat;
           const lon = p.longitude || p.long;
           if (!lat || !lon) return;
@@ -155,15 +160,22 @@ export default function HomePage() {
             );
         });
       } catch (err) {
-        console.error("Gagal inisialisasi mini map:", err);
+        if (!isCancelled) {
+          console.warn("Pemberitahuan inisialisasi mini map:", err);
+        }
       }
     }
 
     initMiniMap();
 
     return () => {
+      isCancelled = true;
       if (mapInstance) {
         mapInstance.remove();
+        mapInstance = null;
+      }
+      if (container) {
+        delete container._leaflet_id;
       }
     };
   }, []);
