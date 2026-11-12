@@ -1,6 +1,7 @@
 "use client";
 
 import { imgUrl, apiGet, apiPut } from "@/lib/api";
+import { getRiskLevelLabel, getSeverityCode } from "@/lib/severity";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useRef, useState } from "react";
@@ -36,7 +37,7 @@ function AdminContent() {
       // Verifikasi token ke server (token tidak disimpan/hardcoded di client).
       try {
         const verifyPath = id
-          ? `/api/admin/verify?token=${encodeURIComponent(token)}&id=${encodeURIComponent(id)}`
+          ? `/api/admin/verify?token=${encodeURIComponent(token)}&issue_id=${encodeURIComponent(id)}&id=${encodeURIComponent(id)}`
           : `/api/admin/verify?token=${encodeURIComponent(token)}`;
         await apiGet(verifyPath);
         if (cancelled) return;
@@ -150,11 +151,12 @@ function AdminContent() {
     const diffHours = Math.floor((new Date() - new Date(data.created_at)) / (1000 * 60 * 60));
     responseTime = diffHours < 24 ? diffHours + " jam" : Math.floor(diffHours / 24) + " hari";
   }
-  const riskLevel = score >= 70 ? "RISIKO TINGGI" : score >= 40 ? "RISIKO SEDANG" : "RISIKO RENDAH";
+  const riskLevel = getRiskLevelLabel(score);
+  const severityCode = getSeverityCode(score);
   const riskCls =
-    score >= 70
+    severityCode === "HIGH"
       ? "inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold bg-red-100 text-red-600 mb-2"
-      : score >= 40
+      : severityCode === "MEDIUM"
         ? "inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-600 mb-2"
         : "inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-600 mb-2";
   const shortId = data ? String(data.id).substring(0, 8) : "...";

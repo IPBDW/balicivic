@@ -1,6 +1,8 @@
 "use client";
 
 import { API_BASE, imgUrl } from "@/lib/api";
+import { formatTimeWita, formatTimeWitaLabel, formatDateWita, formatDateLongWita } from "@/lib/datetime";
+import { SEVERITY_HIGH_MIN, SEVERITY_MEDIUM_MIN } from "@/lib/severity";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import BottomNav from "@/components/BottomNav";
@@ -49,11 +51,11 @@ export default function DetailPage() {
 
       const score = typeof d.final_score === "number" ? d.final_score : 0;
       let scoreColor, textColor, labelText;
-      if (score > 70) {
+      if (score >= SEVERITY_HIGH_MIN) {
         scoreColor = "bg-gradient-to-r from-rose-500 to-red-600 shadow-[0_0_20px_rgba(225,29,72,0.4)]";
         textColor = "text-rose-600";
         labelText = "KRITIS - Perlu Penanganan Segera";
-      } else if (score > 40) {
+      } else if (score >= SEVERITY_MEDIUM_MIN) {
         scoreColor = "bg-gradient-to-r from-amber-400 to-orange-500 shadow-[0_0_20px_rgba(245,158,11,0.4)]";
         textColor = "text-amber-600";
         labelText = "SEDANG - Perlu Dijadwalkan";
@@ -186,8 +188,7 @@ export default function DetailPage() {
 
   const shortId = data?.id != null ? String(data.id).substring(0, 8) : "...";
   const timeText = data?.created_at
-    ? new Date(data.created_at).toLocaleDateString("id-ID", { weekday: "long", year: "numeric", month: "long", day: "numeric" }) +
-      " • " + new Date(data.created_at).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }) + " WITA"
+    ? formatDateLongWita(data.created_at) + " • " + formatTimeWitaLabel(data.created_at)
     : "-";
   const isAnalyzing = data?.issue_class === "processing";
   const desc = isAnalyzing
@@ -205,11 +206,7 @@ export default function DetailPage() {
     // Backend menyimpan "YYYY-MM-DD HH:MM:SS" (WITA); dummy pakai ISO.
     const d = new Date(typeof ts === "string" ? ts.replace(" ", "T") : ts);
     if (isNaN(d.getTime())) return String(ts);
-    return (
-      d.toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" }) +
-      " • " +
-      d.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })
-    );
+    return formatDateWita(d) + " • " + formatTimeWita(d);
   }
   const locText = `${data?.kecamatan || "Lokasi Unknown"}, ${data?.kabupaten || "Lokasi Unknown"}`;
   const gmapsHref = data?.latitude && data?.longitude ? `https://www.google.com/maps/search/?api=1&query=${data.latitude},${data.longitude}` : "#";

@@ -144,3 +144,13 @@ export async function fetchAllIssues({ pageSize = 200, maxPages = 50 } = {}) {
   }
   return all;
 }
+
+// Ambil N laporan terbaru secara efisien tanpa memuat seluruh database.
+// Cocok untuk polling widget / feed beranda dashboard.
+export async function fetchRecentIssuesList(limit = 10) {
+  assertApiConfigured();
+  const path = `/api/issues?limit=${encodeURIComponent(limit)}`;
+  const res = await fetch(apiUrl(path));
+  if (!res.ok) throw await toError(res, path);
+  return res.json();
+}

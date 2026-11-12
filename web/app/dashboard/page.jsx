@@ -3,8 +3,10 @@
 import Link from "next/link";
 import NavbarApp from "@/components/NavbarApp";
 import BottomNav from "@/components/BottomNav";
-import { API_BASE, fetchAllIssues } from "@/lib/api";
+import { API_BASE, fetchAllIssues, fetchRecentIssuesList } from "@/lib/api";
 import { waitForLeaflet } from "@/lib/leaflet";
+import { formatTimeWitaLabel, formatTimeWita, formatDateShortWita } from "@/lib/datetime";
+import { getScoreBadgeClass } from "@/lib/severity";
 import { useCallback, useEffect, useState } from "react";
 import {
   DUMMY_STATS,
@@ -48,9 +50,7 @@ function getSeverityColor(percent) {
 }
 
 function getScoreClass(score) {
-  if (score >= 70) return "text-red-600 bg-red-50 border-red-100";
-  if (score >= 40) return "text-amber-600 bg-amber-50 border-amber-100";
-  return "text-emerald-600 bg-emerald-50 border-emerald-100";
+  return getScoreBadgeClass(score);
 }
 
 function getStatusColors(status, withBorder = false) {
@@ -135,7 +135,7 @@ export default function DashboardPage() {
       return;
     }
     try {
-      const data = await fetchAllIssues();
+      const data = await fetchRecentIssuesList(10);
       setIssues(data);
       setUpdatedAt(new Date().toLocaleTimeString());
     } catch (e) {
@@ -207,7 +207,7 @@ export default function DashboardPage() {
     const t2 = setInterval(fetchDistribution, 100000);
     fetchStats();
     fetchRecentIssues();
-    const t3 = setInterval(fetchRecentIssues, 5000);
+    const t3 = setInterval(fetchRecentIssues, 25000);
     initDashboardMap();
     return () => {
       clearInterval(t1);
@@ -428,7 +428,7 @@ export default function DashboardPage() {
           <div className="md:hidden space-y-3 p-4 bg-slate-50/50">
             {mobileIssues.length === 0 && <div className="text-center text-slate-400 text-sm py-4">Belum ada laporan masuk</div>}
             {mobileIssues.map((item) => {
-              const timeStr = new Date(item.created_at).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }) + " WITA";
+              const timeStr = formatTimeWitaLabel(item.created_at);
               return (
                 <div key={item.id} className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm flex flex-col gap-3">
                   <div className="flex justify-between items-start">
@@ -482,9 +482,8 @@ export default function DashboardPage() {
                   </tr>
                 )}
                 {desktopIssues.map((item) => {
-                  const dateObj = new Date(item.created_at);
-                  const timeStr = dateObj.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" });
-                  const dateStr = dateObj.toLocaleDateString("id-ID", { day: "numeric", month: "short" });
+                  const timeStr = formatTimeWita(item.created_at);
+                  const dateStr = formatDateShortWita(item.created_at);
                   return (
                     <tr key={item.id} className="hover:bg-slate-50/80 transition-colors group border-b border-slate-50 last:border-0">
                       <td className="px-6 py-4">

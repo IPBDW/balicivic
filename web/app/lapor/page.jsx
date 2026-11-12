@@ -3,6 +3,7 @@
 import NavbarApp from "@/components/NavbarApp";
 import BottomNav from "@/components/BottomNav";
 import { API_BASE } from "@/lib/api";
+import { formatTimeWita } from "@/lib/datetime";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -37,11 +38,26 @@ export default function LaporPage() {
   const [lng, setLng] = useState("");
   const [modal, setModal] = useState({ show: false, success: false, countdown: 3 });
   const [activity, setActivity] = useState([]);
+  const [formError, setFormError] = useState(null);
+  const [allowNoLocation, setAllowNoLocation] = useState(false);
 
   useEffect(() => {
+    async function fetchLiveActivity() {
+      try {
+        const res = await fetch(`${API_BASE}/api/issues?limit=3`);
+        if (!res.ok) return;
+        const data = await res.json();
+        setActivity(data.slice(0, 3));
+      } catch (error) {
+        console.error("Gagal load aktivitas:", error);
+      }
+    }
+
     fetchLiveActivity();
     const interval = setInterval(fetchLiveActivity, 10000);
-    getLocation();
+    // Sengaja TIDAK memanggil getLocation() otomatis: permintaan izin lokasi
+    // yang muncul sendiri saat halaman dibuka itu mengganggu, dan di beberapa
+    // browser memblokir UI. Pengguna menekan tombol kalau memang mau.
     return () => clearInterval(interval);
   }, []);
 
@@ -55,65 +71,86 @@ export default function LaporPage() {
 
   function getLocation() {
     if (!navigator.geolocation) {
-      alert("Browser anda tidak mendukung Geolocation.");
+      setGpsStatus({ text: "Browser tidak mendukung GPS", cls: "text-[10px] text-red-500 font-bold" });
+      setFormError("Browser ini tidak mendukung Geolocation. Isi koordinat manual di bawah.");
       return;
     }
+    setFormError(null);
     setGpsStatus({ text: "Mencari satelit...", cls: "text-[10px] text-amber-500 font-bold animate-pulse" });
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        setLat(position.coords.latitude.toFixed(6));
-        setLng(position.coords.longitude.toFixed(6));
-        setGpsStatus({ text: "GPS Terkunci", cls: "text-[10px] text-accentGreen font-bold" });
+        const pLat = position.coords.latitude;
+        const pLng = position.coords.longitude;
+        setLat(pLat.toFixed(6));
+        setLng(pLng.toFixed(6));
+        if (pLat < -9.0 || pLat > -8.0 || pLng < 114.4 || pLng > 115.8) {
+          setGpsStatus({ text: "GPS Terkunci (Di Luar Bali)", cls: "text-[10px] text-amber-500 font-bold" });
+          setFormError(
+            "GPS terdeteksi di luar Provinsi Bali. Untuk pengujian, masukkan koordinat di Bali (misal: Denpasar -8.67, 115.21) atau centang 'Kirim tanpa lokasi'."
+          );
+        } else {
+          setGpsStatus({ text: "GPS Terkunci (Bali)", cls: "text-[10px] text-accentGreen font-bold" });
+        }
       },
       (error) => {
         let msg = "Gagal ambil lokasi.";
         switch (error.code) {
           case error.PERMISSION_DENIED:
-            msg = "Izin GPS ditolak. Mohon aktifkan izin lokasi browser.";
+            msg = "Izin lokasi ditolak. Aktifkan izin lokasi browser, atau isi koordinat manual di bawah.";
             break;
           case error.POSITION_UNAVAILABLE:
-            msg = "Informasi lokasi tidak tersedia.";
+            msg = "Informasi lokasi tidak tersedia. Isi koordinat manual di bawah.";
             break;
           case error.TIMEOUT:
-            msg = "Waktu habis. Coba lagi di area terbuka.";
+            msg = "Waktu habis mengambil lokasi. Coba lagi atau isi koordinat manual.";
             break;
           default:
             msg = "Error GPS: " + error.message;
         }
-        alert(msg);
-        setGpsStatus({ text: "GPS Error", cls: "text-[10px] text-red-500 font-bold" });
+        setFormError(msg);
+        setGpsStatus({ text: "GPS tidak aktif", cls: "text-[10px] text-red-500 font-bold" });
       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
   }
 
-  async function fetchLiveActivity() {
-    try {
-      const res = await fetch(`${API_BASE}/api/issues?limit=3`);
-      if (!res.ok) return;
-      const data = await res.json();
-      setActivity(data.slice(0, 3));
-    } catch (error) {
-      console.error("Gagal load aktivitas:", error);
-    }
-  }
-
   async function onSubmit(e) {
     e.preventDefault();
+    setFormError(null);
+
     if (!fileRef.current?.files?.[0]) {
-      alert("Harap ambil foto dulu!");
+      setFormError("Harap ambil atau pilih foto dulu.");
       return;
     }
-    if (!lat) {
-      if (!confirm("Lokasi belum terkunci (0,0). Lanjutkan?")) return;
+
+    // Lokasi boleh kosong: backend menyimpan null dan laporan tetap masuk.
+    // Ini penting untuk pengguna yang menolak GPS atau memakai perangkat tanpa GPS.
+    const hasCoords = lat !== "" && lng !== "";
+    if (!hasCoords && !allowNoLocation) {
+      setFormError(
+        "Lokasi belum terisi. Klik \"Deteksi Lokasi Saya\", isi koordinat manual, atau centang izin kirim tanpa lokasi."
+      );
+      return;
+    }
+
+    if (hasCoords) {
+      const numLat = parseFloat(lat);
+      const numLng = parseFloat(lng);
+      const isOutsideBali = numLat < -9.0 || numLat > -8.0 || numLng < 114.4 || numLng > 115.8;
+      if (isOutsideBali) {
+        setFormError(
+          "Koordinat berada di luar wilayah Provinsi Bali. Masukkan koordinat di Bali (misal: Denpasar -8.67, 115.21) atau centang 'Kirim tanpa lokasi'."
+        );
+        return;
+      }
     }
 
     setModal({ show: true, success: false, countdown: 3 });
 
     const formData = new FormData();
     formData.append("file", fileRef.current.files[0]);
-    formData.append("lat", lat || "0");
-    formData.append("long", lng || "0");
+    formData.append("lat", hasCoords ? lat : "0");
+    formData.append("long", hasCoords ? lng : "0");
 
     try {
       const response = await fetch(`${API_BASE}/api/analyze`, { method: "POST", body: formData });
@@ -142,7 +179,7 @@ export default function LaporPage() {
       }, 1000);
     } catch (error) {
       console.error("Upload Error:", error);
-      alert("Gagal mengirim laporan: " + error.message);
+      setFormError("Gagal mengirim laporan: " + error.message);
       setModal({ show: false, success: false, countdown: 3 });
     }
   }
@@ -201,31 +238,38 @@ export default function LaporPage() {
 
                 <div className="space-y-2">
                   <div className="flex justify-between items-end">
-                    <label className="text-sm font-bold text-textDark">Lokasi</label>
-                    <span className={gpsStatus.cls} id="gpsStatus">{gpsStatus.text}</span>
+                    <label htmlFor="input-lat" className="text-sm font-bold text-textDark">
+                      Lokasi <span className="text-[10px] font-normal text-textSecondary">(opsional)</span>
+                    </label>
+                    <span className={gpsStatus.cls} id="gpsStatus" role="status" aria-live="polite">{gpsStatus.text}</span>
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     <input
+                      id="input-lat"
                       type="number"
                       step="any"
                       name="lat"
                       value={lat}
-                      readOnly
+                      onChange={(e) => setLat(e.target.value)}
                       placeholder="Latitude"
-                      required
+                      aria-label="Latitude"
                       className="bg-gray-50 border border-lightBorder rounded-lg px-3 py-3 text-xs font-mono focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none"
                     />
                     <input
+                      id="input-long"
                       type="number"
                       step="any"
                       name="long"
                       value={lng}
-                      readOnly
+                      onChange={(e) => setLng(e.target.value)}
                       placeholder="Longitude"
-                      required
+                      aria-label="Longitude"
                       className="bg-gray-50 border border-lightBorder rounded-lg px-3 py-3 text-xs font-mono focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none"
                     />
                   </div>
+                  <p className="text-[10px] text-textSecondary">
+                    Contoh: -8.5069 / 115.2625. Klik tombol di bawah untuk mengisi otomatis.
+                  </p>
                   <button
                     type="button"
                     onClick={getLocation}
@@ -237,7 +281,26 @@ export default function LaporPage() {
                       Deteksi Lokasi Saya
                     </span>
                   </button>
+
+                  <label className="flex items-start gap-2 pt-1 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={allowNoLocation}
+                      onChange={(e) => setAllowNoLocation(e.target.checked)}
+                      className="mt-0.5 accent-primary"
+                    />
+                    <span className="text-[11px] text-textSecondary leading-snug">
+                      Kirim tanpa lokasi presisi (laporan tetap masuk, tapi tidak muncul di peta).
+                    </span>
+                  </label>
                 </div>
+
+                {formError && (
+                  <div role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700 leading-relaxed">
+                    <i className="fas fa-circle-exclamation mr-1.5"></i>
+                    {formError}
+                  </div>
+                )}
 
                 <button
                   type="submit"
@@ -287,14 +350,14 @@ export default function LaporPage() {
               <div id="liveActivityList" className="space-y-4 opacity-70">
                 {activity.length === 0 && <p className="text-xs text-gray-400 animate-pulse">Memuat aktivitas...</p>}
                 {activity.map((item, i) => {
-                  const date = new Date(item.created_at);
-                  const timeStr = date.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" });
+                  const timeStr = formatTimeWita(item.created_at);
                   let colorClass = "text-gray-600";
                   const cat = item.issue_class;
-                  if (cat === "JALAN_RUSAK") colorClass = "text-red-500";
-                  else if (cat === "SAMPAH") colorClass = "text-amber-500";
-                  else if (cat === "GENANGAN") colorClass = "text-accentGreen";
-                  else if (cat === "KABEL") colorClass = "text-slate-600";
+                  // Kunci kelas dari backend: jalan_bolong, sampah_liar, genangan_air, kabel_semrawut.
+                  if (cat === "jalan_bolong") colorClass = "text-red-500";
+                  else if (cat === "sampah_liar") colorClass = "text-amber-500";
+                  else if (cat === "genangan_air") colorClass = "text-accentGreen";
+                  else if (cat === "kabel_semrawut") colorClass = "text-slate-600";
                   return (
                     <div key={i} className="flex items-center gap-3 text-xs hover:translate-x-1 transition-transform duration-300 cursor-default">
                       <span className="text-gray-400">{timeStr}</span>

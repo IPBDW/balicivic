@@ -4,6 +4,8 @@ import Link from "next/link";
 import NavbarApp from "@/components/NavbarApp";
 import BottomNav from "@/components/BottomNav";
 import { fetchAllIssues } from "@/lib/api";
+import { formatTimeWitaLabel, formatDateWita } from "@/lib/datetime";
+import { getScoreBadgeClass } from "@/lib/severity";
 import { useCallback, useEffect, useState } from "react";
 
 const PAGE_CSS = `
@@ -34,13 +36,7 @@ function getStatusColors(status) {
 }
 
 function scoreClass(score) {
-  const isHigh = score > 70;
-  const isMed = score > 40;
-  return isHigh
-    ? "text-red-600 bg-red-50 border-red-100"
-    : isMed
-      ? "text-amber-600 bg-amber-50 border-amber-100"
-      : "text-green-600 bg-green-50 border-green-100";
+  return getScoreBadgeClass(score);
 }
 
 export default function LaporanPage() {
@@ -181,9 +177,8 @@ export default function LaporanPage() {
             {!loading &&
               !error &&
               shown.map((item) => {
-                const dateObj = new Date(item.created_at);
-                const timeStr = dateObj.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }) + " WITA";
-                const dateStr = dateObj.toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" });
+                const timeStr = formatTimeWitaLabel(item.created_at);
+                const dateStr = formatDateWita(item.created_at);
                 const sc = scoreClass(item.final_score);
                 const statusColors = getStatusColors(item.status);
                 return (
@@ -257,9 +252,8 @@ export default function LaporanPage() {
                 {!loading &&
                   !error &&
                   shown.map((item) => {
-                    const dateObj = new Date(item.created_at);
-                    const timeStr = dateObj.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }) + " WITA";
-                    const dateStr = dateObj.toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" });
+                    const timeStr = formatTimeWitaLabel(item.created_at);
+                    const dateStr = formatDateWita(item.created_at);
                     const sc = scoreClass(item.final_score);
                     const statusColors = getStatusColors(item.status);
                     return (

@@ -131,6 +131,13 @@ export const DUMMY_DISTRIBUTION = (() => {
 })();
 
 // Recent activity list (10 laporan terbaru dari dummy points)
+//
+// created_at HARUS deterministik. Versi sebelumnya memakai `Date.now()`, yang
+// dievaluasi terpisah di server (saat SSR) dan di browser (saat hidrasi) dengan
+// selisih detik -> teks jam berbeda -> React melempar "Hydration failed".
+// Waktu acuan dikunci ke satu konstanta supaya server dan klien identik.
+const DUMMY_ANCHOR = new Date("2026-11-10T19:14:00+08:00").getTime();
+
 export const DUMMY_RECENT_ISSUES = DUMMY_HEATMAP_POINTS.slice(0, 10).map((p, i) => ({
   id: p.id,
   final_score: p.score,
@@ -138,7 +145,7 @@ export const DUMMY_RECENT_ISSUES = DUMMY_HEATMAP_POINTS.slice(0, 10).map((p, i) 
   issue_class: p.class,
   kecamatan: p.kecamatan,
   kabupaten: p.kabupaten,
-  created_at: new Date(Date.now() - 1000 * 60 * (15 * (i + 1))).toISOString(),
+  created_at: new Date(DUMMY_ANCHOR - 1000 * 60 * (15 * (i + 1))).toISOString(),
 }));
 
 export { KABUPATEN_BALI };
