@@ -20,23 +20,6 @@ import {
 // dummy dipakai). Pakai dummy data biar preview dashboard tetap berisi data.
 const IS_DUMMY_MODE = !API_BASE || API_BASE === "";
 
-const PAGE_CSS = `
-body { font-family: 'Inter', sans-serif; background-color: #F8FAFC; background-image: radial-gradient(at 0% 0%, rgba(201, 75, 75, 0.03) 0px, transparent 50%), radial-gradient(at 100% 0%, rgba(201, 75, 75, 0.03) 0px, transparent 50%); }
-h1, h2, h3, h4, h5, h6, .font-display { font-family: 'Outfit', sans-serif; }
-.glass-card { background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.5); box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03); }
-.glass-card:hover { background: rgba(255, 255, 255, 0.9); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.025); transform: translateY(-2px); transition: all 0.3s ease; }
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 10px; }
-::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
-@keyframes fade-in-up { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-.animate-fade-in-up { animation: fade-in-up 0.6s ease-out forwards; }
-.stagger-1 { animation-delay: 0.1s; } .stagger-2 { animation-delay: 0.2s; } .stagger-3 { animation-delay: 0.3s; }
-.animate-scan { animation: scanline 4s linear infinite; background: linear-gradient(to bottom, transparent, rgba(201, 75, 75, 0.2), transparent); height: 40px; width: 100%; position: absolute; left: 0; pointer-events: none; z-index: 5; }
-@keyframes scanline { 0% { top: 0%; opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { top: 100%; opacity: 0; } }
-table, table *, tr, td, th { transform: none !important; box-shadow: none !important; }
-`;
-
 const RANK_BADGES = [
   { label: "PRIORITAS", bg: "bg-red-50", text: "text-red-600", border: "border-red-100" },
   { label: "SEDANG", bg: "bg-amber-50", text: "text-amber-600", border: "border-amber-100" },
@@ -220,111 +203,119 @@ export default function DashboardPage() {
   const desktopIssues = issues.slice(0, 10);
 
   return (
-    <div className="pb-16">
-      <style dangerouslySetInnerHTML={{ __html: PAGE_CSS }} />
-      <NavbarApp active="/dashboard" />
+    <div className="min-h-screen bg-slate-50/60 pb-20">
+      <NavbarApp active="/dashboard" sublabel="Pusat Pemantauan & Statistik" />
 
-      <main className="flex-1 mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 p-4 md:p-8">
-        <div className="mb-8 flex flex-col md:flex-row md:items-end md:justify-between gap-4 animate-fade-in-up">
+      <main className="flex-1 mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
+        <div className="mb-8 flex flex-col md:flex-row md:items-end md:justify-between gap-4">
           <div>
-            <h1 className="text-3xl md:text-4xl font-bold text-slate-900 tracking-tight">Dashboard & Heatmap</h1>
-            <p className="text-slate-500 mt-2 text-sm md:text-base max-w-2xl">
-              Agregasi data laporan infrastruktur di level kecamatan untuk pengambilan keputusan berbasis data.
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-950 tracking-tight">
+              Dashboard Statistik & Sebaran Kerusakan
+            </h1>
+            <p className="text-slate-600 mt-1.5 text-xs sm:text-sm max-w-2xl">
+              Agregasi data laporan jalan rusak, sampah liar, saluran air, dan kabel berbahaya di Provinsi Bali.
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <div className="text-xs font-medium bg-white/50 backdrop-blur-sm text-slate-600 px-3 py-1.5 rounded-full border border-slate-200 shadow-sm flex items-center gap-2">
+            <div className="text-xs font-semibold bg-white text-slate-700 px-3 py-1.5 rounded-full border border-slate-200 shadow-2xs flex items-center gap-2">
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
               </span>
-              Live Data
+              <span>WITA Real-time Feed</span>
             </div>
+            <button
+              type="button"
+              onClick={() => {
+                fetchStats();
+                fetchTopLocations();
+                fetchDistribution();
+                fetchRecentIssues();
+              }}
+              className="px-3 py-1.5 rounded-full bg-white border border-slate-200 text-xs font-bold text-slate-700 hover:text-primary hover:border-primary/30 transition-colors shadow-2xs flex items-center gap-1.5"
+              title="Perbarui data sekarang"
+            >
+              <i className="fas fa-rotate text-xs"></i>
+              <span>Segarkan</span>
+            </button>
           </div>
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8 animate-fade-in-up stagger-1">
-          <div className="glass-card p-5 rounded-2xl relative overflow-hidden group">
-            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-              <i className="fas fa-file-alt text-4xl text-blue-600"></i>
-            </div>
-            <div className="flex items-center gap-3 mb-3">
-              <div className="p-2 bg-blue-50 text-blue-600 rounded-lg">
-                <i className="fas fa-file-alt text-sm"></i>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-2xs hover:shadow-sm transition-all relative overflow-hidden group">
+            <div className="flex items-center gap-2.5 mb-2.5">
+              <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center text-sm">
+                <i className="fas fa-file-alt"></i>
               </div>
               <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Total Laporan</span>
             </div>
-            <div className="text-3xl font-display font-bold text-slate-800 mb-1">{stats.total}</div>
-            <div className="text-[10px] font-medium text-emerald-600 flex items-center gap-1">
-              <i className="fas fa-arrow-up"></i> <span>12% bulan ini</span>
+            <div className="text-3xl font-extrabold text-slate-900 mb-1">{stats.total}</div>
+            <div className="text-[11px] font-medium text-slate-500">
+              Terdata di seluruh Bali
             </div>
           </div>
 
-          <div className="glass-card p-5 rounded-2xl relative overflow-hidden group">
-            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-              <i className="fas fa-exclamation-triangle text-4xl text-red-600"></i>
-            </div>
-            <div className="flex items-center gap-3 mb-3">
-              <div className="p-2 bg-red-50 text-red-600 rounded-lg">
-                <i className="fas fa-exclamation-triangle text-sm"></i>
+          <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-2xs hover:shadow-sm transition-all relative overflow-hidden group">
+            <div className="flex items-center gap-2.5 mb-2.5">
+              <div className="w-8 h-8 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center text-sm">
+                <i className="fas fa-triangle-exclamation"></i>
               </div>
               <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Perlu Tindakan</span>
             </div>
-            <div className="text-3xl font-display font-bold text-slate-800 mb-1">{stats.antrean}</div>
-            <div className="text-[10px] font-medium text-red-600 flex items-center gap-1">
-              <i className="fas fa-fire"></i> <span>High Severity</span>
+            <div className="text-3xl font-extrabold text-rose-600 mb-1">{stats.antrean}</div>
+            <div className="text-[11px] font-medium text-rose-600 font-semibold">
+              Prioritas Tinggi (&gt;= 75)
             </div>
           </div>
 
-          <div className="glass-card p-5 rounded-2xl relative overflow-hidden group">
-            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-              <i className="fas fa-tools text-4xl text-amber-600"></i>
-            </div>
-            <div className="flex items-center gap-3 mb-3">
-              <div className="p-2 bg-amber-50 text-amber-600 rounded-lg">
-                <i className="fas fa-tools text-sm"></i>
+          <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-2xs hover:shadow-sm transition-all relative overflow-hidden group">
+            <div className="flex items-center gap-2.5 mb-2.5">
+              <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center text-sm">
+                <i className="fas fa-wrench"></i>
               </div>
-              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Sedang Diproses</span>
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Sedang Ditangani</span>
             </div>
-            <div className="text-3xl font-display font-bold text-slate-800 mb-1">{stats.perlu_tindakan}</div>
-            <div className="text-[10px] font-medium text-slate-400">Estimasi 2 hari</div>
+            <div className="text-3xl font-extrabold text-slate-900 mb-1">{stats.perlu_tindakan}</div>
+            <div className="text-[11px] font-medium text-amber-600 font-medium">
+              Tim PUPR di Lapangan
+            </div>
           </div>
 
-          <div className="glass-card p-5 rounded-2xl relative overflow-hidden group">
-            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-              <i className="fas fa-check-circle text-4xl text-emerald-600"></i>
-            </div>
-            <div className="flex items-center gap-3 mb-3">
-              <div className="p-2 bg-emerald-50 text-emerald-600 rounded-lg">
-                <i className="fas fa-check-circle text-sm"></i>
+          <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-2xs hover:shadow-sm transition-all relative overflow-hidden group">
+            <div className="flex items-center gap-2.5 mb-2.5">
+              <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center text-sm">
+                <i className="fas fa-circle-check"></i>
               </div>
-              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Selesai</span>
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Selesai Diperbaiki</span>
             </div>
-            <div className="text-3xl font-display font-bold text-slate-800 mb-1">{stats.selesai}</div>
-            <div className="text-[10px] font-medium text-emerald-600">Minggu ini</div>
+            <div className="text-3xl font-extrabold text-emerald-600 mb-1">{stats.selesai}</div>
+            <div className="text-[11px] font-medium text-emerald-600 font-medium">
+              Laporan Ditutup
+            </div>
           </div>
         </div>
 
         {/* Main Grid */}
         <div className="grid gap-6 lg:grid-cols-12 items-start mb-8">
-          <div className="lg:col-span-7 flex flex-col h-full animate-fade-in-up stagger-2">
-            <div className="glass-card p-6 rounded-2xl h-full min-h-[400px] flex flex-col relative overflow-hidden group">
-              <div className="flex items-center justify-between mb-6 relative z-10">
+          <div className="lg:col-span-7 flex flex-col h-full">
+            <div className="bg-white rounded-2xl border border-slate-200 p-6 h-full min-h-[420px] flex flex-col shadow-2xs">
+              <div className="flex items-center justify-between mb-4">
                 <div>
-                  <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                    <i className="fas fa-map-marked-alt text-primary"></i> Peta Heatmap Masalah
+                  <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                    <i className="fas fa-map-marked-alt text-primary"></i> Peta Heatmap Sebaran
                   </h3>
-                  <p className="text-xs text-slate-500 mt-1">Simulasi sebaran jalan rusak, sampah, genangan & kabel.</p>
+                  <p className="text-xs text-slate-500 mt-0.5">Konsentrasi titik kerusakan jalan, sampah, dan genangan di Bali.</p>
                 </div>
-                <Link href="/peta" className="px-3 py-1.5 rounded-full bg-slate-100 text-slate-600 text-[10px] font-bold hover:bg-primary hover:text-white transition-all flex items-center gap-1">
-                  Buka Peta Penuh <i className="fas fa-arrow-right"></i>
+                <Link href="/peta" className="px-3 py-1.5 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold hover:bg-slate-900 hover:text-white transition-colors flex items-center gap-1.5">
+                  <span>Peta Penuh</span>
+                  <i className="fas fa-arrow-right text-[10px]"></i>
                 </Link>
               </div>
-              <div className="relative flex-1 w-full h-[280px] sm:h-[320px] lg:h-auto bg-slate-100 rounded-xl border border-dashed border-slate-200 overflow-hidden flex items-center justify-center group-hover:border-primary/20 transition-colors">
+              <div className="relative flex-1 w-full h-[280px] sm:h-[320px] lg:h-auto bg-slate-100 rounded-xl border border-slate-200 overflow-hidden flex items-center justify-center">
                 <div id="mini-heatmap" className="absolute inset-0 z-10 rounded-xl"></div>
                 <div className="absolute inset-0 z-0 flex items-center justify-center bg-slate-200/50 backdrop-blur-md pointer-events-none">
-                  <Link href="/peta" className="lg:hidden px-6 py-3 bg-white text-slate-800 font-bold rounded-xl shadow-lg border border-white/50 hover:scale-105 transition-transform flex items-center gap-2">
+                  <Link href="/peta" className="lg:hidden px-5 py-2.5 bg-white text-slate-800 font-bold text-xs rounded-xl shadow-md border border-slate-200 flex items-center gap-2">
                     <i className="fas fa-map-marked-alt text-primary"></i> Buka Heatmap
                   </Link>
                 </div>
@@ -332,91 +323,83 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div className="lg:col-span-5 space-y-6 animate-fade-in-up stagger-3">
-            <div className="glass-card p-6 rounded-2xl">
-              <div className="flex items-center justify-between mb-5">
-                <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
-                  <i className="fas fa-trophy text-amber-500"></i> Top 3 Kecamatan
+          <div className="lg:col-span-5 space-y-6">
+            <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-2xs">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                  <i className="fas fa-location-dot text-primary"></i> Wilayah Laporan Terbanyak
                 </h3>
               </div>
-              <div className="space-y-3">
+              <div className="space-y-2.5">
                 {topLocs.length === 0 && (
-                  <div className="animate-pulse flex space-x-4">
-                    <div className="flex-1 space-y-4 py-1">
-                      <div className="h-4 bg-slate-200 rounded w-3/4"></div>
-                      <div className="space-y-2">
-                        <div className="h-4 bg-slate-200 rounded"></div>
-                      </div>
-                    </div>
+                  <div className="animate-pulse space-y-3 py-2">
+                    <div className="h-4 bg-slate-100 rounded w-3/4"></div>
+                    <div className="h-4 bg-slate-100 rounded"></div>
                   </div>
                 )}
                 {topLocs.length > 0 &&
                   topLocs.map((item, index) => {
                     const style = RANK_BADGES[index] || RANK_BADGES[2];
                     return (
-                      <div key={index} className="flex justify-between items-center p-3 rounded-xl border border-slate-100 hover:border-primary/20 hover:bg-slate-50 transition-all group cursor-default">
+                      <div key={index} className="flex justify-between items-center p-3 rounded-xl border border-slate-100 bg-slate-50/50 hover:bg-slate-50 transition-colors">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-500 font-bold text-xs group-hover:bg-white group-hover:shadow-sm transition-all">
+                          <div className="w-7 h-7 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-slate-700 font-bold text-xs shadow-2xs">
                             {index + 1}
                           </div>
                           <div>
-                            <h4 className="font-bold text-sm text-slate-800">{item.kabupaten}</h4>
+                            <h4 className="font-bold text-sm text-slate-900">{item.kabupaten}</h4>
                             <span className="text-xs text-slate-500">{item.total} Laporan</span>
                           </div>
                         </div>
-                        <span className={`px-2 py-1 rounded-md text-[10px] font-bold border ${style.bg} ${style.text} ${style.border}`}>{style.label}</span>
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${style.bg} ${style.text} ${style.border}`}>{style.label}</span>
                       </div>
                     );
                   })}
               </div>
             </div>
 
-            <div className="glass-card p-6 rounded-2xl">
-              <h3 className="text-sm font-bold text-slate-800 mb-5 flex items-center gap-2">
-                <i className="fas fa-chart-pie text-primary"></i> Distribusi Masalah
+            <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-2xs">
+              <h3 className="text-sm font-bold text-slate-900 mb-4 flex items-center gap-2">
+                <i className="fas fa-chart-pie text-slate-700"></i> Distribusi Kategori Kerusakan
               </h3>
-              <div className="space-y-4">
+              <div className="space-y-3.5">
                 {distribution.length === 0 && (
                   <div className="animate-pulse space-y-3">
-                    <div className="h-2 bg-slate-200 rounded col-span-2"></div>
-                    <div className="h-2 bg-slate-200 rounded col-span-1"></div>
+                    <div className="h-2 bg-slate-100 rounded"></div>
+                    <div className="h-2 bg-slate-100 rounded"></div>
                   </div>
                 )}
                 {distribution.map((item, index) => {
                   const color = getSeverityColor(item.percent);
                   return (
-                    <div key={index} className="group">
-                      <div className="flex justify-between mb-1.5 text-xs font-medium">
-                        <span className="text-slate-700">{item.label}</span>
-                        <span className="text-slate-500">{item.percent}%</span>
+                    <div key={index}>
+                      <div className="flex justify-between mb-1 text-xs font-semibold">
+                        <span className="text-slate-800">{item.label}</span>
+                        <span className="text-slate-600">{item.percent}%</span>
                       </div>
                       <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
                         <div
-                          className="h-full rounded-full transition-all duration-1000 ease-out relative"
-                          style={{ width: barWidths[`bar-${index}`] || "0%", backgroundColor: color, boxShadow: `0 0 10px ${color}40` }}
-                        >
-                          <div className="absolute inset-0 bg-white/20 w-full h-full animate-[shimmer_2s_infinite]"></div>
-                        </div>
+                          className="h-full rounded-full transition-all duration-700 ease-out"
+                          style={{ width: barWidths[`bar-${index}`] || "0%", backgroundColor: color }}
+                        />
                       </div>
-                      <div className="text-[10px] text-slate-400 mt-1 text-right opacity-0 group-hover:opacity-100 transition-opacity">{item.count} laporan</div>
+                      <div className="text-[10px] text-slate-400 mt-0.5 text-right">{item.count} laporan</div>
                     </div>
                   );
                 })}
               </div>
-              <div className="mt-6 pt-4 border-t border-slate-100 flex justify-end items-center">
-                <span className="text-[10px] text-slate-400 flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                  Updated <span className="font-mono text-slate-600 ml-1">{updatedAt || "--:--:--"}</span>
-                </span>
+              <div className="mt-5 pt-3 border-t border-slate-100 flex justify-between items-center text-[11px] text-slate-500">
+                <span>Sinkronisasi Otomatis</span>
+                <span className="font-mono text-slate-700 font-medium">{updatedAt || "--:--:--"} WITA</span>
               </div>
             </div>
           </div>
         </div>
 
         {/* Live Reports Table */}
-        <div className="glass-card rounded-2xl overflow-hidden animate-fade-in-up stagger-3">
-          <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white/50">
-            <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden">
+          <div className="p-5 sm:p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+            <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
               <i className="fas fa-list-ul text-primary"></i> Laporan Masuk (Live)
             </h3>
             <Link href="/lapor" className="bg-white border border-slate-200 text-slate-700 px-4 py-2 rounded-lg text-xs font-bold hover:bg-slate-50 hover:text-primary transition-colors flex items-center gap-2 shadow-sm hidden md:flex">

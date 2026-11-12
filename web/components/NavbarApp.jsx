@@ -1,69 +1,113 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 
 const LINKS = [
   { label: "Beranda", href: "/" },
   { label: "Dashboard", href: "/dashboard" },
-  { label: "Heatmap", href: "/peta" },
+  { label: "Peta Sebaran", href: "/peta" },
   { label: "Semua Laporan", href: "/laporan" },
-  { label: "Bantuan", href: "/bantuan" },
+  { label: "Panduan", href: "/bantuan" },
 ];
 
-/* NavbarApp — sticky di atas, semi-transparan, container max-w-7xl.
-   Supaya posisi konsisten di semua halaman, tidak ada pergeseran layout. */
 export default function NavbarApp({ active = "", sublabel = "" }) {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
   return (
-    <header className="sticky top-0 z-50 w-full h-16 border-b border-lightBorder bg-white/95 backdrop-blur-md shadow-[0_2px_8px_-2px_rgba(0,0,0,0.04)]">
+    <header className="sticky top-0 z-50 w-full border-b border-slate-200/80 bg-white/95 backdrop-blur-md shadow-[0_2px_8px_-2px_rgba(0,0,0,0.03)]">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center gap-2 sm:gap-3">
-          <Link href="/" className="block" aria-label="BaliCivic AI - Beranda">
+        {/* Brand identity */}
+        <div className="flex items-center gap-3">
+          <Link href="/" className="flex items-center gap-3 group" aria-label="BaliCivic AI - Beranda">
             <img
               src="/assets/BaliCivic_App_Icon_1_.png"
-              alt="BaliCivic AI"
-              className="h-9 w-9 rounded-lg object-cover shadow-md shadow-primary/20"
+              alt="BaliCivic AI Logo"
+              className="h-9 w-9 rounded-xl object-cover shadow-sm ring-1 ring-black/5 group-hover:scale-105 transition-transform"
               width="36"
               height="36"
             />
+            <div className="flex flex-col leading-tight">
+              <span className="font-bold tracking-tight text-base sm:text-lg text-slate-900 group-hover:text-primary transition-colors">
+                BaliCivic AI
+              </span>
+              <span className="text-[10px] font-semibold text-slate-500 tracking-wide">
+                {sublabel || "Sistem Infrastruktur Publik Bali"}
+              </span>
+            </div>
           </Link>
-          <div className="flex flex-col leading-tight">
-            <span className="font-bold tracking-tight text-base sm:text-lg text-textDark">BaliCivic AI</span>
-            {sublabel && (
-              <span className="text-[10px] font-semibold text-primary uppercase tracking-wider">{sublabel}</span>
-            )}
-          </div>
         </div>
 
-        <div className="hidden md:flex items-center space-x-1">
-          {LINKS.map((l) => (
-            <Link
-              key={l.href}
-              href={l.href}
-              className={
-                active === l.href
-                  ? "px-4 py-2 text-sm font-bold text-primary bg-primary/5 rounded-lg transition-all"
-                  : "px-4 py-2 text-sm font-medium text-textSecondary hover:text-primary hover:bg-primary/5 rounded-lg transition-all"
-              }
-            >
-              {l.label}
-            </Link>
-          ))}
+        {/* Desktop Links */}
+        <nav aria-label="Navigasi Utama" className="hidden md:flex items-center space-x-1">
+          {LINKS.map((l) => {
+            const isActive = active === l.href;
+            return (
+              <Link
+                key={l.href}
+                href={l.href}
+                className={`px-3.5 py-2 text-sm font-medium rounded-lg transition-all ${
+                  isActive
+                    ? "font-bold text-primary bg-primary/10"
+                    : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+                }`}
+              >
+                {l.label}
+              </Link>
+            );
+          })}
           <Link
             href="/lapor"
-            className="ml-4 px-5 py-2.5 text-sm font-bold text-white bg-gradient-to-r from-primary to-primaryHover rounded-xl hover:shadow-lg hover:shadow-primary/30 transition-all transform hover:-translate-y-0.5"
+            className="ml-3 inline-flex items-center gap-2 px-4 py-2 text-sm font-bold text-white bg-primary rounded-xl hover:bg-primaryHover shadow-sm shadow-primary/20 hover:shadow-md transition-all active:scale-95"
           >
-            <i className="fas fa-plus-circle mr-2"></i>Lapor
+            <i className="fas fa-camera text-xs"></i>
+            <span>Lapor Kerusakan</span>
           </Link>
-        </div>
+        </nav>
 
-        <Link
-          href="/bantuan"
-          className="md:hidden p-2.5 text-textSecondary hover:text-primary hover:bg-primary/5 rounded-lg transition-all"
-          aria-label="Bantuan"
-        >
-          <i className="fas fa-question-circle text-lg"></i>
-        </Link>
+        {/* Mobile quick action */}
+        <div className="flex items-center gap-2 md:hidden">
+          <Link
+            href="/lapor"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-primary rounded-lg shadow-sm"
+          >
+            <i className="fas fa-plus"></i>
+            <span>Lapor</span>
+          </Link>
+          <button
+            type="button"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
+            aria-label="Toggle menu"
+            aria-expanded={mobileMenuOpen}
+          >
+            <i className={`fas ${mobileMenuOpen ? "fa-times" : "fa-bars"} text-base`}></i>
+          </button>
+        </div>
       </div>
+
+      {/* Mobile menu dropdown */}
+      {mobileMenuOpen && (
+        <div className="md:hidden border-t border-slate-200 bg-white px-4 py-3 space-y-1 shadow-lg">
+          {LINKS.map((l) => {
+            const isActive = active === l.href;
+            return (
+              <Link
+                key={l.href}
+                href={l.href}
+                onClick={() => setMobileMenuOpen(false)}
+                className={`block px-3 py-2 rounded-lg text-sm font-medium ${
+                  isActive
+                    ? "font-bold text-primary bg-primary/10"
+                    : "text-slate-700 hover:bg-slate-100"
+                }`}
+              >
+                {l.label}
+              </Link>
+            );
+          })}
+        </div>
+      )}
     </header>
   );
 }
