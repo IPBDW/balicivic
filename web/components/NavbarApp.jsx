@@ -64,19 +64,19 @@ export default function NavbarApp({ active = "", sublabel = "" }) {
           </Link>
         </nav>
 
-        {/* Mobile Help / Panduan Icon (Direct ke /bantuan) */}
+        {/* Mobile Help / Panduan Icon (Lingkaran tanda tanya tanpa warna latar, sesuai referensi) */}
         <div className="flex items-center md:hidden">
           <Link
             href="/bantuan"
-            className={`inline-flex items-center justify-center w-9 h-9 rounded-xl border transition-all active:scale-95 ${
+            className={`p-2 rounded-full transition-colors active:scale-95 flex items-center justify-center ${
               isHelpActive
-                ? "bg-primary text-white border-primary shadow-sm shadow-primary/25"
-                : "bg-slate-100 text-slate-700 border-slate-200/80 hover:bg-slate-200 hover:text-slate-950"
+                ? "text-primary"
+                : "text-slate-800 hover:text-primary"
             }`}
-            aria-label="Panduan Penggunaan"
-            title="Buka Panduan & Bantuan"
+            aria-label="Panduan & Bantuan"
+            title="Panduan & Bantuan"
           >
-            <i className="fas fa-question text-sm font-bold"></i>
+            <i className="fa-regular fa-circle-question text-[26px] leading-none"></i>
           </Link>
         </div>
       </div>
