@@ -31,7 +31,13 @@ import hmac
 # Pastikan file database.py, models.py, utils.py ada di folder yang sama!
 from database import create_db_and_tables, get_session, engine
 from models import Issue, wita_now
-from utils import process_analysis, TOKEN, generate_issue_token
+from utils import (
+    process_analysis,
+    TOKEN,
+    generate_issue_token,
+    is_inside_bali,
+    extract_exif_gps,
+)
 
 # 1. LOAD ENVIRONMENT
 load_dotenv()
@@ -80,17 +86,21 @@ async def lifespan(app: FastAPI):
         print("   Server tetap jalan tapi API akan error sampai DB siap.")
         print("=" * 60 + "\n")
 
-    # Recovery: cari Issue yang nyangkut di PENDING karena server restart
-    # atau crash. Kalau raw file-nya masih ada di disk, proses ulang.
+    # Recovery: cari Issue yang nyangkut di PENDING & processing karena server restart
+    # atau crash sebelum worker selesai. Laporan yang sudah selesai analisis (issue_class != "processing")
+    # adalah laporan valid menunggu dinas dan TIDAK boleh disentuh.
     if db_ready:
         try:
             from sqlmodel import Session as _Session
             with _Session(engine) as s:
                 stuck = s.exec(
-                    select(Issue).where(Issue.status == "PENDING")
+                    select(Issue).where(
+                        Issue.status == "PENDING",
+                        Issue.issue_class == "processing",
+                    )
                 ).all()
                 if stuck:
-                    print(f"[RECOVERY] {len(stuck)} laporan PENDING ditemukan, "
+                    print(f"[RECOVERY] {len(stuck)} laporan PENDING (processing) ditemukan, "
                           "cek apakah file-nya masih ada...")
                     recovered = 0
                     for iss in stuck:
@@ -101,7 +111,7 @@ async def lifespan(app: FastAPI):
                             run_analysis_background(iss.id, raw_path)
                             recovered += 1
                         else:
-                            # File hilang, tandai error biar gak nyangkut selamanya
+                            # File hilang sebelum selesai analisis, tandai error
                             iss.status = "ERROR"
                             if not isinstance(iss.meta_data, dict):
                                 iss.meta_data = {}
@@ -294,6 +304,30 @@ async def analyze_endpoint(
             clean_lat = None
             clean_long = None
 
+    # Fallback: jika client tidak mengirim koordinat (GPS gagal/ditolak),
+    # coba ekstrak koordinat asli dari metadata EXIF foto
+    if clean_lat is None and clean_long is None:
+        try:
+            with open(raw_path, "rb") as rf:
+                exif_lat, exif_lon = extract_exif_gps(rf.read())
+            if exif_lat is not None and exif_lon is not None:
+                if is_inside_bali(exif_lat, exif_lon):
+                    clean_lat = exif_lat
+                    clean_long = exif_lon
+                    print(f"[GEO-EXIF] Berhasil pulihkan koordinat dari EXIF foto: ({clean_lat}, {clean_long})")
+        except Exception as ee:
+            print(f"[GEO-EXIF] Gagal baca EXIF: {ee}")
+
+    # Geofencing: Jika koordinat terisi, pastikan berada di wilayah Provinsi Bali
+    if clean_lat is not None and clean_long is not None:
+        if not is_inside_bali(clean_lat, clean_long):
+            if os.path.exists(raw_path):
+                os.remove(raw_path)
+            raise HTTPException(
+                status_code=400,
+                detail=f"Koordinat ({clean_lat}, {clean_long}) berada di luar wilayah Provinsi Bali. BaliCivic hanya melayani wilayah Provinsi Bali.",
+            )
+
     new_issue = Issue(
         title="Sedang Menganalisis",
         description="Menunggu antrean pemrosesan AI.",
@@ -378,14 +412,16 @@ def read_single_issue(issue_id: int, session: Session = Depends(get_session)):
 
 def verify_admin_token(
     issue_id: int | None = Query(None),
+    id: int | None = Query(None),
     token: str | None = Query(None),
     x_admin_token: str | None = Header(None),
 ):
     """
     Dependency auth admin. Terima token dari query ?token=... atau header
-    X-Admin-Token. Pakai perbandingan konstan-waktu supaya tidak bocor
-    lewat timing attack.
+    X-Admin-Token. Menerima ?issue_id=... atau ?id=... untuk scoped token.
+    Pakai perbandingan konstan-waktu supaya tidak bocor lewat timing attack.
     """
+    target_id = issue_id if issue_id is not None else id
     provided = token or x_admin_token or ""
     if not provided:
         raise HTTPException(status_code=401, detail="Token admin tidak valid")
@@ -394,9 +430,9 @@ def verify_admin_token(
     if hmac.compare_digest(str(provided), str(TOKEN)):
         return True
 
-    # 2. Cek Scoped Token (kalau issue_id ada)
-    if issue_id:
-        scoped = generate_issue_token(issue_id)
+    # 2. Cek Scoped Token (kalau target_id ada)
+    if target_id is not None:
+        scoped = generate_issue_token(target_id)
         if hmac.compare_digest(str(provided), str(scoped)):
             return True
 

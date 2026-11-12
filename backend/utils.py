@@ -1,10 +1,12 @@
 import os
+import io
 import math
 import html
 import hmac
 import hashlib
 import json
 import cv2
+from PIL import Image
 from ultralytics import YOLO
 from sqlmodel import Session
 from dotenv import load_dotenv
@@ -146,8 +148,62 @@ CAMERA_CFG = {
 
 
 # ============================================================
-# 1. HELPERS GEOMETRI & SKOR
+# 1. HELPERS GEOMETRI, LOKASI & SKOR
 # ============================================================
+
+# Bounding Box batas resmi Provinsi Bali (termasuk Nusa Penida, Nusa Ceningan, Lembongan & Menjangan)
+BALI_LAT_MIN = -9.0
+BALI_LAT_MAX = -8.0
+BALI_LON_MIN = 114.4
+BALI_LON_MAX = 115.8
+
+
+def is_inside_bali(lat: Optional[float], lon: Optional[float]) -> bool:
+    """
+    Cek apakah koordinat berada di dalam batas geografis Provinsi Bali.
+    Mengembalikan True jika koordinat valid di Bali, False jika di luar Bali atau None.
+    """
+    if lat is None or lon is None:
+        return False
+    return (BALI_LAT_MIN <= lat <= BALI_LAT_MAX) and (BALI_LON_MIN <= lon <= BALI_LON_MAX)
+
+
+def extract_exif_gps(image_bytes: bytes) -> tuple[Optional[float], Optional[float]]:
+    """
+    Ekstrak koordinat GPS (latitude, longitude) dari metadata EXIF foto asli (jika ada).
+    Mengembalikan (lat, lon) dalam derajat desimal, atau (None, None).
+    """
+    try:
+        img = Image.open(io.BytesIO(image_bytes))
+        exif = img.getexif()
+        if not exif:
+            return None, None
+
+        # 0x8825 adalah tag GPSInfo di EXIF
+        gps_ifd = exif.get_ifd(0x8825)
+        if not gps_ifd:
+            return None, None
+
+        def _to_decimal(coords, ref):
+            deg, minute, sec = coords
+            d = float(deg) + float(minute) / 60.0 + float(sec) / 3600.0
+            if ref in ["S", "W"]:
+                d = -d
+            return d
+
+        lat_raw = gps_ifd.get(2)  # GPSLatitude
+        lat_ref = gps_ifd.get(1)  # GPSLatitudeRef ('N' or 'S')
+        lon_raw = gps_ifd.get(4)  # GPSLongitude
+        lon_ref = gps_ifd.get(3)  # GPSLongitudeRef ('E' or 'W')
+
+        if lat_raw and lat_ref and lon_raw and lon_ref:
+            lat = _to_decimal(lat_raw, lat_ref)
+            lon = _to_decimal(lon_raw, lon_ref)
+            return lat, lon
+    except Exception:
+        pass
+    return None, None
+
 
 def score_to_label(score: int) -> str:
     """
@@ -898,7 +954,8 @@ def process_analysis(issue_id: str, image_path: str, session: Session):
         # Cleanup: hapus raw file (EXIF/GPS) setelah analisis sukses.
         # Kalau error, raw tetap disimpan untuk debug/admin.
         try:
-            if image_path.startswith("uploads_raw" + os.sep) and os.path.exists(image_path):
+            norm_path = os.path.normpath(image_path)
+            if ("uploads_raw" in norm_path or norm_path.startswith("uploads_raw")) and os.path.exists(image_path):
                 os.remove(image_path)
                 print(f"[STRIP-EXIF] Raw file dihapus: {image_path}")
         except Exception as ce:

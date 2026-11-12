@@ -123,13 +123,21 @@ def test_admin_verify_good_token():
 def test_admin_verify_scoped_token():
     from utils import generate_issue_token
     scoped = generate_issue_token(42)
+    # Harus sukses baik dengan ?issue_id=42 maupun ?id=42 (dipakai link email & web)
     r = client.get(f"/api/admin/verify?token={scoped}&issue_id=42")
     assert r.status_code == 200
     assert r.json()["valid"] is True
 
+    r2 = client.get(f"/api/admin/verify?token={scoped}&id=42")
+    assert r2.status_code == 200
+    assert r2.json()["valid"] is True
+
     # Scoped token untuk id=42 tidak boleh berlaku untuk id=99
     r_bad = client.get(f"/api/admin/verify?token={scoped}&issue_id=99")
     assert r_bad.status_code == 401
+
+    r_bad2 = client.get(f"/api/admin/verify?token={scoped}&id=99")
+    assert r_bad2.status_code == 401
 
 
 def test_admin_delete_no_token():
@@ -195,6 +203,36 @@ def test_upload_invalid_lat():
     r = client.post("/api/analyze", files=files, data=data)
     # Either 400 untuk koordinat atau 422 validation
     assert r.status_code in (400, 422)
+
+
+def test_upload_geofence_outside_bali():
+    """Koordinat di luar Provinsi Bali (misal Jakarta) harus ditolak dengan 400."""
+    import io
+    from PIL import Image
+    img = Image.new("RGB", (100, 100), color="blue")
+    buf = io.BytesIO()
+    img.save(buf, format="JPEG")
+    buf.seek(0)
+    files = {"file": ("outside.jpg", buf.getvalue(), "image/jpeg")}
+    # Koordinat Monas Jakarta: -6.1754, 106.8272
+    data = {"lat": "-6.1754", "long": "106.8272"}
+    r = client.post("/api/analyze", files=files, data=data)
+    assert r.status_code == 400
+    assert "luar wilayah Provinsi Bali" in r.json().get("detail", "")
+
+
+def test_is_inside_bali_bounds():
+    from utils import is_inside_bali
+    # Denpasar, Bali: harus True
+    assert is_inside_bali(-8.6705, 115.2126) is True
+    # Ubud, Gianyar: harus True
+    assert is_inside_bali(-8.5069, 115.2625) is True
+    # Nusa Penida: harus True
+    assert is_inside_bali(-8.7278, 115.5444) is True
+    # Jakarta: harus False
+    assert is_inside_bali(-6.1754, 106.8272) is False
+    # None: harus False
+    assert is_inside_bali(None, 115.2126) is False
 
 
 def test_upload_image_dimension_limit():
