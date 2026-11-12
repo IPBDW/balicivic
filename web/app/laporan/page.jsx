@@ -15,9 +15,9 @@ a, button, .card, .btn { transition: all 0.3s ease; }
 .card-hover:hover, [class*="rounded"]:hover { transform: translateY(-2px); box-shadow: 0 8px 16px -4px rgba(0, 0, 0, 0.08); }
 button:hover, .btn:hover, a[class*="bg-"]:hover { transform: translateY(-1px); box-shadow: 0 4px 8px -2px rgba(0, 0, 0, 0.08); }
 button:active, .btn:active { transform: translateY(0px); }
-a:not([class*="bg-"]):hover { color: #C94B4B; }
+a:not([class*="bg-"]):hover { color: #B91C1C; }
 i:hover { transform: scale(1.05); transition: transform 0.2s ease; }
-input:focus, textarea:focus, select:focus { box-shadow: 0 0 0 3px rgba(201, 75, 75, 0.1); transition: all 0.2s ease; }
+input:focus, textarea:focus, select:focus { box-shadow: 0 0 0 3px rgba(185, 28, 28, 0.1); transition: all 0.2s ease; }
 table, table *, tr, td, th { transform: none !important; box-shadow: none !important; }
 thead th { transition: none !important; }
 `;
@@ -25,14 +25,14 @@ thead th { transition: none !important; }
 function getStatusColors(status) {
   const st = String(status || "").toUpperCase();
   if (st === "PENDING" || st === "OPEN")
-    return { bg: "bg-slate-100", text: "text-slate-600", border: "border-slate-200", icon: "fa-clock" };
+    return { bg: "bg-slate-100", text: "text-slate-700", border: "border-slate-200", icon: "fa-clock" };
   if (st === "IN_PROGRESS" || st === "INPROGRESS")
-    return { bg: "bg-amber-100", text: "text-amber-700", border: "border-amber-200", icon: "fa-spinner" };
+    return { bg: "bg-amber-50", text: "text-amber-700", border: "border-amber-200", icon: "fa-spinner" };
   if (st === "DONE" || st === "SELESAI")
-    return { bg: "bg-emerald-100", text: "text-emerald-700", border: "border-emerald-200", icon: "fa-check-circle" };
+    return { bg: "bg-emerald-50", text: "text-emerald-700", border: "border-emerald-200", icon: "fa-circle-check" };
   if (st === "ERROR")
-    return { bg: "bg-blue-100", text: "text-blue-700", border: "border-blue-200", icon: "fa-exclamation-circle" };
-  return { bg: "bg-slate-100", text: "text-slate-600", border: "border-slate-200", icon: "fa-clock" };
+    return { bg: "bg-slate-100", text: "text-slate-600", border: "border-slate-200", icon: "fa-circle-exclamation" };
+  return { bg: "bg-slate-100", text: "text-slate-700", border: "border-slate-200", icon: "fa-clock" };
 }
 
 function scoreClass(score) {

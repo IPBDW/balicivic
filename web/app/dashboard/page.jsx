@@ -21,15 +21,15 @@ import {
 const IS_DUMMY_MODE = !API_BASE || API_BASE === "";
 
 const RANK_BADGES = [
-  { label: "PRIORITAS", bg: "bg-red-50", text: "text-red-600", border: "border-red-100" },
-  { label: "SEDANG", bg: "bg-amber-50", text: "text-amber-600", border: "border-amber-100" },
-  { label: "MONITOR", bg: "bg-emerald-50", text: "text-emerald-600", border: "border-emerald-100" },
+  { label: "PRIORITAS", bg: "bg-red-50", text: "text-red-700", border: "border-red-200" },
+  { label: "SEDANG", bg: "bg-amber-50", text: "text-amber-700", border: "border-amber-200" },
+  { label: "MONITOR", bg: "bg-emerald-50", text: "text-emerald-700", border: "border-emerald-200" },
 ];
 
 function getSeverityColor(percent) {
-  if (percent >= 50) return "#dc2626";
-  if (percent >= 25) return "#f59e0b";
-  return "#10b981";
+  if (percent >= 50) return "#b91c1c";
+  if (percent >= 25) return "#d97706";
+  return "#059669";
 }
 
 function getScoreClass(score) {
@@ -39,11 +39,11 @@ function getScoreClass(score) {
 function getStatusColors(status, withBorder = false) {
   const st = String(status || "").toUpperCase();
   const b = withBorder ? " border-slate-200" : "";
-  if (st === "PENDING" || st === "OPEN") return `bg-slate-100 text-slate-600${withBorder ? " border-slate-200" : ""}`;
-  if (st === "IN_PROGRESS" || st === "INPROGRESS") return `bg-amber-100 text-amber-700${withBorder ? " border-amber-200" : ""}`;
-  if (st === "DONE" || st === "SELESAI") return `bg-emerald-100 text-emerald-700${withBorder ? " border-emerald-200" : ""}`;
-  if (st === "ERROR") return `bg-blue-100 text-blue-700${withBorder ? " border-blue-200" : ""}`;
-  return `bg-slate-100 text-slate-600${withBorder ? " border-slate-200" : ""}`;
+  if (st === "PENDING" || st === "OPEN") return `bg-slate-100 text-slate-700${b}`;
+  if (st === "IN_PROGRESS" || st === "INPROGRESS") return `bg-amber-50 text-amber-800${withBorder ? " border-amber-200" : ""}`;
+  if (st === "DONE" || st === "SELESAI") return `bg-emerald-50 text-emerald-800${withBorder ? " border-emerald-200" : ""}`;
+  if (st === "ERROR") return `bg-slate-100 text-slate-600${b}`;
+  return `bg-slate-100 text-slate-700${b}`;
 }
 
 export default function DashboardPage() {
@@ -258,39 +258,39 @@ export default function DashboardPage() {
 
           <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-2xs hover:shadow-sm transition-all relative overflow-hidden group">
             <div className="flex items-center gap-2.5 mb-2.5">
-              <div className="w-8 h-8 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center text-sm">
+              <div className="w-8 h-8 rounded-lg bg-red-50 text-red-700 flex items-center justify-center text-sm">
                 <i className="fas fa-triangle-exclamation"></i>
               </div>
               <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Perlu Tindakan</span>
             </div>
-            <div className="text-3xl font-extrabold text-rose-600 mb-1">{stats.antrean}</div>
-            <div className="text-[11px] font-medium text-rose-600 font-semibold">
+            <div className="text-3xl font-extrabold text-red-700 mb-1">{stats.antrean}</div>
+            <div className="text-[11px] font-semibold text-red-700">
               Prioritas Tinggi (&gt;= 75)
             </div>
           </div>
 
           <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-2xs hover:shadow-sm transition-all relative overflow-hidden group">
             <div className="flex items-center gap-2.5 mb-2.5">
-              <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center text-sm">
+              <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-700 flex items-center justify-center text-sm">
                 <i className="fas fa-wrench"></i>
               </div>
               <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Sedang Ditangani</span>
             </div>
             <div className="text-3xl font-extrabold text-slate-900 mb-1">{stats.perlu_tindakan}</div>
-            <div className="text-[11px] font-medium text-amber-600 font-medium">
+            <div className="text-[11px] font-medium text-amber-700">
               Tim PUPR di Lapangan
             </div>
           </div>
 
           <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-2xs hover:shadow-sm transition-all relative overflow-hidden group">
             <div className="flex items-center gap-2.5 mb-2.5">
-              <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center text-sm">
+              <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center text-sm">
                 <i className="fas fa-circle-check"></i>
               </div>
               <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Selesai Diperbaiki</span>
             </div>
-            <div className="text-3xl font-extrabold text-emerald-600 mb-1">{stats.selesai}</div>
-            <div className="text-[11px] font-medium text-emerald-600 font-medium">
+            <div className="text-3xl font-extrabold text-emerald-700 mb-1">{stats.selesai}</div>
+            <div className="text-[11px] font-medium text-emerald-700">
               Laporan Ditutup
             </div>
           </div>

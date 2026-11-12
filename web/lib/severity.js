@@ -36,9 +36,9 @@ export function getRiskLevelLabel(score) {
 /** Styling badge Tailwind yang konsisten di semua tabel & list */
 export function getScoreBadgeClass(score) {
   const code = getSeverityCode(score);
-  if (code === "HIGH") return "text-red-600 bg-red-50 border-red-100";
-  if (code === "MEDIUM") return "text-amber-600 bg-amber-50 border-amber-100";
-  return "text-emerald-600 bg-emerald-50 border-emerald-100";
+  if (code === "HIGH") return "text-red-700 bg-red-50 border-red-200";
+  if (code === "MEDIUM") return "text-amber-700 bg-amber-50 border-amber-200";
+  return "text-emerald-700 bg-emerald-50 border-emerald-200";
 }
 
 /** Token warna detail (teks, gradient progress bar, shadow) */
@@ -46,27 +46,27 @@ export function getScoreColorTokens(score) {
   const code = getSeverityCode(score);
   if (code === "HIGH") {
     return {
-      textColor: "text-red-600",
-      gradient: "from-rose-500 to-red-600",
-      shadow: "shadow-[0_0_20px_rgba(225,29,72,0.4)]",
-      hex: "#ef4444",
+      textColor: "text-red-700",
+      gradient: "from-red-600 to-red-700",
+      shadow: "shadow-[0_0_12px_rgba(185,28,28,0.25)]",
+      hex: "#b91c1c",
       label: "Bahaya Tinggi",
     };
   }
   if (code === "MEDIUM") {
     return {
-      textColor: "text-amber-600",
-      gradient: "from-amber-400 to-orange-500",
-      shadow: "shadow-[0_0_20px_rgba(245,158,11,0.4)]",
-      hex: "#f59e0b",
+      textColor: "text-amber-700",
+      gradient: "from-amber-500 to-amber-600",
+      shadow: "shadow-[0_0_12px_rgba(217,119,6,0.25)]",
+      hex: "#d97706",
       label: "Bahaya Sedang",
     };
   }
   return {
-    textColor: "text-emerald-600",
-    gradient: "from-emerald-400 to-teal-500",
-    shadow: "shadow-[0_0_20px_rgba(16,185,129,0.4)]",
-    hex: "#10b981",
+    textColor: "text-emerald-700",
+    gradient: "from-emerald-500 to-emerald-600",
+    shadow: "shadow-[0_0_12px_rgba(5,150,105,0.25)]",
+    hex: "#059669",
     label: "Bahaya Rendah",
   };
 }

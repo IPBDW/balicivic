@@ -14,12 +14,12 @@ a, button, .card, .btn { transition: all 0.3s ease; }
 .card-hover:hover, [class*="rounded"]:hover { transform: translateY(-2px); box-shadow: 0 8px 16px -4px rgba(0, 0, 0, 0.08); }
 button:hover, .btn:hover, a[class*="bg-"]:hover { transform: translateY(-1px); box-shadow: 0 4px 8px -2px rgba(0, 0, 0, 0.08); }
 button:active, .btn:active { transform: translateY(0px); }
-a:not([class*="bg-"]):hover { color: #C94B4B; }
+a:not([class*="bg-"]):hover { color: #B91C1C; }
 i:hover { transform: scale(1.05); transition: transform 0.2s ease; }
-input:focus, textarea:focus, select:focus { box-shadow: 0 0 0 3px rgba(201, 75, 75, 0.1); transition: all 0.2s ease; }
+input:focus, textarea:focus, select:focus { box-shadow: 0 0 0 3px rgba(185, 28, 28, 0.1); transition: all 0.2s ease; }
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-.loader { border: 3px solid #f3f3f3; border-top: 3px solid #C94B4B; border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; }
+.loader { border: 3px solid #f3f3f3; border-top: 3px solid #B91C1C; border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; }
 @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 `;
 

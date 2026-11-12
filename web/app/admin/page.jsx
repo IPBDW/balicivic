@@ -155,10 +155,10 @@ function AdminContent() {
   const severityCode = getSeverityCode(score);
   const riskCls =
     severityCode === "HIGH"
-      ? "inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold bg-red-100 text-red-600 mb-2"
+      ? "inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-red-50 text-red-700 border border-red-200 mb-2"
       : severityCode === "MEDIUM"
-        ? "inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-600 mb-2"
-        : "inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-600 mb-2";
+        ? "inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200 mb-2"
+        : "inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 mb-2";
   const shortId = data ? String(data.id).substring(0, 8) : "...";
   const mapsHref = currentLat != null ? `https://www.google.com/maps?q=${currentLat},${currentLon}` : "#";
   const imgSrc = data?.image_url ? imgUrl(data.image_url) : "";
@@ -423,7 +423,7 @@ function AdminContent() {
           className="fixed -left-[9999px] top-0"
           style={{ width: "210mm", minHeight: "297mm", padding: "15mm", fontFamily: "Inter,sans-serif", background: "#fff", position: "relative", boxSizing: "border-box" }}
         >
-          <div style={{ background: "linear-gradient(to right,#C94B4B,#dc2626)", borderRadius: 12, padding: 20, marginBottom: 20, color: "#fff" }}>
+          <div style={{ background: "linear-gradient(to right,#B91C1C,#991B1B)", borderRadius: 12, padding: 20, marginBottom: 20, color: "#fff" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
                 <div style={{ fontSize: 20, fontWeight: 700 }}>Laporan Infrastruktur</div>
@@ -466,7 +466,7 @@ function AdminContent() {
               <div style={{ background: "linear-gradient(to right,#1e293b,#0f172a)", borderRadius: 10, padding: 14, color: "#fff" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
                   <span style={{ fontSize: 11, fontWeight: 700 }}>AI Severity Score</span>
-                  <span style={{ fontSize: 28, fontWeight: 900, color: "#C94B4B" }}>{score}</span>
+                  <span style={{ fontSize: 28, fontWeight: 900, color: "#B91C1C" }}>{score}</span>
                 </div>
                 <div style={{ height: 8, background: "#475569", borderRadius: 4, overflow: "hidden" }}>
                   <div style={{ height: "100%", background: "linear-gradient(to right,#34d399,#fbbf24,#ef4444)", width: `${score}%`, borderRadius: 4 }}></div>
@@ -474,8 +474,8 @@ function AdminContent() {
               </div>
             </div>
           </div>
-          <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 16, marginTop: 20, borderLeft: "4px solid #C94B4B" }}>
-            <div style={{ fontSize: 10, color: "#C94B4B", textTransform: "uppercase", fontWeight: 700, marginBottom: 6 }}>Deskripsi AI</div>
+          <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 16, marginTop: 20, borderLeft: "4px solid #B91C1C" }}>
+            <div style={{ fontSize: 10, color: "#B91C1C", textTransform: "uppercase", fontWeight: 700, marginBottom: 6 }}>Deskripsi AI</div>
             <p style={{ fontSize: 12, color: "#475569", lineHeight: 1.5, margin: 0 }}>{data?.description || "-"}</p>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginTop: 20 }}>
@@ -502,7 +502,7 @@ function AdminContent() {
             </div>
           </div>
           <div style={{ position: "absolute", bottom: "15mm", left: "15mm", right: "15mm", paddingTop: 12, borderTop: "2px solid #e2e8f0", textAlign: "center" }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: "#C94B4B" }}>BaliCivic AI</div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "#B91C1C" }}>BaliCivic AI</div>
             <div style={{ fontSize: 9, color: "#94a3b8" }}>Laporan digenerate otomatis oleh sistem AI - wwww.balicivicai.site</div>
           </div>
         </div>

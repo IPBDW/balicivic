@@ -1,21 +1,21 @@
 @import "tailwindcss";
 
-/* ===== TEMA — identik dengan config.js frontend lama ===== */
+/* ===== TEMA — Disiplin Warna Tridatu Modern (Civic Infrastructure Bali) ===== */
 @theme {
-  --color-primary: #C94B4B;
-  --color-primaryHover: #A43838;
-  --color-accentGreen: #1B9C85;
-  --color-accentGreenSoft: #E1F4EF;
-  --color-accentTeal: #2C8FBB;
-  --color-accentTealSoft: #E0F2FA;
-  --color-bgPage: #FAFAFA;
-  --color-cardGrey: #F8FAFC;
-  --color-textDark: #1E293B;
-  --color-textSecondary: #64748B;
-  --color-lightBorder: #E2E8F0;
-  --color-severityHigh: #EF4444;
-  --color-severityMed: #F59E0B;
-  --color-severityLow: #10B981;
+  --color-primary: #B91C1C;          /* Deep Crimson (Tegas, berwibawa, identitas Bali) */
+  --color-primaryHover: #991B1B;     /* Rich Darker Crimson */
+  --color-accentGreen: #059669;      /* Emerald 600 (Aman / Selesai) */
+  --color-accentGreenSoft: #ECFDF5;  /* Emerald 50 */
+  --color-accentTeal: #0F172A;       /* Slate 900 (Anchor struktural tegas) */
+  --color-accentTealSoft: #F1F5F9;   /* Slate 100 */
+  --color-bgPage: #F8FAFC;           /* Slate 50 (Kanvas bersih, nyaman di mata) */
+  --color-cardGrey: #FFFFFF;         /* Putih solid bersih */
+  --color-textDark: #0F172A;         /* Slate 900 (Kontras tinggi terbaca) */
+  --color-textSecondary: #475569;    /* Slate 600 (WCAG AA tajam) */
+  --color-lightBorder: #E2E8F0;      /* Slate 200 (Garis batas halus elegan) */
+  --color-severityHigh: #B91C1C;     /* Selaras dengan crimson primer sistem */
+  --color-severityMed: #D97706;      /* Amber 600 */
+  --color-severityLow: #059669;      /* Emerald 600 */
 
   --font-sans: 'Inter', sans-serif;
   --font-display: 'Outfit', sans-serif;
