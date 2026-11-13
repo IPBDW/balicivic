@@ -135,7 +135,7 @@ function AdminContent() {
   const dateStr = data?.created_at
     ? new Date(data.created_at).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })
     : "-";
-  const score = data ? data.severity_score || data.final_score || 45 : 0;
+  const score = data ? data.severity_score || data.final_score || 0 : 0;
   const issueClass = data ? String(data.issue_class || data.title || "-").replace(/_/g, " ") : "-";
   const currentLat = data?.latitude || data?.lat;
   const currentLon = data?.longitude || data?.long || data?.lon;
@@ -309,7 +309,7 @@ function AdminContent() {
               <div className="flex justify-between items-center">
                 <div>
                   <h1 className="text-lg font-bold">Laporan Infrastruktur</h1>
-                  <p className="text-white/80 text-xs">Kabupaten Gianyar</p>
+                  <p className="text-white/80 text-xs">{data?.kabupaten || "Provinsi Bali"}</p>
                 </div>
                 <div className="text-right">
                   <span className="text-xl font-black">#{shortId}</span>
@@ -410,7 +410,7 @@ function AdminContent() {
             </div>
 
             <div className="mt-6 pt-4 border-t text-center text-xs text-slate-400">
-              <p>BaliCivic AI © 2025</p>
+              <p>BaliCivic AI © 2026</p>
             </div>
           </div>
         </main>
@@ -427,7 +427,7 @@ function AdminContent() {
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
                 <div style={{ fontSize: 20, fontWeight: 700 }}>Laporan Infrastruktur</div>
-                <div style={{ fontSize: 11, opacity: 0.9 }}>Analisis AI BaliCivic - Kabupaten Gianyar</div>
+                <div style={{ fontSize: 11, opacity: 0.9 }}>Analisis AI BaliCivic - {data?.kabupaten || "Provinsi Bali"}</div>
               </div>
               <div style={{ textAlign: "right" }}>
                 <div style={{ fontSize: 24, fontWeight: 900 }}>#{shortId}</div>

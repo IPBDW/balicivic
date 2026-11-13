@@ -371,7 +371,7 @@ export default function LaporPage() {
             </div>
 
             <div className="text-center text-[10px] text-gray-400 pt-4">
-              &copy; 2025 BaliCivic AI Project. <br /> Powered by YOLO11 & Gemini Flash.
+              &copy; 2026 BaliCivic AI Project. <br /> Powered by YOLO11 & Gemini Flash.
             </div>
           </div>
         </div>

@@ -3,10 +3,14 @@
 import Link from "next/link";
 import NavbarApp from "@/components/NavbarApp";
 import BottomNav from "@/components/BottomNav";
-import { API_BASE } from "@/lib/api";
+import { API_BASE, imgUrl } from "@/lib/api";
 import { waitForLeaflet } from "@/lib/leaflet";
 import { useEffect, useRef, useState } from "react";
-import { DUMMY_HEATMAP_POINTS, KABUPATEN_BALI } from "@/lib/dummyDashboard";
+
+const KABUPATEN_BALI = [
+  'Denpasar', 'Badung', 'Gianyar', 'Tabanan',
+  'Buleleng', 'Klungkung', 'Bangli', 'Karangasem', 'Jembrana'
+];
 
 const CATEGORIES = [
   {
@@ -104,7 +108,31 @@ const FAQS = [
 export default function HomePage() {
   const [activeTab, setActiveTab] = useState(CATEGORIES[0].id);
   const [openFaq, setOpenFaq] = useState(null);
+  const [latest, setLatest] = useState(null);
   const mapContainerRef = useRef(null);
+
+  // Ambil laporan terakhir yang sudah selesai dianalisis untuk kartu preview hero.
+  useEffect(() => {
+    let cancelled = false;
+    if (!API_BASE) return;
+    (async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/issues?limit=10`);
+        if (!res.ok) return;
+        const list = await res.json();
+        if (cancelled || !Array.isArray(list)) return;
+        const analyzed = list.find(
+          (i) => i.issue_class && i.issue_class !== "processing" && i.final_score != null
+        );
+        if (analyzed) setLatest(analyzed);
+      } catch (e) {
+        console.warn("Gagal memuat laporan terbaru untuk preview:", e);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     let mapInstance = null;
@@ -119,7 +147,6 @@ export default function HomePage() {
         if (!L || isCancelled) return;
         if (container._leaflet_id) return;
 
-        // Pusatkan peta di Pulau Bali
         mapInstance = L.map(container, {
           center: [-8.5, 115.18],
           zoom: 10,
@@ -131,11 +158,23 @@ export default function HomePage() {
           maxZoom: 18,
         }).addTo(mapInstance);
 
-        // Tambahkan pin dari titik contoh Bali
-        DUMMY_HEATMAP_POINTS.slice(0, 15).forEach((p) => {
+        let points = [];
+        if (API_BASE) {
+          try {
+            const res = await fetch(`${API_BASE}/api/heatmap?limit=15`);
+            if (res.ok) {
+              const data = await res.json();
+              points = data.points || [];
+            }
+          } catch (e) {
+            console.warn("Gagal ambil data heatmap untuk mini map:", e);
+          }
+        }
+
+        points.slice(0, 15).forEach((p) => {
           if (isCancelled || !mapInstance) return;
-          const lat = p.latitude || p.lat;
-          const lon = p.longitude || p.long;
+          const lat = p.lat || p.latitude;
+          const lon = p.lon || p.longitude;
           if (!lat || !lon) return;
 
           const isHigh = (p.score || p.final_score || 0) >= 75;
@@ -149,12 +188,14 @@ export default function HomePage() {
             iconAnchor: [7, 7],
           });
 
+          const pClass = p.class || p.issue_class || "Infrastruktur";
+
           L.marker([lat, lon], { icon: customIcon })
             .addTo(mapInstance)
             .bindPopup(
               `<div style="font-family: inherit; font-size: 12px; line-height: 1.4;">
                 <strong style="color: #0f172a;">${p.kecamatan || "Lokasi"}, ${p.kabupaten || "Bali"}</strong><br/>
-                <span style="color: #64748b;">Kategori: ${p.class || "Jalan"}</span><br/>
+                <span style="color: #64748b;">Kategori: ${pClass}</span><br/>
                 <span style="color: ${markerColor}; font-weight: bold;">Skor: ${p.score || 0}/100</span>
               </div>`
             );
@@ -256,43 +297,66 @@ export default function HomePage() {
                       <span className="text-xs font-mono font-medium">Inference Engine · Vision AI</span>
                     </div>
                     <span className="text-[10px] bg-slate-800 text-slate-300 px-2 py-0.5 rounded font-mono">
-                      Bali Pilot: Gianyar
+                      {latest?.kabupaten ? `Live: ${latest.kabupaten}` : "Provinsi Bali"}
                     </span>
                   </div>
 
                   <div className="p-5 space-y-4">
                     {/* Visual Detection Box Container */}
                     <div className="relative aspect-video bg-slate-900 rounded-xl overflow-hidden border border-slate-200 flex items-center justify-center">
-                      <img
-                        src="/assets/1240c19a_detected.jpg"
-                        alt="Hasil Deteksi Vision AI BaliCivic"
-                        className="w-full h-full object-cover"
-                      />
-                      <div className="absolute top-3 left-3 bg-black/75 backdrop-blur-sm text-white px-2.5 py-1 rounded-md text-[11px] font-mono border border-white/20">
-                        <i className="fas fa-crosshairs text-primary mr-1.5"></i>
-                        Objek: Genangan Air (89%)
-                      </div>
+                      {latest?.image_url ? (
+                        <img
+                          src={imgUrl(latest.image_url)}
+                          alt="Hasil deteksi Vision AI BaliCivic"
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="flex flex-col items-center gap-2 text-slate-400">
+                          <i className="fas fa-image text-3xl"></i>
+                          <span className="text-[11px] font-mono">Belum ada foto analisis</span>
+                        </div>
+                      )}
+                      {latest && (
+                        <div className="absolute top-3 left-3 bg-black/75 backdrop-blur-sm text-white px-2.5 py-1 rounded-md text-[11px] font-mono border border-white/20">
+                          <i className="fas fa-crosshairs text-primary mr-1.5"></i>
+                          {String(latest.issue_class || "").replace(/_/g, " ")}
+                        </div>
+                      )}
                     </div>
 
                     {/* Inspection Specs */}
                     <div className="bg-slate-50 rounded-xl p-3.5 border border-slate-200 text-xs space-y-2">
                       <div className="flex justify-between items-center">
                         <span className="text-slate-500 font-medium">Kategori Terdeteksi</span>
-                        <span className="font-bold text-slate-900">Saluran / Genangan Air</span>
+                        <span className="font-bold text-slate-900 capitalize">
+                          {latest ? String(latest.issue_class || "-").replace(/_/g, " ") : "—"}
+                        </span>
                       </div>
                       <div className="flex justify-between items-center">
                         <span className="text-slate-500 font-medium">Estimasi Lebar Kerusakan</span>
-                        <span className="font-mono font-bold text-slate-900">~1.45 meter</span>
+                        <span className="font-mono font-bold text-slate-900">
+                          {(() => {
+                            const w = latest?.meta_data?.llm_result?.dinas?.estimated_width_m
+                              ?? latest?.meta_data?.llm_result?.size_reasoning?.adjusted_width_m;
+                            return w != null ? `~${Number(w).toFixed(2)} meter` : "—";
+                          })()}
+                        </span>
                       </div>
                       <div className="flex justify-between items-center">
                         <span className="text-slate-500 font-medium">Tingkat Keparahan</span>
-                        <span className="font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded border border-rose-200">
-                          Skor 78 · Bahaya Tinggi
-                        </span>
+                        {latest ? (
+                          <span className="font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded border border-rose-200">
+                            Skor {latest.final_score ?? "—"} · {latest.severity_label || "—"}
+                          </span>
+                        ) : (
+                          <span className="font-bold text-slate-400">—</span>
+                        )}
                       </div>
                       <div className="flex justify-between items-center border-t border-slate-200 pt-2 text-slate-500">
                         <span>Rekomendasi Dinas</span>
-                        <span className="font-semibold text-slate-800">Normalisasi Saluran Drainase</span>
+                        <span className="font-semibold text-slate-800 text-right max-w-[55%] truncate">
+                          {latest?.meta_data?.llm_result?.dinas?.recommended_action || "—"}
+                        </span>
                       </div>
                     </div>
                   </div>

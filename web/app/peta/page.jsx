@@ -2,12 +2,9 @@
 
 import NavbarApp from "@/components/NavbarApp";
 import BottomNav from "@/components/BottomNav";
-import { API_BASE, fetchAllIssues } from "@/lib/api";
+import { API_BASE } from "@/lib/api";
 import { waitForLeaflet } from "@/lib/leaflet";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { DUMMY_HEATMAP_POINTS, DUMMY_HEAT_DATA } from "@/lib/dummyDashboard";
-
-const IS_DUMMY_MODE = !API_BASE || API_BASE === "";
 
 const PAGE_CSS = `
 body { font-family: 'Inter', sans-serif; }
@@ -76,14 +73,10 @@ export default function PetaPage() {
     if (!map) return;
     try {
       let rawPoints;
-      if (IS_DUMMY_MODE) {
-        rawPoints = DUMMY_HEATMAP_POINTS;
-      } else {
-        const res = await fetch(`${API_BASE}/api/heatmap`);
-        if (!res.ok) throw new Error("Gagal ambil data heatmap");
-        const data = await res.json();
-        rawPoints = data.points;
-      }
+      const res = await fetch(`${API_BASE}/api/heatmap`);
+      if (!res.ok) throw new Error("Gagal ambil data heatmap");
+      const data = await res.json();
+      rawPoints = data.points || [];
       const points = rawPoints.filter((p) => {
         const pClass = p.issue_class || p.class;
         const pStatus = p.status;

@@ -205,7 +205,7 @@ export default function DetailPage() {
   const STATUS_DOT = { PENDING: "bg-amber-400", IN_PROGRESS: "bg-sky-500", DONE: "bg-emerald-500", ERROR: "bg-slate-400" };
   function fmtTimelineTime(ts) {
     if (!ts) return "-";
-    // Backend menyimpan "YYYY-MM-DD HH:MM:SS" (WITA); dummy pakai ISO.
+    // Backend menyimpan "YYYY-MM-DD HH:MM:SS" (WITA).
     const d = new Date(typeof ts === "string" ? ts.replace(" ", "T") : ts);
     if (isNaN(d.getTime())) return String(ts);
     return formatDateWita(d) + " • " + formatTimeWita(d);

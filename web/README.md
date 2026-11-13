@@ -26,13 +26,12 @@ Bagian ini merupakan antarmuka web publik dan panel pemantauan berbasis **Next.j
    npm install
    ```
 
-2. Konfigurasi variabel lingkungan (opsional, default mengarah ke `http://127.0.0.1:8000`):
+2. Konfigurasi variabel lingkungan (wajib):
    ```bash
    cp .env.example .env.local
    ```
    Variabel yang tersedia:
-   - `NEXT_PUBLIC_API_BASE`: Titik akhir server backend FastAPI (contoh: `http://127.0.0.1:8000`).
-   - `NEXT_PUBLIC_ALLOW_DUMMY`: Atur ke `true` jika ingin mengizinkan fallback data simulasi saat backend offline di mode demo/presentasi.
+   - `NEXT_PUBLIC_API_BASE`: URL server backend FastAPI (contoh: `http://127.0.0.1:8000`). Wajib diisi — frontend tidak menyediakan data contoh.
 
 3. Jalankan server pengembang:
    ```bash

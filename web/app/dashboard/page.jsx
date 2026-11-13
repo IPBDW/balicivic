@@ -3,22 +3,11 @@
 import Link from "next/link";
 import NavbarApp from "@/components/NavbarApp";
 import BottomNav from "@/components/BottomNav";
-import { API_BASE, fetchAllIssues, fetchRecentIssuesList } from "@/lib/api";
+import { API_BASE, fetchRecentIssuesList } from "@/lib/api";
 import { waitForLeaflet } from "@/lib/leaflet";
 import { formatTimeWitaLabel, formatTimeWita, formatDateShortWita } from "@/lib/datetime";
 import { getScoreBadgeClass } from "@/lib/severity";
 import { useCallback, useEffect, useState } from "react";
-import {
-  DUMMY_STATS,
-  DUMMY_TOP_LOCATIONS,
-  DUMMY_DISTRIBUTION,
-  DUMMY_RECENT_ISSUES,
-  DUMMY_HEAT_DATA,
-} from "@/lib/dummyDashboard";
-
-// Deteksi apakah lagi di mode dummy (API_BASE kosong → Next.js route handler
-// dummy dipakai). Pakai dummy data biar preview dashboard tetap berisi data.
-const IS_DUMMY_MODE = !API_BASE || API_BASE === "";
 
 const RANK_BADGES = [
   { label: "PRIORITAS", bg: "bg-red-50", text: "text-red-700", border: "border-red-200" },
@@ -47,62 +36,37 @@ function getStatusColors(status, withBorder = false) {
 }
 
 export default function DashboardPage() {
-  const [stats, setStats] = useState(IS_DUMMY_MODE ? DUMMY_STATS : { total: "-", antrean: "-", perlu_tindakan: "-", selesai: "-" });
-  const [topLocs, setTopLocs] = useState(IS_DUMMY_MODE ? DUMMY_TOP_LOCATIONS : []);
-  const [distribution, setDistribution] = useState(IS_DUMMY_MODE ? DUMMY_DISTRIBUTION : []);
+  const [stats, setStats] = useState({ total: "-", antrean: "-", perlu_tindakan: "-", selesai: "-" });
+  const [topLocs, setTopLocs] = useState([]);
+  const [distribution, setDistribution] = useState([]);
   const [barWidths, setBarWidths] = useState({});
-  const [issues, setIssues] = useState(IS_DUMMY_MODE ? DUMMY_RECENT_ISSUES : []);
+  const [issues, setIssues] = useState([]);
   const [updatedAt, setUpdatedAt] = useState("");
 
   const fetchStats = useCallback(async () => {
-    if (IS_DUMMY_MODE) {
-      setStats(DUMMY_STATS);
-      return;
-    }
     try {
       const res = await fetch(`${API_BASE}/api/sumary`);
-      setStats(await res.json());
-    } catch (e) {}
+      if (res.ok) setStats(await res.json());
+    } catch (e) {
+      console.error("Gagal load stats:", e);
+    }
   }, []);
 
   const fetchTopLocations = useCallback(async () => {
-    if (IS_DUMMY_MODE) {
-      setTopLocs(DUMMY_TOP_LOCATIONS);
-      return;
-    }
     try {
       const res = await fetch(`${API_BASE}/api/top-locations`);
-      setTopLocs(await res.json());
+      if (res.ok) setTopLocs(await res.json());
     } catch (e) {
       console.error("Gagal load lokasi:", e);
     }
   }, []);
 
   const fetchDistribution = useCallback(async () => {
-    if (IS_DUMMY_MODE) {
-      setDistribution(DUMMY_DISTRIBUTION);
-      const widths = {};
-      DUMMY_DISTRIBUTION.forEach((item, index) => {
-        setTimeout(() => setBarWidths((prev) => ({ ...prev, [`bar-${index}`]: item.percent + "%" })), 100 + index * 100);
-      });
-      return;
-    }
     try {
-      const issuesArr = await fetchAllIssues();
-      const counts = { jalan_bolong: 0, sampah_liar: 0, genangan_air: 0, kabel_semrawut: 0 };
-      issuesArr.forEach((issue) => {
-        if (counts[issue.issue_class] !== undefined) counts[issue.issue_class]++;
-      });
-      const total = issuesArr.length || 1;
-      const data = [
-        { label: "Jalan Bolong", count: counts.jalan_bolong, percent: Math.round((counts.jalan_bolong / total) * 100) },
-        { label: "Sampah Liar", count: counts.sampah_liar, percent: Math.round((counts.sampah_liar / total) * 100) },
-        { label: "Genangan Air", count: counts.genangan_air, percent: Math.round((counts.genangan_air / total) * 100) },
-        { label: "Kabel Berantakan", count: counts.kabel_semrawut, percent: Math.round((counts.kabel_semrawut / total) * 100) },
-      ];
-      data.sort((a, b) => b.percent - a.percent);
+      const res = await fetch(`${API_BASE}/api/distribution`);
+      if (!res.ok) return;
+      const data = await res.json();
       setDistribution(data);
-      const widths = {};
       data.forEach((item, index) => {
         setTimeout(() => setBarWidths((prev) => ({ ...prev, [`bar-${index}`]: item.percent + "%" })), 100 + index * 100);
       });
@@ -112,11 +76,6 @@ export default function DashboardPage() {
   }, []);
 
   const fetchRecentIssues = useCallback(async () => {
-    if (IS_DUMMY_MODE) {
-      setIssues(DUMMY_RECENT_ISSUES);
-      setUpdatedAt(new Date().toLocaleTimeString());
-      return;
-    }
     try {
       const data = await fetchRecentIssuesList(10);
       setIssues(data);
@@ -153,16 +112,15 @@ export default function DashboardPage() {
     }).addTo(map);
     setTimeout(() => map.invalidateSize(), 100);
     const fetchHeatPoints = async () => {
-      if (IS_DUMMY_MODE) {
-        return DUMMY_HEAT_DATA;
-      }
       try {
-        const points = await fetchAllIssues();
-        return points
-          .filter((p) => (p.latitude || p.lat) && (p.longitude || p.long || p.lon))
+        const res = await fetch(`${API_BASE}/api/heatmap`);
+        if (!res.ok) return [];
+        const data = await res.json();
+        return (data.points || [])
+          .filter((p) => (p.lat || p.latitude) && (p.lon || p.longitude))
           .map((p) => {
-            const score = p.final_score || p.severity_score || p.score || 0;
-            return [p.latitude || p.lat, p.longitude || p.long || p.lon, Math.max(score / 100, 0.2)];
+            const score = p.score || p.final_score || 0;
+            return [p.lat || p.latitude, p.lon || p.longitude, Math.max(score / 100, 0.2)];
           });
       } catch (e) {
         console.error("Dashboard map error:", e);
@@ -259,13 +217,13 @@ export default function DashboardPage() {
           <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-2xs hover:shadow-sm transition-all relative overflow-hidden group">
             <div className="flex items-center gap-2.5 mb-2.5">
               <div className="w-8 h-8 rounded-lg bg-red-50 text-red-700 flex items-center justify-center text-sm">
-                <i className="fas fa-triangle-exclamation"></i>
+                <i className="fas fa-inbox"></i>
               </div>
-              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Perlu Tindakan</span>
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Menunggu Verifikasi</span>
             </div>
             <div className="text-3xl font-extrabold text-red-700 mb-1">{stats.antrean}</div>
-            <div className="text-[11px] font-semibold text-red-700">
-              Prioritas Tinggi (&gt;= 75)
+            <div className="text-[11px] font-medium text-slate-500">
+              Antrean masuk dinas
             </div>
           </div>
 

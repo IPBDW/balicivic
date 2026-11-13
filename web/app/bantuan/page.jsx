@@ -106,7 +106,7 @@ export default function BantuanPage() {
                   "Ambil foto yang jelas dan fokus pada area kerusakan",
                   "Pastikan pencahayaan cukup (hindari foto terlalu gelap atau silau)",
                   "Ambil dari jarak yang memperlihatkan konteks sekitar",
-                  "Format yang didukung: JPG, PNG (maksimal 5MB)",
+                  "Format yang didukung: JPG, PNG (maksimal 10MB)",
                 ].map((t) => (
                   <li key={t} className="flex items-start gap-3">
                     <i className="fas fa-check-circle text-accentGreen mt-1"></i>
@@ -140,29 +140,13 @@ export default function BantuanPage() {
 
             <div className="bg-white rounded-2xl border border-lightBorder p-8">
               <h3 className="text-xl font-bold text-textDark mb-4 flex items-center gap-3">
-                <i className="fas fa-pen text-accentTeal"></i>
-                Isi Deskripsi
-              </h3>
-              <p className="text-textSecondary mb-4">Berikan deskripsi singkat tentang kerusakan yang Anda laporkan:</p>
-              <ul className="space-y-2 text-textSecondary">
-                {["Jelaskan kondisi kerusakan secara spesifik", "Sebutkan landmark terdekat jika ada", "Tambahkan informasi waktu kejadian jika relevan"].map((t) => (
-                  <li key={t} className="flex items-start gap-3">
-                    <span className="text-primary">•</span>
-                    <span>{t}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            <div className="bg-white rounded-2xl border border-lightBorder p-8">
-              <h3 className="text-xl font-bold text-textDark mb-4 flex items-center gap-3">
                 <i className="fas fa-robot text-primary"></i>
                 Analisis AI
               </h3>
               <p className="text-textSecondary mb-4">Setelah klik &quot;Analisis Sekarang&quot;, sistem akan:</p>
               <div className="space-y-3">
                 {[
-                  ["fas fa-brain", "Deteksi Objek", "Mengidentifikasi jenis kerusakan menggunakan YOLOv8"],
+                  ["fas fa-brain", "Deteksi Objek", "Mengidentifikasi jenis kerusakan menggunakan YOLO11"],
                   ["fas fa-chart-line", "Penilaian Keparahan", "Menentukan tingkat urgensi (Rendah, Sedang, Tinggi)"],
                   ["fas fa-lightbulb", "Rekomendasi", "Memberikan saran tindakan perbaikan"],
                 ].map(([icon, t, d]) => (
@@ -186,9 +170,9 @@ export default function BantuanPage() {
           <h2 className="text-3xl font-bold text-textDark mb-6">Pertanyaan yang Sering Diajukan</h2>
           <div className="space-y-4">
             {[
-              ["Apa itu BaliCivic AI?", "BaliCivic AI adalah sistem pelaporan cerdas berbasis Vision AI yang membantu warga melaporkan kerusakan infrastruktur dan masalah lingkungan. Sistem ini menggunakan teknologi YOLOv8 untuk deteksi otomatis dan LLM untuk analisis konteks."],
+              ["Apa itu BaliCivic AI?", "BaliCivic AI adalah sistem pelaporan cerdas berbasis Vision AI yang membantu warga melaporkan kerusakan infrastruktur dan masalah lingkungan. Sistem ini menggunakan teknologi YOLO11 untuk deteksi otomatis dan LLM untuk analisis konteks."],
               ["Jenis kerusakan apa saja yang bisa dideteksi?", "Sistem dapat mendeteksi berbagai jenis kerusakan termasuk: jalan rusak (lubang, retak), genangan air / drainase buruk, kabel berantakan, sampah menumpuk, trotoar rusak, dan masalah infrastruktur lainnya."],
-              ["Apakah laporan saya akan ditindaklanjuti?", "Saat ini BaliCivic AI masih dalam tahap pilot project di Gianyar, Bali. Data laporan dikumpulkan dan dianalisis untuk membantu pemerintah daerah dalam perencanaan perbaikan infrastruktur. Integrasi dengan sistem pemerintah sedang dalam pengembangan."],
+              ["Apakah laporan saya akan ditindaklanjuti?", "BaliCivic AI mencakup seluruh Provinsi Bali (8 kabupaten dan 1 kota Denpasar). Data laporan dikumpulkan dan dianalisis untuk membantu pemerintah daerah dalam perencanaan perbaikan infrastruktur. Laporan diteruskan ke dinas terkait sesuai kategori kerusakan."],
               ["Bagaimana cara meningkatkan akurasi deteksi AI?", "Untuk hasil terbaik: ambil foto dengan pencahayaan yang cukup, fokuskan kamera pada area kerusakan, hindari foto yang blur atau terlalu jauh, sertakan konteks sekitar untuk referensi lokasi, gunakan mode landscape untuk area yang luas."],
               ["Apakah data saya aman?", "Ya. Foto difokuskan pada infrastruktur publik, dan metadata lokasi (EXIF/GPS) dihapus dari foto yang dipublikasikan. Data lokasi hanya digunakan untuk keperluan pelaporan dan tidak dibagikan ke pihak ketiga. Catatan jujur: sistem saat ini belum memburamkan wajah atau plat nomor secara otomatis, jadi mohon hindari memotret orang atau plat nomor secara sengaja."],
               ["Bagaimana jika hasil deteksi AI tidak akurat?", "Model AI kami terus belajar dan berkembang. Jika hasil deteksi kurang akurat, Anda tetap dapat menambahkan deskripsi manual untuk melengkapi informasi. Feedback Anda sangat membantu kami meningkatkan akurasi sistem."],
