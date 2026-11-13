@@ -147,6 +147,10 @@ CLASS_ALIASES = {
     "Potholes": "jalan_bolong",
     "PotholeDetectionYOLOv8 Project - v1 2024-04-09 1-16pm": "jalan_bolong",
     "PotholeDetectionYOLOv8 Project - v1 2024-04-09 1:16pm": "jalan_bolong",
+    "damage": "jalan_bolong",
+    "Damage": "jalan_bolong",
+    "road_damage": "jalan_bolong",
+    "crack": "jalan_bolong",
     "garbage": "sampah_liar",
     "trash": "sampah_liar",
     "waste": "sampah_liar",
@@ -847,7 +851,7 @@ def process_analysis(issue_id: str, image_path: str, session: Session):
             # Normalisasi otomatis jika dataset memakai variasi kata kunci
             if cls_name not in CLASS_LABEL_PUBLIC:
                 ln = str(raw_name).lower()
-                if "pothole" in ln or "lubang" in ln or "bolong" in ln:
+                if "pothole" in ln or "lubang" in ln or "bolong" in ln or "damage" in ln or "crack" in ln:
                     cls_name = "jalan_bolong"
                 elif "garbage" in ln or "trash" in ln or "waste" in ln or "sampah" in ln:
                     cls_name = "sampah_liar"
