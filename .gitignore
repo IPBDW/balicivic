@@ -1,44 +1,100 @@
 # Environment & Secrets
 .env
 .env.*
+*.env
 !.env.example
+!**/.env.example
 
 # Python
 __pycache__/
 *.py[cod]
+*$py.class
 *.egg-info/
+.eggs/
+build/
+dist/
+
+# Virtual Environments
 .venv/
 venv/
 env/
+ENV/
+env.bak/
+venv.bak/
 
-# Model weights (large files, download separately)
+# Testing & Linting
+.pytest_cache/
+backend/.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# Model Weights & AI Checkpoints (large files, download separately)
 *.pt
+*.pth
+*.onnx
+*.engine
+*.bin
+*.safetensors
+*.tflite
+*.weights
+/weights/*
+!/weights/.gitkeep
+backend/weights/*
+!backend/weights/.gitkeep
 
 # Database
 *.db
 *.db-journal
+*.sqlite
+*.sqlite3
 
-# Runtime data (uploads & sqlite)
+# Runtime Data (uploads & storage)
 backend/data/
+data/
 backend/uploads/
 backend/uploads_raw/
+uploads/
+uploads_raw/
+*.sock
 
-# Next.js
+# Next.js & Frontend
+node_modules/
 web/node_modules/
-web/.next/
-web/out/
-web/.env*.local
 .next/
+web/.next/
+out/
+web/out/
+web/build/
+.vercel/
+*.tsbuildinfo
+next-env.d.ts
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
 
 # OS / Editor
 .DS_Store
+.DS_Store?
+._*
 Thumbs.db
+desktop.ini
 *.swp
+*.swo
+*~
 .idea/
 .vscode/
+*.sublime-project
+*.sublime-workspace
 
-# Command Code personal settings & taste
+# AI / Coding Agents & Harness
 .commandcode/
-
-# OpenChamber (screenshots, local tooling)
 .openchamber/
+.cursor/
+.antigravity/

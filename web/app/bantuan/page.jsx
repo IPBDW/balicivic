@@ -11,10 +11,10 @@ a, button, .card, .btn, details { transition: all 0.3s ease; }
 .card-hover:hover, [class*="rounded"]:hover { transform: translateY(-2px); box-shadow: 0 8px 16px -4px rgba(0, 0, 0, 0.08); }
 button:hover, .btn:hover, a[class*="bg-"]:hover { transform: translateY(-1px); box-shadow: 0 4px 8px -2px rgba(0, 0, 0, 0.08); }
 button:active, .btn:active { transform: translateY(0px); }
-a:not([class*="bg-"]):hover { color: #C94B4B; }
+a:not([class*="bg-"]):hover { color: #B91C1C; }
 i:hover { transform: scale(1.05); transition: transform 0.2s ease; }
 details summary { transition: all 0.3s ease; }
-details[open] summary { color: #C94B4B; }
+details[open] summary { color: #B91C1C; }
 `;
 
 export default function BantuanPage() {

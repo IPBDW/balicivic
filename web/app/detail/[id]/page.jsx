@@ -52,16 +52,16 @@ export default function DetailPage() {
       const score = typeof d.final_score === "number" ? d.final_score : 0;
       let scoreColor, textColor, labelText;
       if (score >= SEVERITY_HIGH_MIN) {
-        scoreColor = "bg-gradient-to-r from-rose-500 to-red-600 shadow-[0_0_20px_rgba(225,29,72,0.4)]";
-        textColor = "text-rose-600";
+        scoreColor = "bg-red-700 shadow-sm";
+        textColor = "text-red-700";
         labelText = "KRITIS - Perlu Penanganan Segera";
       } else if (score >= SEVERITY_MEDIUM_MIN) {
-        scoreColor = "bg-gradient-to-r from-amber-400 to-orange-500 shadow-[0_0_20px_rgba(245,158,11,0.4)]";
-        textColor = "text-amber-600";
+        scoreColor = "bg-amber-600 shadow-sm";
+        textColor = "text-amber-700";
         labelText = "SEDANG - Perlu Dijadwalkan";
       } else {
-        scoreColor = "bg-gradient-to-r from-emerald-400 to-teal-500 shadow-[0_0_20px_rgba(16,185,129,0.4)]";
-        textColor = "text-emerald-600";
+        scoreColor = "bg-emerald-600 shadow-sm";
+        textColor = "text-emerald-700";
         labelText = "RINGAN - Monitor Berkala";
       }
       setBar({ cls: "h-full w-0 transition-all duration-1000 ease-out rounded-full relative overflow-hidden " + scoreColor, width: "0%" });
@@ -74,13 +74,15 @@ export default function DetailPage() {
       // (status tetap PENDING = menunggu verifikasi admin, itu normal).
       const isAnalyzing = d.issue_class === "processing" || badge === "processing";
       if (isAnalyzing) {
-        setStatusUi({ label: "MENGANALISIS", cls: "px-4 py-1.5 rounded-full text-[10px] font-bold border shadow-sm bg-amber-50 text-amber-600 border-amber-100 uppercase tracking-wider animate-pulse" });
-      } else if (badge === "OPEN" || badge === "IN_PROGRESS") {
-        setStatusUi({ label: badge, cls: "px-4 py-1.5 rounded-full text-[10px] font-bold border shadow-sm bg-rose-50 text-rose-600 border-rose-100 uppercase tracking-wider" });
+        setStatusUi({ label: "MENGANALISIS", cls: "px-4 py-1.5 rounded-full text-[10px] font-bold border shadow-sm bg-amber-50 text-amber-700 border-amber-200 uppercase tracking-wider animate-pulse" });
+      } else if (badge === "OPEN" || badge === "PENDING") {
+        setStatusUi({ label: badge, cls: "px-4 py-1.5 rounded-full text-[10px] font-bold border shadow-sm bg-slate-100 text-slate-700 border-slate-200 uppercase tracking-wider" });
+      } else if (badge === "IN_PROGRESS" || badge === "INPROGRESS") {
+        setStatusUi({ label: badge, cls: "px-4 py-1.5 rounded-full text-[10px] font-bold border shadow-sm bg-amber-50 text-amber-700 border-amber-200 uppercase tracking-wider" });
       } else if (badge === "ERROR") {
         setStatusUi({ label: badge, cls: "px-4 py-1.5 rounded-full text-[10px] font-bold border shadow-sm bg-slate-100 text-slate-500 border-slate-200 uppercase tracking-wider" });
       } else {
-        setStatusUi({ label: badge, cls: "px-4 py-1.5 rounded-full text-[10px] font-bold border shadow-sm bg-emerald-50 text-emerald-600 border-emerald-100 uppercase tracking-wider" });
+        setStatusUi({ label: badge, cls: "px-4 py-1.5 rounded-full text-[10px] font-bold border shadow-sm bg-emerald-50 text-emerald-700 border-emerald-200 uppercase tracking-wider" });
       }
     }
 
@@ -101,7 +103,7 @@ export default function DetailPage() {
         L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: "&copy; OpenStreetMap contributors" }).addTo(map);
         const customIcon = L.divIcon({
           className: "custom-div-icon",
-          html: `<div style="background-color: #C94B4B; width: 24px; height: 24px; border-radius: 50%; border: 3px solid white; box-shadow: 0 4px 6px rgba(0,0,0,0.3);"></div>`,
+          html: `<div style="background-color: #B91C1C; width: 24px; height: 24px; border-radius: 50%; border: 3px solid white; box-shadow: 0 4px 6px rgba(0,0,0,0.3);"></div>`,
           iconSize: [24, 24],
           iconAnchor: [12, 12],
         });

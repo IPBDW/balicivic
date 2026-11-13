@@ -40,7 +40,11 @@ from utils import (
 )
 
 # 1. LOAD ENVIRONMENT
-load_dotenv()
+_env_path = os.path.join(os.path.dirname(__file__), ".env")
+if os.path.exists(_env_path):
+    load_dotenv(dotenv_path=_env_path)
+else:
+    load_dotenv()
 
 # 2. LIFESPAN MANAGER
 def _find_raw_file(issue) -> str | None:

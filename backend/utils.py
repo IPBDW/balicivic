@@ -20,14 +20,40 @@ from openai import OpenAI
 from models import Issue
 
 # Load Environment Variables
-load_dotenv()
+_env_path = os.path.join(os.path.dirname(__file__), ".env")
+if os.path.exists(_env_path):
+    load_dotenv(dotenv_path=_env_path)
+else:
+    load_dotenv()
 
 
-# --- LLM Narasi (DeepSeek default; OpenAI-compatible) ---
-# Key di .env: DEEPSEEK_API_KEY. Kalau kosong, coba var lama OpenRouter_API.
-LLM_API_KEY = os.getenv("DEEPSEEK_API_KEY") or os.getenv("OpenRouter_API")
-LLM_BASE_URL = os.getenv("LLM_BASE_URL", "https://api.deepseek.com")
-LLM_MODEL = os.getenv("LLM_MODEL", "deepseek-chat")
+# --- LLM Narasi (OpenAI-compatible: NineRouter / DeepSeek / OpenRouter / OpenAI / dll) ---
+# Mendukung berbagai alias env agar fleksibel (LLM_API_KEY, API_KEY, DEEPSEEK_API_KEY, dll.)
+LLM_API_KEY = (
+    os.getenv("LLM_API_KEY")
+    or os.getenv("API_KEY")
+    or os.getenv("DEEPSEEK_API_KEY")
+    or os.getenv("OpenRouter_API")
+)
+LLM_BASE_URL = (
+    os.getenv("LLM_ENDPOINT")
+    or os.getenv("ENDPOINT")
+    or os.getenv("LLM_BASE_URL")
+    or "https://api.deepseek.com"
+)
+LLM_MODEL = (
+    os.getenv("LLM_MODEL")
+    or os.getenv("NAME_MODEL")
+    or os.getenv("MODEL_NAME")
+    or "deepseek-chat"
+)
+
+if LLM_API_KEY:
+    LLM_API_KEY = LLM_API_KEY.strip()
+if LLM_BASE_URL:
+    LLM_BASE_URL = LLM_BASE_URL.strip().rstrip("/")
+if LLM_MODEL:
+    LLM_MODEL = LLM_MODEL.strip()
 
 # --- Reverse Geocoding ---
 LOCATIONIQ_API_KEY = os.getenv("LOCATIONIQ_API_KEY")
@@ -441,7 +467,7 @@ def ask_llm_combined(payload: dict):
     
     # 1. Cek API Key
     if not LLM_API_KEY:
-        print("[LLM] DEEPSEEK_API_KEY tidak ditemukan di .env. Pakai fallback.")
+        print("[LLM] LLM_API_KEY / API_KEY tidak ditemukan di .env. Pakai fallback.")
         return _fallback_llm_result(payload)
 
     # 2. Setup Client (OpenAI-compatible: DeepSeek / OpenRouter / ninerouter / dll)
@@ -708,7 +734,7 @@ def send_email_alert(issue_data: Issue):
         # Template HTML Email dengan gambar inline
         html_body = f"""
         <div style="font-family: Arial, sans-serif; max-width: 600px; border: 1px solid #ddd; border-radius: 8px; overflow: hidden;">
-            <div style="background-color: #d32f2f; color: white; padding: 15px; text-align: center;">
+            <div style="background-color: #b91c1c; color: white; padding: 15px; text-align: center;">
                 <h2 style="margin:0;">SISTEM DETEKSI DINI</h2>
                 <small>BaliCivic AI - Smart Infrastructure Monitor</small>
             </div>
@@ -719,19 +745,19 @@ def send_email_alert(issue_data: Issue):
                 
                 <!-- GAMBAR HASIL DETEKSI -->
                 <div style="text-align: center; margin: 20px 0;">
-                    <img src="cid:detection_image" style="max-width: 100%; border-radius: 8px; border: 2px solid #d32f2f;" alt="Hasil Deteksi AI">
+                    <img src="cid:detection_image" style="max-width: 100%; border-radius: 8px; border: 2px solid #b91c1c;" alt="Hasil Deteksi AI">
                     <p style="font-size: 12px; color: #666; margin-top: 5px;">Hasil Analisis AI - Objek Terdeteksi</p>
                 </div>
                 
-                <table style="width:100%; border-collapse: collapse; margin-bottom: 20px; border-left: 4px solid #d32f2f; background: #fff5f5;">
+                <table style="width:100%; border-collapse: collapse; margin-bottom: 20px; border-left: 4px solid #b91c1c; background: #fff5f5;">
                     <tr><td style="padding:8px; border-bottom:1px solid #eee;"><strong>Masalah</strong></td><td style="padding:8px; border-bottom:1px solid #eee;">{html.escape(issue_data.issue_class.replace('_', ' ').title())}</td></tr>
                     <tr><td style="padding:8px; border-bottom:1px solid #eee;"><strong>Lokasi</strong></td><td style="padding:8px; border-bottom:1px solid #eee;">{html.escape(issue_data.kecamatan or 'Lokasi GPS')}</td></tr>
-                    <tr><td style="padding:8px; border-bottom:1px solid #eee;"><strong>Skor Bahaya</strong></td><td style="padding:8px; border-bottom:1px solid #eee;"><strong style="color:red">{html.escape(str(issue_data.final_score))}/100</strong></td></tr>
+                    <tr><td style="padding:8px; border-bottom:1px solid #eee;"><strong>Skor Bahaya</strong></td><td style="padding:8px; border-bottom:1px solid #eee;"><strong style="color:#b91c1c">{html.escape(str(issue_data.final_score))}/100</strong></td></tr>
                     <tr><td style="padding:8px;"><strong>Analisis AI</strong></td><td style="padding:8px; font-style: italic;">"{html.escape(issue_data.description or '')}"</td></tr>
                 </table>
 
                 <div style="text-align: center; margin: 30px 0;">
-                    <a href="{dashboard_url}" style="background-color: #d32f2f; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;">
+                    <a href="{dashboard_url}" style="background-color: #b91c1c; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;">
                         TINDAK LANJUTI SEKARANG
                     </a>
                 </div>
