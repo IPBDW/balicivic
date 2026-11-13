@@ -138,8 +138,19 @@ def get_model():
 # --- DETEKSI CONFIG ---
 
 # Nama class kanonik: "genangan_air" (dipakai frontend & dashboard).
-# Kalau model dilatih dengan nama "genangan", alias ini menormalkan otomatis.
-CLASS_ALIASES = {"genangan": "genangan_air"}
+# Kalau model dilatih dengan nama "genangan" atau "pothole", alias ini menormalkan otomatis.
+CLASS_ALIASES = {
+    "genangan": "genangan_air",
+    "pothole": "jalan_bolong",
+    "potholes": "jalan_bolong",
+    "Pothole": "jalan_bolong",
+    "Potholes": "jalan_bolong",
+    "PotholeDetectionYOLOv8 Project - v1 2024-04-09 1-16pm": "jalan_bolong",
+    "PotholeDetectionYOLOv8 Project - v1 2024-04-09 1:16pm": "jalan_bolong",
+    "garbage": "sampah_liar",
+    "trash": "sampah_liar",
+    "waste": "sampah_liar",
+}
 
 CONF_THRESHOLDS = {
     "jalan_bolong": 0.65,
@@ -830,7 +841,21 @@ def process_analysis(issue_id: str, image_path: str, session: Session):
 
         for box in r.boxes:
             cls_id = int(box.cls[0])
-            cls_name = CLASS_ALIASES.get(model.names[cls_id], model.names[cls_id])
+            raw_name = model.names[cls_id]
+            cls_name = CLASS_ALIASES.get(raw_name, raw_name)
+
+            # Normalisasi otomatis jika dataset memakai variasi kata kunci
+            if cls_name not in CLASS_LABEL_PUBLIC:
+                ln = str(raw_name).lower()
+                if "pothole" in ln or "lubang" in ln or "bolong" in ln:
+                    cls_name = "jalan_bolong"
+                elif "garbage" in ln or "trash" in ln or "waste" in ln or "sampah" in ln:
+                    cls_name = "sampah_liar"
+                elif "water" in ln or "flood" in ln or "genangan" in ln:
+                    cls_name = "genangan_air"
+                elif "cable" in ln or "kabel" in ln:
+                    cls_name = "kabel_semrawut"
+
             conf = float(box.conf[0])
 
             # Hanya kelas yang dikenal sistem (jangan terima class COCO

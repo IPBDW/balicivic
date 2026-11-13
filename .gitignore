@@ -45,6 +45,10 @@ htmlcov/
 backend/weights/*
 !backend/weights/.gitkeep
 
+# Jupyter Notebooks
+*.ipynb
+.ipynb_checkpoints/
+
 # Database
 *.db
 *.db-journal
