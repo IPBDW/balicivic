@@ -23,11 +23,33 @@ from models import Issue
 load_dotenv()
 
 
-# --- LLM Narasi (DeepSeek default; OpenAI-compatible) ---
-# Key di .env: DEEPSEEK_API_KEY. Kalau kosong, coba var lama OpenRouter_API.
-LLM_API_KEY = os.getenv("DEEPSEEK_API_KEY") or os.getenv("OpenRouter_API")
-LLM_BASE_URL = os.getenv("LLM_BASE_URL", "https://api.deepseek.com")
-LLM_MODEL = os.getenv("LLM_MODEL", "deepseek-chat")
+# --- LLM Narasi (OpenAI-compatible: NineRouter / DeepSeek / OpenRouter / OpenAI / dll) ---
+# Mendukung berbagai alias env agar fleksibel (LLM_API_KEY, API_KEY, DEEPSEEK_API_KEY, dll.)
+LLM_API_KEY = (
+    os.getenv("LLM_API_KEY")
+    or os.getenv("API_KEY")
+    or os.getenv("DEEPSEEK_API_KEY")
+    or os.getenv("OpenRouter_API")
+)
+LLM_BASE_URL = (
+    os.getenv("LLM_ENDPOINT")
+    or os.getenv("ENDPOINT")
+    or os.getenv("LLM_BASE_URL")
+    or "https://api.deepseek.com"
+)
+LLM_MODEL = (
+    os.getenv("LLM_MODEL")
+    or os.getenv("NAME_MODEL")
+    or os.getenv("MODEL_NAME")
+    or "deepseek-chat"
+)
+
+if LLM_API_KEY:
+    LLM_API_KEY = LLM_API_KEY.strip()
+if LLM_BASE_URL:
+    LLM_BASE_URL = LLM_BASE_URL.strip().rstrip("/")
+if LLM_MODEL:
+    LLM_MODEL = LLM_MODEL.strip()
 
 # --- Reverse Geocoding ---
 LOCATIONIQ_API_KEY = os.getenv("LOCATIONIQ_API_KEY")
@@ -441,7 +463,7 @@ def ask_llm_combined(payload: dict):
     
     # 1. Cek API Key
     if not LLM_API_KEY:
-        print("[LLM] DEEPSEEK_API_KEY tidak ditemukan di .env. Pakai fallback.")
+        print("[LLM] LLM_API_KEY / API_KEY tidak ditemukan di .env. Pakai fallback.")
         return _fallback_llm_result(payload)
 
     # 2. Setup Client (OpenAI-compatible: DeepSeek / OpenRouter / ninerouter / dll)
