@@ -152,8 +152,24 @@ CLASS_ALIASES = {
     "road_damage": "jalan_bolong",
     "crack": "jalan_bolong",
     "garbage": "sampah_liar",
+    "Garbage": "sampah_liar",
     "trash": "sampah_liar",
     "waste": "sampah_liar",
+}
+
+# Kelas "negatif" dari dataset publik: ada di label tapi artinya BUKAN kerusakan.
+# Wajib dibuang sebelum normalisasi keyword, kalau tidak "Not Garbage"
+# akan ikut ke-match jadi sampah_liar (karena mengandung kata "garbage").
+IGNORED_CLASSES = {
+    "not garbage",
+    "notgarbage",
+    "no garbage",
+    "not pothole",
+    "normal",
+    "background",
+    "-",
+    "0",
+    "12",
 }
 
 CONF_THRESHOLDS = {
@@ -846,6 +862,12 @@ def process_analysis(issue_id: str, image_path: str, session: Session):
         for box in r.boxes:
             cls_id = int(box.cls[0])
             raw_name = model.names[cls_id]
+
+            # Buang kelas negatif ("Not Garbage", "-", dll) SEBELUM normalisasi
+            # keyword. Kalau tidak, "Not Garbage" ikut ke-match jadi sampah_liar.
+            if str(raw_name).strip().lower() in IGNORED_CLASSES:
+                continue
+
             cls_name = CLASS_ALIASES.get(raw_name, raw_name)
 
             # Normalisasi otomatis jika dataset memakai variasi kata kunci
