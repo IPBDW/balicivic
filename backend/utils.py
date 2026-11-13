@@ -20,7 +20,11 @@ from openai import OpenAI
 from models import Issue
 
 # Load Environment Variables
-load_dotenv()
+_env_path = os.path.join(os.path.dirname(__file__), ".env")
+if os.path.exists(_env_path):
+    load_dotenv(dotenv_path=_env_path)
+else:
+    load_dotenv()
 
 
 # --- LLM Narasi (OpenAI-compatible: NineRouter / DeepSeek / OpenRouter / OpenAI / dll) ---
