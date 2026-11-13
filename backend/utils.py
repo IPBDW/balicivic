@@ -155,6 +155,12 @@ CLASS_ALIASES = {
     "Garbage": "sampah_liar",
     "trash": "sampah_liar",
     "waste": "sampah_liar",
+    # Dataset publik "Illegal Dumping Detection" — semua objeknya sampah liar
+    "garbage bag": "sampah_liar",
+    "cardboard": "sampah_liar",
+    "tire": "sampah_liar",
+    "shopping cart": "sampah_liar",
+    "mattress": "sampah_liar",
     # Dataset publik "utilitas udara" (kabel/pole tak tertata)
     "kabel": "kabel_semrawut",
     "Kabel": "kabel_semrawut",
@@ -883,6 +889,8 @@ def process_analysis(issue_id: str, image_path: str, session: Session):
                 if "pothole" in ln or "lubang" in ln or "bolong" in ln or "damage" in ln or "crack" in ln:
                     cls_name = "jalan_bolong"
                 elif "garbage" in ln or "trash" in ln or "waste" in ln or "sampah" in ln:
+                    cls_name = "sampah_liar"
+                elif "cardboard" in ln or "tire" in ln or "mattress" in ln or "cart" in ln or "dumping" in ln:
                     cls_name = "sampah_liar"
                 elif "water" in ln or "flood" in ln or "genangan" in ln:
                     cls_name = "genangan_air"
