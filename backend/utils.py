@@ -168,6 +168,13 @@ CLASS_ALIASES = {
     "utilitas udara": "kabel_semrawut",
     "Utilitas Udara Taktertata": "kabel_semrawut",
     "Utilitas Udara": "kabel_semrawut",
+    # Dataset publik puddle / genangan air
+    "puddle": "genangan_air",
+    "Puddle": "genangan_air",
+    "Dataset Puddle - v1 2025-04-30 12-01am": "genangan_air",
+    "Dataset Puddle - v1 2025-04-30 12:01am": "genangan_air",
+    "Dataset Puddle - v2 2025-05-05 1-48pm": "genangan_air",
+    "Dataset Puddle - v2 2025-05-05 1:48pm": "genangan_air",
 }
 
 # Kelas "negatif" dari dataset publik: ada di label tapi artinya BUKAN kerusakan.
