@@ -155,6 +155,13 @@ CLASS_ALIASES = {
     "Garbage": "sampah_liar",
     "trash": "sampah_liar",
     "waste": "sampah_liar",
+    # Dataset publik "utilitas udara" (kabel/pole tak tertata)
+    "kabel": "kabel_semrawut",
+    "Kabel": "kabel_semrawut",
+    "utilitas udara taktertata": "kabel_semrawut",
+    "utilitas udara": "kabel_semrawut",
+    "Utilitas Udara Taktertata": "kabel_semrawut",
+    "Utilitas Udara": "kabel_semrawut",
 }
 
 # Kelas "negatif" dari dataset publik: ada di label tapi artinya BUKAN kerusakan.
@@ -879,7 +886,7 @@ def process_analysis(issue_id: str, image_path: str, session: Session):
                     cls_name = "sampah_liar"
                 elif "water" in ln or "flood" in ln or "genangan" in ln:
                     cls_name = "genangan_air"
-                elif "cable" in ln or "kabel" in ln:
+                elif "cable" in ln or "kabel" in ln or "utilitas" in ln or "taktertata" in ln:
                     cls_name = "kabel_semrawut"
 
             conf = float(box.conf[0])
