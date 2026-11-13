@@ -1,36 +1,47 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# BaliCivic AI — Modul Frontend (Web)
 
-## Getting Started
+Bagian ini merupakan antarmuka web publik dan panel pemantauan berbasis **Next.js 16** (React 19, Tailwind CSS, App Router) untuk sistem **BaliCivic AI**.
 
-First, run the development server:
+## Fitur & Halaman
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+- **Halaman Utama (`/`)**: Pengenalan platform, panduan alur pelaporan tiga langkah, statistik ringkas, dan ajakan pelaporan fasilitas umum.
+- **Formulir Pelaporan (`/lapor`)**: Unggah foto kerusakan, penentuan koordinat geografis otomatis berbasis GPS peramban, serta pratinjau deteksi instan.
+- **Dashboard Pemantauan (`/dashboard`)**: Metrik agregasi kerusakan, grafik distribusi kategori masalah, dan daftar isu terkini.
+- **Peta Kerusakan Interaktif (`/peta`)**: Pemetaan spasial titik lokasi kerusakan se-Bali dengan visualisasi status penanganan.
+- **Arsip Laporan Publik (`/laporan`)**: Daftar riwayat seluruh laporan masyarakat dengan fitur pencarian dan filter status.
+- **Detail Laporan (`/detail/[id]`)**: Informasi komprehensif sebuah laporan, visualisasi *bounding box* hasil deteksi model AI, estimasi dimensi fisik, serta rekomendasi teknis PUPR.
+- **Panel Administrator (`/admin`)**: Area kerja terproteksi untuk validasi dan pembaruan status laporan oleh dinas terkait.
+- **Panduan Penggunaan (`/panduan`)**: Instruksi langkah demi langkah tata cara pengambilan foto dan pelaporan yang baik bagi warga.
+- **Pusat Bantuan (`/bantuan`)**: Informasi FAQ dan kontak layanan pengaduan.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Prasyarat
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+- Node.js versi 18.18 atau lebih baru (disarankan Node.js 20 LTS)
+- npm / yarn / pnpm
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Panduan Memulai
 
-## Learn More
+1. Pasang dependensi:
+   ```bash
+   npm install
+   ```
 
-To learn more about Next.js, take a look at the following resources:
+2. Konfigurasi variabel lingkungan (opsional, default mengarah ke `http://127.0.0.1:8000`):
+   ```bash
+   cp .env.example .env.local
+   ```
+   Variabel yang tersedia:
+   - `NEXT_PUBLIC_API_BASE`: Titik akhir server backend FastAPI (contoh: `http://127.0.0.1:8000`).
+   - `NEXT_PUBLIC_ALLOW_DUMMY`: Atur ke `true` jika ingin mengizinkan fallback data simulasi saat backend offline di mode demo/presentasi.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+3. Jalankan server pengembang:
+   ```bash
+   npm run dev
+   ```
+   Akses antarmuka di `http://localhost:3000`.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+4. Pembuatan build produksi:
+   ```bash
+   npm run build
+   npm run start
+   ```
