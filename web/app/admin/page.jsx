@@ -1,6 +1,6 @@
 "use client";
 
-import { imgUrl, apiGet, apiPut } from "@/lib/api";
+import { imgUrl, apiGet, apiPut, apiDelete } from "@/lib/api";
 import { getRiskLevelLabel, getSeverityCode } from "@/lib/severity";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -104,6 +104,32 @@ function AdminContent() {
       message: "Ubah status laporan?",
       type: "confirm",
       onConfirm: () => updateStatus(newStatus),
+    });
+  }
+
+  async function deleteIssue() {
+    if (!data) return;
+    setActionBusy(true);
+    try {
+      await apiDelete(`/api/issues/${data.id}`, {
+        headers: { "X-Admin-Token": token || "" },
+      });
+      showToast("Berhasil!", "Laporan dihapus permanen.");
+      setTimeout(() => {
+        window.location.href = "/laporan";
+      }, 1200);
+    } catch (e) {
+      showToast("Gagal", e.message);
+      setActionBusy(false);
+    }
+  }
+
+  function confirmDelete() {
+    setModal({
+      title: "Hapus Laporan",
+      message: "Laporan ini akan dihapus permanen beserta fotonya. Lanjutkan?",
+      type: "confirm",
+      onConfirm: deleteIssue,
     });
   }
 
@@ -386,7 +412,16 @@ function AdminContent() {
                     </h3>
                     <span className={`${statusBadgeCls} px-2 py-1 rounded-full text-xs font-bold`}>{statusBadgeText}</span>
                   </div>
-                  <div className="flex flex-col gap-2 opacity-100">{actionButtons}</div>
+                  <div className="flex flex-col gap-2 opacity-100">
+                    {actionButtons}
+                    <button
+                      onClick={confirmDelete}
+                      disabled={actionBusy}
+                      className="w-full bg-white text-red-600 border border-red-200 font-bold py-2.5 rounded-xl text-sm hover:bg-red-50 transition-colors disabled:opacity-50"
+                    >
+                      <i className="fas fa-trash mr-1"></i> Hapus Laporan
+                    </button>
+                  </div>
                 </div>
                 <div className="bg-white rounded-xl border p-4">
                   <h3 className="text-xs font-bold text-slate-400 uppercase mb-3">

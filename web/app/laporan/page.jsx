@@ -46,6 +46,8 @@ export default function LaporanPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [toast, setToast] = useState(false);
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 20;
 
   const fetchData = useCallback(async () => {
     try {
@@ -71,6 +73,16 @@ export default function LaporanPage() {
     const interval = setInterval(fetchData, 30000);
     return () => clearInterval(interval);
   }, [fetchData]);
+
+  // Reset ke halaman pertama tiap kali hasil pencarian berubah.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setPage(1);
+  }, [shown.length]);
+
+  const totalPages = Math.max(1, Math.ceil(shown.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const paged = shown.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   function onSearch(e) {
     const keyword = e.target.value.toLowerCase();
@@ -176,7 +188,7 @@ export default function LaporanPage() {
             {!loading && !error && shown.length === 0 && EmptyState}
             {!loading &&
               !error &&
-              shown.map((item) => {
+              paged.map((item) => {
                 const timeStr = formatTimeWitaLabel(item.created_at);
                 const dateStr = formatDateWita(item.created_at);
                 const sc = scoreClass(item.final_score);
@@ -251,7 +263,7 @@ export default function LaporanPage() {
                 {!loading && !error && shown.length === 0 && <tr><td colSpan="6">{EmptyState}</td></tr>}
                 {!loading &&
                   !error &&
-                  shown.map((item) => {
+                  paged.map((item) => {
                     const timeStr = formatTimeWitaLabel(item.created_at);
                     const dateStr = formatDateWita(item.created_at);
                     const sc = scoreClass(item.final_score);
@@ -298,14 +310,29 @@ export default function LaporanPage() {
             </table>
           </div>
 
-          {/* Pagination (Visual) */}
+          {/* Pagination */}
           <div className="p-4 border-t border-lightBorder flex justify-between items-center bg-gray-50/30">
-            <span className="text-xs text-textSecondary">Menampilkan semua data</span>
-            <div className="flex gap-2">
-              <button className="px-3 py-1 rounded-lg border border-lightBorder bg-white text-textSecondary text-xs hover:bg-gray-50 disabled:opacity-50" disabled>
+            <span className="text-xs text-textSecondary">
+              {shown.length === 0
+                ? "Tidak ada data"
+                : `Menampilkan ${(currentPage - 1) * PAGE_SIZE + 1}–${Math.min(currentPage * PAGE_SIZE, shown.length)} dari ${shown.length} laporan`}
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage <= 1}
+                className="px-3 py-1 rounded-lg border border-lightBorder bg-white text-textSecondary text-xs hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
                 Previous
               </button>
-              <button className="px-3 py-1 rounded-lg border border-lightBorder bg-white text-textSecondary text-xs hover:bg-gray-50 disabled:opacity-50" disabled>
+              <span className="text-xs font-semibold text-textDark px-1">
+                {currentPage} / {totalPages}
+              </span>
+              <button
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={currentPage >= totalPages}
+                className="px-3 py-1 rounded-lg border border-lightBorder bg-white text-textSecondary text-xs hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
                 Next
               </button>
             </div>
