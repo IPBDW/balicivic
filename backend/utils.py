@@ -260,12 +260,6 @@ IGNORED_CLASSES = {
     "12",
 }
 
-# Batas kewajaran posisi objek di dalam frame.
-# Model genangan air (dataset puddle) sering "mendeteksi" langit/awan di
-# bagian atas foto sebagai genangan. Objek yang pusatnya terlalu tinggi di
-# frame (langit/jauh di atas horizon) dibuang untuk kelas genangan_air.
-MAX_Y_CENTER_FOR_WATER = 0.65
-
 def _env_float(key: str, default: float) -> float:
     """Baca angka dari .env dengan aman (kalau kosong/ngawur pakai default)."""
     raw = os.getenv(key)
@@ -282,6 +276,24 @@ def _env_int(key: str, default: int) -> int:
     return int(_env_float(key, float(default)))
 
 
+# Batas kewajaran posisi objek di dalam frame (0 = tepi atas / langit, 1 = tepi bawah / jalan dekat kamera).
+# Model genangan air (dataset puddle) sering "mendeteksi" langit/awan di
+# bagian atas foto sebagai genangan. Objek yang pusatnya terlalu tinggi di
+# frame (langit/jauh di atas horizon) dibuang untuk kelas genangan_air.
+MAX_Y_CENTER_FOR_WATER = _env_float("MAX_Y_CENTER_FOR_WATER", 0.65)
+
+# Pothole (jalan_bolong) hanya ada di permukaan aspal/jalan (bukan di langit, tiang, kabel, atap).
+# Objek di atas batas ini dipastikan bukan jalan raya.
+MAX_Y_CENTER_FOR_ROAD = _env_float("MAX_Y_CENTER_FOR_ROAD", 0.52)
+MIN_AREA_FOR_POTHOLE = _env_float("MIN_AREA_FOR_POTHOLE", 0.0008)
+
+# Sampah liar tidak melayang di langit.
+MAX_Y_CENTER_FOR_GARBAGE = _env_float("MAX_Y_CENTER_FOR_GARBAGE", 0.35)
+
+# Kabel semrawut adalah utilitas udara (bukan objek di aspal tepat di bawah kaki).
+MIN_Y_CENTER_FOR_CABLE = _env_float("MIN_Y_CENTER_FOR_CABLE", 0.90)
+
+
 # Resolusi inferensi.
 # Model dilatih di 640/512, tapi foto warga biasanya 1000-4000 px dan lubang
 # jalan sering cuma menempati sebagian kecil frame. Inferensi di 640 membuat
@@ -296,17 +308,16 @@ DETECT_CONF_FLOOR = _env_float("YOLO_CONF_FLOOR", 0.10)
 # Kalau TIDAK ada satu pun deteksi yang lolos CONF_THRESHOLDS, tapi ada
 # kandidat lemah di atas batas ini, laporan tidak langsung dicap "aman" —
 # ditandai "perlu verifikasi" supaya admin tetap bisa menilai.
-LOW_CONF_MIN = _env_float("YOLO_LOW_CONF_MIN", 0.05)
+LOW_CONF_MIN = _env_float("YOLO_LOW_CONF_MIN", 0.03)
 
 # Threshold per kelas (bisa di-override dari .env kalau perlu tuning).
-# Catatan: nilai lama jalan_bolong=0.65 terlalu tinggi untuk model sekarang —
-# foto berlubang jelas pun cuma dapat 0.47-0.53 di imgsz 1024, jadi semuanya
-# dibuang dan laporan jatuh ke "Tidak Ditemukan Kerusakan".
+# Catatan: kabel semrawut berupa utilitas udara dengan kabel tipis; kalibrasi model
+# menghasilkan confidence di rentang 0.04-0.20 sehingga threshold disesuaikan ke 0.05.
 CONF_THRESHOLDS = {
     "jalan_bolong": _env_float("CONF_JALAN_BOLONG", 0.35),
     "genangan_air": _env_float("CONF_GENANGAN_AIR", 0.30),
     "sampah_liar": _env_float("CONF_SAMPAH_LIAR", 0.30),
-    "kabel_semrawut": _env_float("CONF_KABEL_SEMRAWUT", 0.25),
+    "kabel_semrawut": _env_float("CONF_KABEL_SEMRAWUT", 0.05),
 }
 
 SEVERITY_CONFIG = {
@@ -996,11 +1007,21 @@ def process_analysis(issue_id: str, image_path: str, session: Session):
         # Resolusi: DETECT_IMGSZ (default 1024) — di 640 lubang yang jelas
         # kelihatan pun cuma dapat conf 0.05-0.1 dan ikut terbuang.
         for model_cat, mdl in models_dict.items():
+            # Model kabel utilitas mendeteksi bentangan kawat tipis (1-2 px),
+            # butuh resolusi lebih tinggi (1280) dan floor confidence yang
+            # sesuai kalibrasi modelnya agar kabel semrawut tidak terbuang.
+            if model_cat == "kabel":
+                m_imgsz = max(DETECT_IMGSZ, 1280)
+                m_floor = min(DETECT_CONF_FLOOR, CONF_THRESHOLDS.get("kabel_semrawut", 0.05))
+            else:
+                m_imgsz = DETECT_IMGSZ
+                m_floor = DETECT_CONF_FLOOR
+
             try:
                 results = mdl.predict(
                     abs_path,
-                    conf=DETECT_CONF_FLOOR,
-                    imgsz=DETECT_IMGSZ,
+                    conf=m_floor,
+                    imgsz=m_imgsz,
                     save=False,
                     verbose=False,
                 )
@@ -1041,15 +1062,55 @@ def process_analysis(issue_id: str, image_path: str, session: Session):
                 if cls_name not in CLASS_LABEL_PUBLIC:
                     continue
 
-                # Filter kewajaran posisi: genangan air tidak mungkin ada di
-                # langit. Model puddle kerap false-positive di awan/atap.
-                if cls_name == "genangan_air":
-                    _x1, _y1, _x2, _y2 = [float(v) for v in box.xyxy[0].tolist()]
-                    y_center = ((_y1 + _y2) / 2.0) / float(img_h)
+                # Filter kewajaran posisi & ukuran objek dalam frame:
+                _x1, _y1, _x2, _y2 = [float(v) for v in box.xyxy[0].tolist()]
+                y_center = ((_y1 + _y2) / 2.0) / float(img_h)
+                area_ratio = ((_x2 - _x1) * (_y2 - _y1)) / float(img_w * img_h)
+
+                # 1) Jalan bolong (pothole): kerusakan permukaan aspal/jalan.
+                #    Harus berada di bidang permukaan jalan (tengah-bawah/bawah frame).
+                #    Objek di bagian atas (y_center < MAX_Y_CENTER_FOR_ROAD) adalah langit,
+                #    tiang, kabel utilitas, atau latar belakang gedung.
+                #    Objek sangat kecil (< 0.08% area) di ketinggian tengah juga dibuang sebagai noise.
+                if cls_name == "jalan_bolong":
+                    if y_center < MAX_Y_CENTER_FOR_ROAD:
+                        print(
+                            f"[ENGINE] Buang jalan_bolong di y={y_center:.2f} "
+                            f"(terlalu atas / bukan permukaan jalan, batas={MAX_Y_CENTER_FOR_ROAD})."
+                        )
+                        continue
+                    if area_ratio < MIN_AREA_FOR_POTHOLE and y_center < 0.65:
+                        print(
+                            f"[ENGINE] Buang jalan_bolong kecil (area={area_ratio*100:.3f}%) di y={y_center:.2f} "
+                            "(noise/bukan lubang jalan signifikan)."
+                        )
+                        continue
+
+                # 2) Genangan air: tidak mungkin ada di langit/awan/atap.
+                elif cls_name == "genangan_air":
                     if y_center < MAX_Y_CENTER_FOR_WATER:
                         print(
                             f"[ENGINE] Buang genangan_air di y={y_center:.2f} "
-                            "(terlalu atas, kemungkinan langit/awan)."
+                            f"(terlalu atas, kemungkinan langit/awan, batas={MAX_Y_CENTER_FOR_WATER})."
+                        )
+                        continue
+
+                # 3) Sampah liar: tidak melayang di langit/atap.
+                elif cls_name == "sampah_liar":
+                    if y_center < MAX_Y_CENTER_FOR_GARBAGE:
+                        print(
+                            f"[ENGINE] Buang sampah_liar di y={y_center:.2f} "
+                            f"(terlalu atas / di langit, batas={MAX_Y_CENTER_FOR_GARBAGE})."
+                        )
+                        continue
+
+                # 4) Kabel semrawut: utilitas udara / tiang / gantung.
+                #    Bukan objek yang tertanam di dasar aspal jalan langsung di bawah kaki.
+                elif cls_name == "kabel_semrawut":
+                    if y_center > MIN_Y_CENTER_FOR_CABLE:
+                        print(
+                            f"[ENGINE] Buang kabel_semrawut di y={y_center:.2f} "
+                            f"(terlalu bawah / di permukaan aspal, batas={MIN_Y_CENTER_FOR_CABLE})."
                         )
                         continue
 
@@ -1059,12 +1120,15 @@ def process_analysis(issue_id: str, image_path: str, session: Session):
                     "conf": conf,
                 }
 
-                if conf >= CONF_THRESHOLDS.get(cls_name, 0.25):
+                cls_threshold = CONF_THRESHOLDS.get(cls_name, 0.25)
+                weak_threshold = min(LOW_CONF_MIN, cls_threshold * 0.7)
+
+                if conf >= cls_threshold:
                     valid_detections.append(det)
                     if conf > max_conf:
                         max_conf = conf
                         primary_class_conf = cls_name
-                elif conf >= LOW_CONF_MIN:
+                elif conf >= weak_threshold:
                     # Jangan dibuang total: dipakai kalau tidak ada deteksi kuat
                     # sama sekali, supaya laporan jadi "perlu verifikasi"
                     # bukan langsung dicap "aman / tidak ditemukan kerusakan".

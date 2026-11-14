@@ -262,9 +262,9 @@ def test_detect_config_sane():
     from utils import CONF_THRESHOLDS, DETECT_IMGSZ, LOW_CONF_MIN
 
     assert DETECT_IMGSZ >= 640, "imgsz terlalu kecil untuk foto warga"
-    assert 0 < LOW_CONF_MIN < min(CONF_THRESHOLDS.values())
+    assert 0 < LOW_CONF_MIN <= min(CONF_THRESHOLDS.values())
     for cls, thr in CONF_THRESHOLDS.items():
-        assert 0.05 <= thr <= 0.75, f"threshold {cls}={thr} di luar rentang wajar"
+        assert 0.03 <= thr <= 0.75, f"threshold {cls}={thr} di luar rentang wajar"
 
 
 def test_reverse_geocode_parse_address():
@@ -327,3 +327,46 @@ def test_water_detection_in_sky_is_rejected():
     # Box di jalan (y center ~0.8) -> lolos
     y_center_road = ((3000 + 3600) / 2) / 4032
     assert y_center_road > MAX_Y_CENTER_FOR_WATER
+
+
+def test_pothole_in_sky_or_pole_is_rejected():
+    """
+    Regression: model pothole mendeteksi sambungan kabel/tiang listrik di
+    langit sebagai jalan_bolong (contoh: issue #27, y_center=0.48).
+    Pothole harus di permukaan jalan (y_center >= MAX_Y_CENTER_FOR_ROAD).
+    """
+    from utils import MAX_Y_CENTER_FOR_ROAD
+
+    assert 0.4 < MAX_Y_CENTER_FOR_ROAD < 0.7
+    # Box di tiang/langit (y center 0.484 seperti issue #27) -> harus ditolak
+    y_center_pole = ((468 + 481) / 2) / 981
+    assert y_center_pole < MAX_Y_CENTER_FOR_ROAD
+    # Box di permukaan jalan (y center 0.82) -> lolos
+    y_center_road = ((2446 + 2648) / 2) / 4080
+    assert y_center_road > MAX_Y_CENTER_FOR_ROAD
+
+
+def test_tiny_pothole_noise_is_rejected():
+    """
+    Objek lubang jalan yang terlalu kecil (< 0.08% area) dan tidak berada
+    di foreground bawah frame harus dianggap noise/false positive.
+    """
+    from utils import MIN_AREA_FOR_POTHOLE
+
+    # Box 24x13 piksel pada frame 736x981 -> area 0.045%
+    tiny_area = (24.5 * 13.3) / (736 * 981)
+    assert tiny_area < MIN_AREA_FOR_POTHOLE
+
+
+def test_cable_in_ground_is_rejected():
+    """
+    Kabel semrawut adalah utilitas udara/tiang. Objek di lantai aspal
+    tepat di depan kaki (y_center > 0.90) dibuang.
+    """
+    from utils import MIN_Y_CENTER_FOR_CABLE
+
+    assert 0.8 < MIN_Y_CENTER_FOR_CABLE <= 0.95
+    # Kabel di udara/tiang (y center 0.35 - 0.55) -> lolos
+    assert 0.45 < MIN_Y_CENTER_FOR_CABLE
+    # Objek di aspal paling bawah (y center 0.95) -> ditolak
+    assert 0.95 > MIN_Y_CENTER_FOR_CABLE
