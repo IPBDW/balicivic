@@ -248,23 +248,24 @@ export default function HomePage() {
               <div className="lg:col-span-7 space-y-6 min-w-0">
                 <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-semibold">
                   <span className="flex h-2 w-2 rounded-full bg-primary animate-pulse"></span>
-                  <span>Inisiatif Digital Pemantauan Infrastruktur Provinsi Bali</span>
+                  <span className="hidden sm:inline">Inisiatif Digital Pemantauan Infrastruktur Provinsi Bali</span>
+                  <span className="sm:hidden">Inisiatif Pemantauan Infrastruktur Bali</span>
                 </div>
 
-                <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-slate-950 leading-[1.15]">
+                <h1 className="text-2xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-slate-950 leading-[1.2]">
                   Pelaporan Cerdas Kerusakan Jalan & Fasilitas Publik di Bali Berbasis Vision AI
                 </h1>
 
-                <p className="text-base sm:text-lg text-slate-600 leading-relaxed max-w-2xl">
+                <p className="text-sm sm:text-base md:text-lg text-slate-600 leading-relaxed max-w-2xl">
                   Ubah foto laporan warga menjadi data geospasial presisi untuk Dinas Pekerjaan Umum (PUPR).
                   Deteksi otomatis jalan berlubang, sampah liar, saluran tersumbat, dan kabel berbahaya secara objektif dan transparan.
                 </p>
 
                 {/* Primary CTAs */}
-                <div className="flex flex-wrap items-center gap-3 pt-2">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-2">
                   <Link
                     href="/lapor"
-                    className="inline-flex items-center gap-2.5 px-6 py-3.5 rounded-xl bg-primary text-white font-bold text-sm shadow-md shadow-primary/25 hover:bg-primaryHover hover:shadow-lg transition-all active:scale-95"
+                    className="inline-flex items-center justify-center gap-2.5 px-6 min-h-[48px] py-3.5 rounded-xl bg-primary text-white font-bold text-sm shadow-md shadow-primary/25 hover:bg-primaryHover hover:shadow-lg transition-all active:scale-95"
                   >
                     <i className="fas fa-camera text-base"></i>
                     <span>Laporkan Kerusakan Sekarang</span>
@@ -272,7 +273,7 @@ export default function HomePage() {
 
                   <Link
                     href="/peta"
-                    className="inline-flex items-center gap-2 px-5 py-3.5 rounded-xl bg-white text-slate-800 font-semibold text-sm border border-slate-300 hover:bg-slate-50 hover:border-slate-400 transition-all active:scale-95 shadow-sm"
+                    className="inline-flex items-center justify-center gap-2 px-5 min-h-[48px] py-3.5 rounded-xl bg-white text-slate-800 font-semibold text-sm border border-slate-300 hover:bg-slate-50 hover:border-slate-400 transition-all active:scale-95 shadow-xs"
                   >
                     <i className="fas fa-map-location-dot text-slate-500"></i>
                     <span>Pantau Peta Sebaran</span>
@@ -280,22 +281,22 @@ export default function HomePage() {
                 </div>
 
                 {/* Key Metrics Strip */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-6 border-t border-slate-200">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-4 pt-6 border-t border-slate-200">
                   <div className="p-3 bg-white/70 rounded-xl border border-slate-200/80 shadow-2xs">
-                    <span className="text-2xl font-black text-slate-900 block">4 Kategori</span>
-                    <span className="text-xs text-slate-500 font-medium">Jalan, Sampah, Air, Kabel</span>
+                    <span className="text-xl sm:text-2xl font-black text-slate-900 block">4 Kategori</span>
+                    <span className="text-[11px] sm:text-xs text-slate-500 font-medium">Jalan, Sampah, Air, Kabel</span>
                   </div>
                   <div className="p-3 bg-white/70 rounded-xl border border-slate-200/80 shadow-2xs">
-                    <span className="text-2xl font-black text-slate-900 block">9 Wilayah</span>
-                    <span className="text-xs text-slate-500 font-medium">Kabupaten & Kota se-Bali</span>
+                    <span className="text-xl sm:text-2xl font-black text-slate-900 block">9 Wilayah</span>
+                    <span className="text-[11px] sm:text-xs text-slate-500 font-medium">Kabupaten & Kota se-Bali</span>
                   </div>
                   <div className="p-3 bg-white/70 rounded-xl border border-slate-200/80 shadow-2xs">
-                    <span className="text-2xl font-black text-primary block">WITA</span>
-                    <span className="text-xs text-slate-500 font-medium">Zona Waktu Terpusat</span>
+                    <span className="text-xl sm:text-2xl font-black text-primary block">WITA</span>
+                    <span className="text-[11px] sm:text-xs text-slate-500 font-medium">Zona Waktu Terpusat</span>
                   </div>
                   <div className="p-3 bg-white/70 rounded-xl border border-slate-200/80 shadow-2xs">
-                    <span className="text-2xl font-black text-slate-900 block">Geofence</span>
-                    <span className="text-xs text-slate-500 font-medium">Khusus Provinsi Bali</span>
+                    <span className="text-xl sm:text-2xl font-black text-slate-900 block">Geofence</span>
+                    <span className="text-[11px] sm:text-xs text-slate-500 font-medium">Khusus Provinsi Bali</span>
                   </div>
                 </div>
               </div>
@@ -414,7 +415,7 @@ export default function HomePage() {
             </div>
 
             {/* Category Selector Tabs */}
-            <div className="flex flex-wrap justify-center gap-2 mb-8">
+            <div className="flex sm:flex-wrap items-center sm:justify-center gap-2 mb-6 sm:mb-8 overflow-x-auto no-scrollbar pb-2 sm:pb-0 -mx-4 px-4 sm:mx-0">
               {CATEGORIES.map((cat) => {
                 const isActive = activeTab === cat.id;
                 return (
@@ -422,7 +423,7 @@ export default function HomePage() {
                     key={cat.id}
                     type="button"
                     onClick={() => setActiveTab(cat.id)}
-                    className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${
+                    className={`shrink-0 inline-flex items-center gap-2 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all active:scale-95 ${
                       isActive
                         ? "bg-slate-900 text-white shadow-md"
                         : "bg-slate-100 text-slate-700 hover:bg-slate-200"
@@ -677,7 +678,7 @@ export default function HomePage() {
       </main>
 
       {/* CIVIC FOOTER */}
-      <footer className="bg-white border-t border-slate-200 py-12 pb-24 md:pb-12 text-xs text-slate-500">
+      <footer className="bg-white border-t border-slate-200 py-12 pb-28 md:pb-12 text-xs text-slate-500">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
             <div className="space-y-3">

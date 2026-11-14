@@ -17,20 +17,20 @@ export default function NavbarApp({ active = "", sublabel = "" }) {
     <header className="sticky top-0 z-50 w-full border-b border-slate-200/80 bg-white/95 backdrop-blur-md shadow-[0_2px_8px_-2px_rgba(0,0,0,0.03)]">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         {/* Brand identity */}
-        <div className="flex items-center gap-3">
-          <Link href="/" className="flex items-center gap-3 group" aria-label="BaliCivic AI - Beranda">
+        <div className="flex items-center gap-3 min-w-0 flex-1 sm:flex-initial mr-2">
+          <Link href="/" className="flex items-center gap-2.5 sm:gap-3 group min-w-0" aria-label="BaliCivic AI - Beranda">
             <img
               src="/assets/BaliCivic_App_Icon_1_.png"
               alt="BaliCivic AI Logo"
-              className="h-9 w-9 rounded-xl object-cover shadow-sm ring-1 ring-black/5 group-hover:scale-105 transition-transform"
+              className="h-9 w-9 shrink-0 rounded-xl object-cover shadow-sm ring-1 ring-black/5 group-hover:scale-105 transition-transform"
               width="36"
               height="36"
             />
-            <div className="flex flex-col leading-tight">
-              <span className="font-bold tracking-tight text-base sm:text-lg text-slate-900 group-hover:text-primary transition-colors">
+            <div className="flex flex-col leading-tight min-w-0">
+              <span className="font-bold tracking-tight text-base sm:text-lg text-slate-900 group-hover:text-primary transition-colors truncate">
                 BaliCivic AI
               </span>
-              <span className="text-[10px] font-semibold text-slate-500 tracking-wide">
+              <span className="text-[10px] font-semibold text-slate-500 tracking-wide truncate max-w-[190px] sm:max-w-none">
                 {sublabel || "Sistem Infrastruktur Publik Bali"}
               </span>
             </div>
@@ -64,19 +64,19 @@ export default function NavbarApp({ active = "", sublabel = "" }) {
           </Link>
         </nav>
 
-        {/* Mobile Help / Panduan Icon (Lingkaran tanda tanya tanpa warna latar, sesuai referensi) */}
-        <div className="flex items-center md:hidden">
+        {/* Mobile Help / Panduan Icon */}
+        <div className="flex items-center md:hidden shrink-0">
           <Link
             href="/bantuan"
-            className={`p-2 rounded-full transition-colors active:scale-95 flex items-center justify-center ${
+            className={`w-10 h-10 rounded-xl transition-all active:scale-90 flex items-center justify-center ${
               isHelpActive
-                ? "text-primary"
-                : "text-slate-800 hover:text-primary"
+                ? "text-primary bg-primary/10 ring-1 ring-primary/20"
+                : "text-slate-700 hover:text-primary hover:bg-slate-100 active:bg-slate-200"
             }`}
             aria-label="Panduan & Bantuan"
             title="Panduan & Bantuan"
           >
-            <i className="fa-regular fa-circle-question text-[26px] leading-none"></i>
+            <i className="fa-regular fa-circle-question text-xl leading-none"></i>
           </Link>
         </div>
       </div>

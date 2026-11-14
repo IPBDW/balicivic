@@ -166,11 +166,11 @@ export default function DashboardPage() {
   const desktopIssues = displayedIssues.slice(0, 10);
 
   return (
-    <div className="min-h-screen bg-slate-50/60 pb-20">
+    <div className="min-h-screen bg-slate-50/60 pb-28 md:pb-12">
       <NavbarApp active="/dashboard" sublabel="Pusat Pemantauan & Statistik" />
 
-      <main className="flex-1 mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-8 flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+      <main className="flex-1 mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-5 sm:py-8">
+        <div className="mb-6 sm:mb-8 flex flex-col md:flex-row md:items-end md:justify-between gap-4">
           <div>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-950 tracking-tight">
               Dashboard Statistik & Sebaran Kerusakan
@@ -179,7 +179,7 @@ export default function DashboardPage() {
               Agregasi data laporan jalan rusak, sampah liar, saluran air, dan kabel berbahaya di Provinsi Bali.
             </p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5 flex-wrap">
             <div className="text-xs font-semibold bg-white text-slate-700 px-3 py-1.5 rounded-full border border-slate-200 shadow-2xs flex items-center gap-2">
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
@@ -195,7 +195,7 @@ export default function DashboardPage() {
                 fetchDistribution();
                 fetchRecentIssues();
               }}
-              className="px-3 py-1.5 rounded-full bg-white border border-slate-200 text-xs font-bold text-slate-700 hover:text-primary hover:border-primary/30 transition-colors shadow-2xs flex items-center gap-1.5"
+              className="min-h-[36px] px-3.5 py-1.5 rounded-full bg-white border border-slate-200 text-xs font-bold text-slate-700 hover:text-primary hover:border-primary/30 transition-all shadow-2xs flex items-center gap-1.5 active:scale-95"
               title="Perbarui data sekarang"
             >
               <i className="fas fa-rotate text-xs"></i>
@@ -205,55 +205,55 @@ export default function DashboardPage() {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-2xs hover:shadow-sm transition-all relative overflow-hidden group">
-            <div className="flex items-center gap-2.5 mb-2.5">
-              <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center text-sm">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
+          <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 shadow-2xs hover:shadow-sm transition-all relative overflow-hidden group">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center text-xs sm:text-sm">
                 <i className="fas fa-file-alt"></i>
               </div>
-              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Total Laporan</span>
+              <span className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider truncate">Total Laporan</span>
             </div>
-            <div className="text-3xl font-extrabold text-slate-900 mb-1">{stats.total}</div>
-            <div className="text-[11px] font-medium text-slate-500">
-              Terdata di seluruh Bali
+            <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 mb-0.5">{stats.total}</div>
+            <div className="text-[10px] sm:text-[11px] font-medium text-slate-500 truncate">
+              Terdata se-Bali
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-2xs hover:shadow-sm transition-all relative overflow-hidden group">
-            <div className="flex items-center gap-2.5 mb-2.5">
-              <div className="w-8 h-8 rounded-lg bg-red-50 text-red-700 flex items-center justify-center text-sm">
+          <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 shadow-2xs hover:shadow-sm transition-all relative overflow-hidden group">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-red-50 text-red-700 flex items-center justify-center text-xs sm:text-sm">
                 <i className="fas fa-inbox"></i>
               </div>
-              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Menunggu Verifikasi</span>
+              <span className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider truncate">Menunggu</span>
             </div>
-            <div className="text-3xl font-extrabold text-red-700 mb-1">{stats.antrean}</div>
-            <div className="text-[11px] font-medium text-slate-500">
+            <div className="text-2xl sm:text-3xl font-extrabold text-red-700 mb-0.5">{stats.antrean}</div>
+            <div className="text-[10px] sm:text-[11px] font-medium text-slate-500 truncate">
               Antrean masuk dinas
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-2xs hover:shadow-sm transition-all relative overflow-hidden group">
-            <div className="flex items-center gap-2.5 mb-2.5">
-              <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-700 flex items-center justify-center text-sm">
+          <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 shadow-2xs hover:shadow-sm transition-all relative overflow-hidden group">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-amber-50 text-amber-700 flex items-center justify-center text-xs sm:text-sm">
                 <i className="fas fa-wrench"></i>
               </div>
-              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Sedang Ditangani</span>
+              <span className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider truncate">Ditangani</span>
             </div>
-            <div className="text-3xl font-extrabold text-slate-900 mb-1">{stats.perlu_tindakan}</div>
-            <div className="text-[11px] font-medium text-amber-700">
-              Tim PUPR di Lapangan
+            <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 mb-0.5">{stats.perlu_tindakan}</div>
+            <div className="text-[10px] sm:text-[11px] font-medium text-amber-700 truncate">
+              Tim di Lapangan
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-2xs hover:shadow-sm transition-all relative overflow-hidden group">
-            <div className="flex items-center gap-2.5 mb-2.5">
-              <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center text-sm">
+          <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 shadow-2xs hover:shadow-sm transition-all relative overflow-hidden group">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center text-xs sm:text-sm">
                 <i className="fas fa-circle-check"></i>
               </div>
-              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Selesai Diperbaiki</span>
+              <span className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider truncate">Selesai</span>
             </div>
-            <div className="text-3xl font-extrabold text-emerald-700 mb-1">{stats.selesai}</div>
-            <div className="text-[11px] font-medium text-emerald-700">
+            <div className="text-2xl sm:text-3xl font-extrabold text-emerald-700 mb-0.5">{stats.selesai}</div>
+            <div className="text-[10px] sm:text-[11px] font-medium text-emerald-700 truncate">
               Laporan Ditutup
             </div>
           </div>
@@ -398,38 +398,74 @@ export default function DashboardPage() {
           </div>
 
           {/* Mobile View */}
-          <div className="md:hidden space-y-3 p-4 bg-slate-50/50">
+          <div className="md:hidden space-y-3 p-3.5 sm:p-4 bg-slate-50/50">
             {mobileIssues.length === 0 && (
-              <div className="text-center text-slate-400 text-sm py-6">
-                <i className="fas fa-shield-halved text-2xl mb-1 block opacity-40"></i>
-                {filterKritisOnly ? "Tidak ada laporan kritis (>60) saat ini" : "Belum ada laporan kerusakan"}
+              <div className="text-center text-slate-400 text-sm py-8 bg-white rounded-xl border border-slate-200">
+                <i className="fas fa-shield-halved text-2xl mb-1.5 block opacity-40"></i>
+                <span className="text-xs font-medium">
+                  {filterKritisOnly ? "Tidak ada laporan kritis (>60) saat ini" : "Belum ada laporan kerusakan"}
+                </span>
               </div>
             )}
             {mobileIssues.map((item) => {
               const timeStr = formatTimeWitaLabel(item.created_at);
+              const cat = item.issue_class;
+              let catIcon = "fa-triangle-exclamation";
+              let catBg = "bg-rose-50 text-rose-600";
+              if (cat === "jalan_bolong") {
+                catIcon = "fa-road";
+                catBg = "bg-rose-50 text-rose-600";
+              } else if (cat === "sampah_liar") {
+                catIcon = "fa-trash-can";
+                catBg = "bg-amber-50 text-amber-700";
+              } else if (cat === "genangan_air") {
+                catIcon = "fa-water";
+                catBg = "bg-sky-50 text-sky-600";
+              } else if (cat === "kabel_semrawut") {
+                catIcon = "fa-network-wired";
+                catBg = "bg-slate-100 text-slate-700";
+              }
+
               return (
-                <div key={item.id} className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm flex flex-col gap-3">
-                  <div className="flex justify-between items-start">
-                    <div className="flex items-center gap-2">
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${getScoreClass(item.final_score)}`}>{item.final_score}</span>
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${getStatusColors(item.status)}`}>{item.status}</span>
-                    </div>
-                    <span className="text-[10px] text-slate-400 font-mono">{timeStr}</span>
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-slate-800 capitalize text-sm mb-1">{String(item.issue_class || "-").replace("_", " ")}</h4>
-                    <div className="flex items-center gap-1.5 text-xs text-slate-500">
-                      <i className="fas fa-map-marker-alt text-primary/60"></i>
-                      <span className="truncate">
-                        {[item.kecamatan, item.kabupaten].filter(Boolean).join(", ")
-                          || (item.latitude != null && item.longitude != null
-                            ? `${Number(item.latitude).toFixed(4)}, ${Number(item.longitude).toFixed(4)}`
-                            : "Lokasi tidak tersedia")}
+                <div key={item.id} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs flex flex-col gap-3 active:scale-[0.99] transition-all">
+                  <div className="flex justify-between items-start gap-2">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-lg border ${getScoreClass(item.final_score)}`}>
+                        Skor {item.final_score}
+                      </span>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${getStatusColors(item.status)}`}>
+                        {item.status}
                       </span>
                     </div>
+                    <span className="text-[10px] text-slate-400 font-mono shrink-0">{timeStr}</span>
                   </div>
-                  <Link href={`/detail/${item.id}`} className="w-full mt-1 bg-slate-50 text-slate-600 hover:bg-primary hover:text-white transition-all py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-2">
-                    Lihat Detail <i className="fas fa-arrow-right"></i>
+
+                  <div className="flex items-center gap-3">
+                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${catBg}`}>
+                      <i className={`fas ${catIcon} text-xs`}></i>
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <h4 className="font-bold text-slate-900 capitalize text-sm truncate">
+                        {String(item.issue_class || "-").replace(/_/g, " ")}
+                      </h4>
+                      <div className="flex items-center gap-1.5 text-xs text-slate-500 mt-0.5 truncate">
+                        <i className="fas fa-location-dot text-rose-500 text-[10px] shrink-0"></i>
+                        <span className="truncate">
+                          {[item.kecamatan, item.kabupaten].filter(Boolean).join(", ")
+                            || (item.latitude != null && item.longitude != null
+                              ? `${Number(item.latitude).toFixed(4)}, ${Number(item.longitude).toFixed(4)}`
+                              : "Wilayah Bali")}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <Link
+                    href={`/detail/${item.id}`}
+                    className="w-full min-h-[44px] bg-slate-50 hover:bg-slate-900 hover:text-white border border-slate-200 text-slate-700 transition-all py-2.5 px-4 rounded-xl text-xs font-bold flex items-center justify-center gap-2 active:scale-95"
+                  >
+                    <span>Lihat Detail Laporan</span>
+                    <i className="fas fa-arrow-right text-[10px]"></i>
                   </Link>
                 </div>
               );

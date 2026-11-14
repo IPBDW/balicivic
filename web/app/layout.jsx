@@ -8,6 +8,13 @@ export const metadata = {
   icons: { icon: "/assets/BaliCivic_App_Icon_1_.png" },
 };
 
+export const viewport = {
+  themeColor: "#B91C1C",
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+};
+
 export default function RootLayout({ children }) {
   return (
     <html lang="id" className="scroll-smooth" data-scroll-behavior="smooth">

@@ -19,16 +19,22 @@ details[open] summary { color: #B91C1C; }
 
 export default function BantuanPage() {
   return (
-    <div className="pb-24 md:pb-0">
+    <div className="min-h-screen bg-slate-50 pb-28 md:pb-12">
       <style dangerouslySetInnerHTML={{ __html: PAGE_CSS }} />
-      <NavbarApp active="/bantuan" />
+      <NavbarApp active="/bantuan" sublabel="Pusat Bantuan & Panduan" />
 
-      <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12">
+      <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
         {/* Header */}
-        <div className="text-center mb-12">
-          <h1 className="text-4xl md:text-5xl font-bold text-textDark mb-4">Pusat Bantuan</h1>
-          <p className="text-lg text-textSecondary max-w-2xl mx-auto">
-            Temukan panduan lengkap untuk menggunakan BaliCivic AI dan laporkan masalah lingkungan dengan mudah
+        <div className="text-center mb-8 sm:mb-12">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold mb-3">
+            <i className="fas fa-book-open text-xs"></i>
+            <span>Dokumentasi & Panduan Warga</span>
+          </div>
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-slate-950 mb-3 tracking-tight">
+            Pusat Bantuan
+          </h1>
+          <p className="text-sm sm:text-base text-slate-600 max-w-2xl mx-auto leading-relaxed">
+            Panduan lengkap menggunakan BaliCivic AI untuk melaporkan kerusakan jalan, sampah liar, dan utilitas publik di Provinsi Bali.
           </p>
         </div>
 

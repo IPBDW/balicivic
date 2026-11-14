@@ -6,7 +6,7 @@ import BottomNav from "@/components/BottomNav";
 import { fetchAllIssues } from "@/lib/api";
 import { formatTimeWitaLabel, formatDateWita } from "@/lib/datetime";
 import { getScoreBadgeClass } from "@/lib/severity";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 const PAGE_CSS = `
 body { font-family: 'Inter', sans-serif; }
@@ -39,21 +39,61 @@ function scoreClass(score) {
   return getScoreBadgeClass(score);
 }
 
+const CATEGORY_FILTERS = [
+  { id: "", label: "Semua Kategori", icon: "fa-border-all" },
+  { id: "jalan_bolong", label: "Jalan Rusak", icon: "fa-road" },
+  { id: "sampah_liar", label: "Sampah Liar", icon: "fa-trash-can" },
+  { id: "genangan_air", label: "Genangan Air", icon: "fa-water" },
+  { id: "kabel_semrawut", label: "Kabel Bahaya", icon: "fa-network-wired" },
+];
+
+const STATUS_FILTERS = [
+  { id: "", label: "Semua Status" },
+  { id: "PENDING", label: "Menunggu" },
+  { id: "IN_PROGRESS", label: "Diproses" },
+  { id: "DONE", label: "Selesai" },
+];
+
 export default function LaporanPage() {
   const [all, setAll] = useState([]);
-  const [shown, setShown] = useState([]);
   const [count, setCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [toast, setToast] = useState(false);
   const [page, setPage] = useState(1);
+  const [keyword, setKeyword] = useState("");
+  const [selectedCat, setSelectedCat] = useState("");
+  const [selectedStatus, setSelectedStatus] = useState("");
   const PAGE_SIZE = 20;
+
+  const applyFilters = useCallback((sourceList, searchKey, cat, st) => {
+    let result = sourceList || [];
+    if (cat) {
+      result = result.filter((i) => i.issue_class === cat);
+    }
+    if (st) {
+      result = result.filter((i) => {
+        const itemStatus = String(i.status || "").toUpperCase();
+        return itemStatus === st || (st === "PENDING" && itemStatus === "OPEN");
+      });
+    }
+    if (searchKey && searchKey.trim()) {
+      const q = searchKey.trim().toLowerCase();
+      result = result.filter(
+        (item) =>
+          String(item.issue_class || "").toLowerCase().includes(q) ||
+          (item.kecamatan && item.kecamatan.toLowerCase().includes(q)) ||
+          (item.kabupaten && item.kabupaten.toLowerCase().includes(q)) ||
+          String(item.status || "").toLowerCase().includes(q)
+      );
+    }
+    return result;
+  }, []);
 
   const fetchData = useCallback(async () => {
     try {
       const data = await fetchAllIssues();
       setAll(data);
-      setShown(data);
       setCount(data.length);
       setError(false);
     } catch (e) {
@@ -67,37 +107,35 @@ export default function LaporanPage() {
   }, []);
 
   useEffect(() => {
-    // Fetch on mount: setState terjadi setelah await, bukan render berjenjang.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchData();
     const interval = setInterval(fetchData, 30000);
     return () => clearInterval(interval);
   }, [fetchData]);
 
-  // Reset ke halaman pertama tiap kali hasil pencarian berubah.
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+  const shown = useMemo(() => {
+    return applyFilters(all, keyword, selectedCat, selectedStatus);
+  }, [all, keyword, selectedCat, selectedStatus, applyFilters]);
+
+  // Reset ke halaman pertama saat filter berubah
+  const handleKeywordChange = (val) => {
+    setKeyword(val);
     setPage(1);
-  }, [shown.length]);
+  };
+
+  const handleCategoryChange = (catId) => {
+    setSelectedCat(catId);
+    setPage(1);
+  };
+
+  const handleStatusChange = (stId) => {
+    setSelectedStatus(stId);
+    setPage(1);
+  };
 
   const totalPages = Math.max(1, Math.ceil(shown.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
   const paged = shown.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
-
-  function onSearch(e) {
-    const keyword = e.target.value.toLowerCase();
-    if (!all || !keyword) {
-      setShown(all);
-      return;
-    }
-    const filtered = all.filter(
-      (item) =>
-        String(item.issue_class || "").toLowerCase().includes(keyword) ||
-        (item.kecamatan && item.kecamatan.toLowerCase().includes(keyword)) ||
-        String(item.status || "").toLowerCase().includes(keyword)
-    );
-    setShown(filtered);
-  }
 
   const EmptyState = (
     <div className="text-center py-12 flex flex-col items-center gap-3 text-gray-400">
@@ -141,47 +179,123 @@ export default function LaporanPage() {
         </div>
       )}
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-24 pt-8 md:pt-12 animate-fade-in">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-28 pt-6 md:pt-10 animate-fade-in">
         {/* Header Section */}
-        <div className="flex flex-col items-center text-center gap-3 mb-8">
-          <h1 className="text-2xl md:text-3xl font-bold text-textDark tracking-tight">Semua Laporan</h1>
-          <span className="text-xs font-normal text-textSecondary bg-gray-100 px-2.5 py-1 rounded-full border border-gray-200 w-fit">{count} Laporan</span>
-          <p className="text-textSecondary text-xs md:text-sm">Arsip lengkap laporan masyarakat Bali.</p>
-          <div className="flex items-center justify-center w-full md:w-72 mt-2">
-            <div className="relative w-full">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <i className="fas fa-search text-gray-400 text-xs"></i>
-              </div>
-              <input
-                type="text"
-                onChange={onSearch}
-                className="bg-white border border-lightBorder text-gray-900 text-sm rounded-xl focus:ring-primary focus:border-primary block w-full pl-10 p-2.5 shadow-sm transition-all"
-                placeholder="Cari laporan..."
-              />
+        <div className="flex flex-col items-center text-center gap-2.5 mb-6">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold">
+            <i className="fas fa-database text-xs"></i>
+            <span>Arsip Publik Transparan</span>
+          </div>
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-slate-950 tracking-tight">
+            Semua Laporan Kerusakan
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-600 max-w-xl">
+            Pantau dan telusuri seluruh riwayat laporan jalan berlubang, sampah liar, dan utilitas di Provinsi Bali.
+          </p>
+
+          {/* Search Box */}
+          <div className="w-full max-w-md mt-2 relative">
+            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+              <i className="fas fa-search text-xs"></i>
+            </div>
+            <input
+              type="text"
+              value={keyword}
+              onChange={(e) => handleKeywordChange(e.target.value)}
+              className="bg-white border border-slate-200 text-slate-900 text-xs sm:text-sm rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary block w-full pl-10 pr-9 py-2.5 sm:py-3 shadow-xs transition-all outline-none"
+              placeholder="Cari lokasi (Kuta, Denpasar), jenis kerusakan, atau status..."
+            />
+            {keyword && (
+              <button
+                type="button"
+                onClick={() => handleKeywordChange("")}
+                className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600"
+                aria-label="Hapus pencarian"
+              >
+                <i className="fas fa-circle-xmark text-xs"></i>
+              </button>
+            )}
+          </div>
+
+          {/* Quick Filters (Horizontal scrollable on mobile) */}
+          <div className="w-full flex flex-col gap-2 mt-3">
+            {/* Category Filter Chips */}
+            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1 px-1 -mx-4 px-4 sm:mx-0 sm:justify-center">
+              {CATEGORY_FILTERS.map((cat) => {
+                const isActive = selectedCat === cat.id;
+                return (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    onClick={() => handleCategoryChange(cat.id)}
+                    className={`shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all active:scale-95 min-h-[36px] ${
+                      isActive
+                        ? "bg-slate-900 text-white shadow-xs"
+                        : "bg-white text-slate-700 border border-slate-200 hover:bg-slate-50"
+                    }`}
+                  >
+                    <i className={`fas ${cat.icon} text-[10px]`}></i>
+                    <span>{cat.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Status Filter Chips */}
+            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 px-1 -mx-4 px-4 sm:mx-0 sm:justify-center">
+              {STATUS_FILTERS.map((st) => {
+                const isActive = selectedStatus === st.id;
+                return (
+                  <button
+                    key={st.id}
+                    type="button"
+                    onClick={() => handleStatusChange(st.id)}
+                    className={`shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all active:scale-95 ${
+                      isActive
+                        ? "bg-primary text-white shadow-xs font-bold"
+                        : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                    }`}
+                  >
+                    <span>{st.label}</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
         </div>
 
-        {/* Tabel */}
-        <div className="bg-white rounded-2xl border border-lightBorder shadow-sm overflow-hidden animate-fade-in-up min-h-[500px] flex flex-col">
-          <div className="p-4 md:p-6 border-b border-lightBorder flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-gray-50/30">
-            <div className="flex items-center gap-2">
-              <h3 className="text-lg font-bold text-textDark">Daftar Laporan</h3>
-              <button onClick={fetchData} className="text-textSecondary hover:text-primary transition-colors p-1 rounded-full hover:bg-primary/10" title="Refresh Data">
+        {/* Card Table Container */}
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden animate-fade-in-up min-h-[480px] flex flex-col">
+          <div className="p-4 sm:p-5 border-b border-slate-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-slate-50/60">
+            <div className="flex items-center gap-2.5">
+              <h2 className="text-base font-bold text-slate-900">Daftar Laporan Terkini</h2>
+              <span className="text-[11px] font-bold bg-slate-200 text-slate-700 px-2 py-0.5 rounded-full">
+                {shown.length} Data
+              </span>
+              <button
+                onClick={fetchData}
+                className="text-slate-500 hover:text-primary transition-colors p-1.5 rounded-lg hover:bg-slate-200 active:scale-95"
+                title="Refresh Data"
+                aria-label="Refresh Data"
+              >
                 <i className="fas fa-sync-alt text-xs"></i>
               </button>
             </div>
-            <Link href="/lapor" className="bg-primary text-white px-4 py-2 rounded-lg text-xs font-bold hover:bg-primaryHover transition-colors flex items-center gap-2 shadow-md shadow-primary/20 w-full md:w-auto justify-center">
-              <i className="fas fa-plus"></i> Buat Laporan Baru
+            <Link
+              href="/lapor"
+              className="bg-primary text-white px-4 py-2.5 rounded-xl text-xs font-bold hover:bg-primaryHover transition-all flex items-center gap-2 shadow-sm shadow-primary/20 w-full sm:w-auto justify-center active:scale-95"
+            >
+              <i className="fas fa-plus"></i>
+              <span>Buat Laporan Baru</span>
             </Link>
           </div>
 
           {/* Mobile View (Cards) */}
-          <div className="md:hidden space-y-4 p-4 bg-gray-50/50 flex-1">
+          <div className="md:hidden space-y-3.5 p-3.5 sm:p-4 bg-slate-50/50 flex-1">
             {loading && (
-              <div className="text-center text-gray-400 text-sm py-12 flex flex-col items-center gap-3">
-                <div className="loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-8 w-8"></div>
-                <span>Memuat data...</span>
+              <div className="text-center text-slate-400 text-sm py-16 flex flex-col items-center gap-3">
+                <div className="loader ease-linear rounded-full border-4 border-t-4 border-slate-200 h-8 w-8"></div>
+                <span className="text-xs font-medium">Memuat data laporan...</span>
               </div>
             )}
             {error && !loading && ErrorState}
@@ -193,36 +307,69 @@ export default function LaporanPage() {
                 const dateStr = formatDateWita(item.created_at);
                 const sc = scoreClass(item.final_score);
                 const statusColors = getStatusColors(item.status);
+                const cat = item.issue_class;
+                let catIcon = "fa-triangle-exclamation";
+                let catBg = "bg-rose-50 text-rose-600 border-rose-200";
+                if (cat === "jalan_bolong") {
+                  catIcon = "fa-road";
+                  catBg = "bg-rose-50 text-rose-600 border-rose-200";
+                } else if (cat === "sampah_liar") {
+                  catIcon = "fa-trash-can";
+                  catBg = "bg-amber-50 text-amber-700 border-amber-200";
+                } else if (cat === "genangan_air") {
+                  catIcon = "fa-water";
+                  catBg = "bg-sky-50 text-sky-600 border-sky-200";
+                } else if (cat === "kabel_semrawut") {
+                  catIcon = "fa-network-wired";
+                  catBg = "bg-slate-100 text-slate-700 border-slate-300";
+                }
+
                 return (
-                  <div key={item.id} className="bg-white p-4 rounded-xl border border-lightBorder shadow-sm flex flex-col gap-3 hover:shadow-md transition-all group">
-                    <div className="flex justify-between items-start">
-                      <div className="flex items-center gap-2">
+                  <div
+                    key={item.id}
+                    className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs flex flex-col gap-3 hover:shadow-md transition-all active:scale-[0.99]"
+                  >
+                    <div className="flex justify-between items-start gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <span className={`text-[10px] font-bold px-2.5 py-1 rounded-lg border ${sc} flex items-center gap-1`}>
-                          <i className="fas fa-tachometer-alt text-[9px]"></i> {item.final_score}
+                          <i className="fas fa-gauge-high text-[9px]"></i>
+                          <span>Skor {item.final_score}</span>
                         </span>
                         <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full border ${statusColors.bg} ${statusColors.text} ${statusColors.border} flex items-center gap-1`}>
-                          <i className={`fas ${statusColors.icon} text-[9px]`}></i> {item.status}
+                          <i className={`fas ${statusColors.icon} text-[9px]`}></i>
+                          <span>{item.status}</span>
                         </span>
                       </div>
-                      <div className="text-right">
-                        <div className="text-[10px] font-bold text-textDark">{timeStr}</div>
-                        <div className="text-[9px] text-textSecondary">{dateStr}</div>
+                      <div className="text-right shrink-0">
+                        <div className="text-[11px] font-bold text-slate-900">{timeStr}</div>
+                        <div className="text-[10px] text-slate-500">{dateStr}</div>
                       </div>
                     </div>
-                    <div className="py-1">
-                      <h4 className="font-bold text-textDark capitalize text-sm mb-1 flex items-center gap-2">
-                        {String(item.issue_class || "-").replace("_", " ")}
-                      </h4>
-                      <div className="flex items-center gap-1.5 text-xs text-textSecondary mt-1">
-                        <i className="fas fa-map-marker-alt text-primary/60 w-4 text-center"></i>
-                        <span className="truncate">
-                          {item.kecamatan || item.kabupaten
-                            || (item.latitude != null && item.longitude != null ? "Koordinat" : "Lokasi tidak tersedia")}
-                        </span>
+
+                    <div className="flex items-center gap-3">
+                      <div className={`w-10 h-10 rounded-xl border flex items-center justify-center shrink-0 ${catBg}`}>
+                        <i className={`fas ${catIcon} text-sm`}></i>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <h3 className="font-bold text-slate-900 capitalize text-sm truncate">
+                          {String(item.issue_class || "Laporan Kerusakan").replace(/_/g, " ")}
+                        </h3>
+                        <div className="flex items-center gap-1.5 text-xs text-slate-600 mt-0.5 truncate">
+                          <i className="fas fa-location-dot text-rose-500 text-[10px] shrink-0"></i>
+                          <span className="truncate">
+                            {item.kecamatan || item.kabupaten
+                              || (item.latitude != null && item.longitude != null ? `${Number(item.latitude).toFixed(4)}, ${Number(item.longitude).toFixed(4)}` : "Wilayah Bali")}
+                          </span>
+                        </div>
                       </div>
                     </div>
-                    <Link href={`/detail/${item.id}`} className="w-full mt-1 bg-white border border-lightBorder text-textDark hover:bg-primary hover:text-white hover:border-primary transition-all py-2.5 rounded-lg text-xs font-bold flex items-center justify-center gap-2 group-hover:border-primary/30">
-                      Lihat Detail <i className="fas fa-arrow-right group-hover:translate-x-1 transition-transform"></i>
+
+                    <Link
+                      href={`/detail/${item.id}`}
+                      className="w-full min-h-[44px] bg-slate-50 border border-slate-200 text-slate-800 hover:bg-slate-900 hover:text-white hover:border-slate-900 transition-all py-2.5 px-4 rounded-xl text-xs font-bold flex items-center justify-center gap-2 active:scale-95"
+                    >
+                      <span>Lihat Analisis AI PUPR</span>
+                      <i className="fas fa-arrow-right text-[10px]"></i>
                     </Link>
                   </div>
                 );
@@ -317,29 +464,31 @@ export default function LaporanPage() {
           </div>
 
           {/* Pagination */}
-          <div className="p-4 border-t border-lightBorder flex justify-between items-center bg-gray-50/30">
-            <span className="text-xs text-textSecondary">
+          <div className="p-3.5 sm:p-4 border-t border-slate-200 flex flex-col sm:flex-row justify-between items-center gap-3 bg-slate-50/60">
+            <span className="text-xs text-slate-500 font-medium text-center sm:text-left">
               {shown.length === 0
-                ? "Tidak ada data"
+                ? "Tidak ada data laporan"
                 : `Menampilkan ${(currentPage - 1) * PAGE_SIZE + 1}–${Math.min(currentPage * PAGE_SIZE, shown.length)} dari ${shown.length} laporan`}
             </span>
             <div className="flex items-center gap-2">
               <button
+                type="button"
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                 disabled={currentPage <= 1}
-                className="px-3 py-1 rounded-lg border border-lightBorder bg-white text-textSecondary text-xs hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="min-h-[40px] px-3.5 py-1.5 rounded-xl border border-slate-200 bg-white text-slate-700 text-xs font-bold hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 transition-all shadow-2xs"
               >
-                Previous
+                <i className="fas fa-chevron-left mr-1 text-[10px]"></i> Prev
               </button>
-              <span className="text-xs font-semibold text-textDark px-1">
+              <span className="text-xs font-bold text-slate-800 px-2 font-mono">
                 {currentPage} / {totalPages}
               </span>
               <button
+                type="button"
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                 disabled={currentPage >= totalPages}
-                className="px-3 py-1 rounded-lg border border-lightBorder bg-white text-textSecondary text-xs hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="min-h-[40px] px-3.5 py-1.5 rounded-xl border border-slate-200 bg-white text-slate-700 text-xs font-bold hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 transition-all shadow-2xs"
               >
-                Next
+                Next <i className="fas fa-chevron-right ml-1 text-[10px]"></i>
               </button>
             </div>
           </div>

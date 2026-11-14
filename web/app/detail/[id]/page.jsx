@@ -285,7 +285,16 @@ export default function DetailPage() {
       <style dangerouslySetInnerHTML={{ __html: PAGE_CSS }} />
       <NavbarApp active="/laporan" />
       {/*__REST__*/}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 p-4 md:p-8 lg:p-10">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 md:py-8 lg:py-10">
+        <div className="mb-4">
+          <a
+            href="/laporan"
+            className="inline-flex items-center gap-2 text-xs font-bold text-slate-700 hover:text-primary transition-colors py-2 px-3 rounded-xl bg-white border border-slate-200/90 shadow-2xs active:scale-95"
+          >
+            <i className="fas fa-arrow-left text-[10px]"></i>
+            <span>Kembali ke Daftar Laporan</span>
+          </a>
+        </div>
         {!data && (
           <div className="flex flex-col items-center justify-center min-h-[60vh] gap-8 animate-fade-in print:hidden">
             <div className="relative w-24 h-24">
@@ -468,11 +477,21 @@ export default function DetailPage() {
                   )}
                 </div>
                 <div className="mt-8 grid grid-cols-2 gap-3 print:hidden">
-                  <button onClick={shareReport} className="py-2.5 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-xs transition-colors flex items-center justify-center gap-2">
-                    <i className="fas fa-share-alt"></i> Bagikan Laporan
+                  <button
+                    type="button"
+                    onClick={shareReport}
+                    className="min-h-[44px] py-2.5 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-all flex items-center justify-center gap-2 active:scale-95"
+                  >
+                    <i className="fas fa-share-nodes text-xs"></i>
+                    <span>Bagikan Laporan</span>
                   </button>
-                  <button onClick={downloadImage} className="py-2.5 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-xs transition-colors flex items-center justify-center gap-2">
-                    <i className="fas fa-image"></i> Unduh Gambar
+                  <button
+                    type="button"
+                    onClick={downloadImage}
+                    className="min-h-[44px] py-2.5 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-all flex items-center justify-center gap-2 active:scale-95"
+                  >
+                    <i className="fas fa-download text-xs"></i>
+                    <span>Unduh Foto</span>
                   </button>
                 </div>
               </div>

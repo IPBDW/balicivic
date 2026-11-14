@@ -305,29 +305,39 @@ export default function LaporPage() {
   }
 
   return (
-    <div className="pb-24 md:pb-0">
+    <div className="min-h-screen bg-slate-50 flex flex-col pb-28 md:pb-12">
       <style dangerouslySetInnerHTML={{ __html: PAGE_CSS }} />
-      <NavbarApp active="/lapor" />
+      <NavbarApp active="/lapor" sublabel="Formulir Laporan Kerusakan" />
 
-      <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 p-4 md:p-8">
+      <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 md:py-8">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-10 items-start">
           <div className="lg:col-span-7 order-1 animate-slide-up">
-            <div className="mb-4 lg:mb-6 group cursor-default">
-              <h1 className="text-2xl font-bold text-textDark group-hover:text-primary transition-colors duration-300">
+            <div className="mb-4 lg:mb-6">
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-primary/10 text-primary text-[11px] font-bold mb-2">
+                <i className="fas fa-camera text-xs"></i>
+                <span>Pelaporan Jalan & Fasilitas Publik</span>
+              </div>
+              <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-950 tracking-tight">
                 Lapor Kerusakan
               </h1>
-              <p className="text-sm text-textSecondary mt-1 group-hover:text-textDark transition-colors duration-300">
-                Bantu pemerintah mendata infrastruktur via AI.
+              <p className="text-xs sm:text-sm text-slate-600 mt-1">
+                Ambil foto kerusakan jalan, genangan, atau sampah liar di Bali. AI akan menganalisis tingkat keparahannya secara otomatis.
               </p>
             </div>
 
-            <div className="bg-white rounded-2xl border border-lightBorder shadow-sm p-5 md:p-8 hover:shadow-2xl hover:-translate-y-1 hover:border-primary/30 transition-all duration-500 ease-out group">
-              <form onSubmit={onSubmit} className="space-y-6">
+            <div className="bg-white rounded-2xl border border-slate-200/90 shadow-sm p-4 sm:p-7 md:p-8 hover:border-slate-300 transition-all duration-300">
+              <form onSubmit={onSubmit} className="space-y-5 sm:space-y-6">
+                {/* 1. Upload Foto */}
                 <div className="space-y-2">
-                  <label className="text-sm font-bold text-textDark flex justify-between items-center">
-                    Foto Kondisi <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative w-full aspect-[4/3] bg-gray-50 rounded-xl border-2 border-dashed border-lightBorder hover:border-primary hover:bg-red-50/30 transition-all duration-300 overflow-hidden group cursor-pointer">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs sm:text-sm font-bold text-slate-900 flex items-center gap-1.5">
+                      <span className="w-5 h-5 rounded-full bg-slate-900 text-white flex items-center justify-center text-[10px] font-black">1</span>
+                      Foto Kondisi Kerusakan <span className="text-red-500">*</span>
+                    </label>
+                    <span className="text-[11px] font-semibold text-slate-500">Kamera / Galeri</span>
+                  </div>
+
+                  <div className="relative w-full aspect-[4/3] sm:aspect-[16/10] bg-slate-50 rounded-2xl border-2 border-dashed border-slate-300 hover:border-primary hover:bg-red-50/20 transition-all duration-300 overflow-hidden group cursor-pointer shadow-inner">
                     <input
                       ref={fileRef}
                       type="file"
@@ -336,152 +346,198 @@ export default function LaporPage() {
                       capture="environment"
                       required
                       onChange={previewFile}
+                      aria-label="Upload foto kerusakan"
                       className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
                     />
                     {!preview && (
-                      <div id="uploadPlaceholder" className="absolute inset-0 flex flex-col items-center justify-center text-center p-4">
-                        <div className="w-12 h-12 rounded-full bg-white shadow-sm flex items-center justify-center mb-2 text-primary group-hover:scale-110 transition-transform duration-300">
-                          <i className="fas fa-camera text-xl"></i>
+                      <div id="uploadPlaceholder" className="absolute inset-0 flex flex-col items-center justify-center text-center p-5 select-none">
+                        <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-white shadow-md border border-slate-200 flex items-center justify-center mb-3 text-primary group-hover:scale-105 transition-transform duration-300">
+                          <i className="fas fa-camera text-2xl sm:text-3xl"></i>
                         </div>
-                        <span className="text-sm font-medium text-gray-600">Ketuk untuk Foto</span>
-                        <span className="text-[10px] text-gray-400 mt-1">atau upload dari galeri</span>
+                        <span className="text-sm sm:text-base font-bold text-slate-800">
+                          Ketuk untuk Memotret Kerusakan
+                        </span>
+                        <span className="text-xs text-slate-500 mt-1 max-w-xs">
+                          Buka kamera smartphone atau pilih foto dari galeri
+                        </span>
+                        <span className="mt-3 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-[10px] font-bold">
+                          <i className="fas fa-sparkles text-[10px]"></i> Vision AI Siap Analisis
+                        </span>
                       </div>
                     )}
-                    {preview && <img src={preview} className="absolute inset-0 w-full h-full object-cover z-10" alt="Preview" />}
                     {preview && (
-                      <div className="absolute inset-0 bg-black/40 z-10 flex items-center justify-center">
-                        <span className="text-white text-xs font-bold border border-white px-3 py-1 rounded-full backdrop-blur-sm">Ganti Foto</span>
+                      <img
+                        src={preview}
+                        className="absolute inset-0 w-full h-full object-cover z-10"
+                        alt="Preview Foto Kerusakan"
+                      />
+                    )}
+                    {preview && (
+                      <div className="absolute inset-x-0 bottom-3 z-20 flex justify-center pointer-events-none">
+                        <span className="bg-slate-900/85 hover:bg-slate-900 text-white text-xs font-bold px-4 py-2 rounded-full backdrop-blur-md shadow-lg border border-white/20 flex items-center gap-2">
+                          <i className="fas fa-camera-rotate"></i> Ketuk untuk Ganti Foto
+                        </span>
                       </div>
                     )}
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <div className="flex justify-between items-end">
-                    <label htmlFor="input-lat" className="text-sm font-bold text-textDark">
-                      Lokasi Kerusakan <span className="text-[10px] font-semibold text-red-500">* (Wajib)</span>
+                {/* 2. Lokasi Kerusakan */}
+                <div className="space-y-3 pt-2 border-t border-slate-100">
+                  <div className="flex justify-between items-center flex-wrap gap-1">
+                    <label htmlFor="input-lat" className="text-xs sm:text-sm font-bold text-slate-900 flex items-center gap-1.5">
+                      <span className="w-5 h-5 rounded-full bg-slate-900 text-white flex items-center justify-center text-[10px] font-black">2</span>
+                      Lokasi Kerusakan <span className="text-red-500">*</span>
                     </label>
-                    <span className={gpsStatus.cls} id="gpsStatus" role="status" aria-live="polite">{gpsStatus.text}</span>
+                    <span className={gpsStatus.cls} id="gpsStatus" role="status" aria-live="polite">
+                      {gpsStatus.text}
+                    </span>
                   </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <input
-                      id="input-lat"
-                      type="number"
-                      step="any"
-                      name="lat"
-                      required
-                      value={lat}
-                      onChange={(e) => setLat(e.target.value)}
-                      placeholder="Latitude"
-                      aria-label="Latitude"
-                      className="bg-gray-50 border border-lightBorder rounded-lg px-3 py-3 text-xs font-mono focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none"
-                    />
-                    <input
-                      id="input-long"
-                      type="number"
-                      step="any"
-                      name="long"
-                      required
-                      value={lng}
-                      onChange={(e) => setLng(e.target.value)}
-                      placeholder="Longitude"
-                      aria-label="Longitude"
-                      className="bg-gray-50 border border-lightBorder rounded-lg px-3 py-3 text-xs font-mono focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none"
-                    />
-                  </div>
-                  <p className="text-[10px] text-textSecondary">
-                    Contoh: -8.5069 / 115.2625. Klik tombol di bawah untuk mengisi otomatis via GPS.
-                  </p>
+
+                  {/* Tombol Deteksi GPS Mobile-first */}
                   <button
                     type="button"
                     onClick={getLocation}
-                    className="relative overflow-hidden w-full py-3 rounded-xl bg-accentGreen/10 text-accentGreen text-xs font-bold hover:bg-accentGreen hover:text-white hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 ease-out flex items-center justify-center gap-2 active:scale-95 group"
+                    className="relative overflow-hidden w-full min-h-[48px] py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-bold shadow-md shadow-emerald-600/20 hover:shadow-lg transition-all duration-200 flex items-center justify-center gap-2 active:scale-95 group"
                   >
-                    <div className="absolute inset-0 -translate-x-full group-hover:animate-shine bg-gradient-to-r from-transparent via-white/30 to-transparent z-0"></div>
-                    <span className="relative z-10 flex items-center gap-2">
-                      <i className="fas fa-crosshairs group-hover:rotate-45 transition-transform duration-500 ease-out"></i>
-                      Deteksi Lokasi Saya
-                    </span>
+                    <i className="fas fa-crosshairs text-base group-hover:rotate-45 transition-transform duration-300"></i>
+                    <span>Deteksi Lokasi GPS Otomatis</span>
                   </button>
+
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <div>
+                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Latitude</span>
+                      <input
+                        id="input-lat"
+                        type="number"
+                        inputMode="decimal"
+                        step="any"
+                        name="lat"
+                        required
+                        value={lat}
+                        onChange={(e) => setLat(e.target.value)}
+                        placeholder="Contoh: -8.6705"
+                        aria-label="Latitude"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 sm:py-3 text-xs sm:text-sm font-mono text-slate-900 focus:bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none"
+                      />
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Longitude</span>
+                      <input
+                        id="input-long"
+                        type="number"
+                        inputMode="decimal"
+                        step="any"
+                        name="long"
+                        required
+                        value={lng}
+                        onChange={(e) => setLng(e.target.value)}
+                        placeholder="Contoh: 115.2120"
+                        aria-label="Longitude"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 sm:py-3 text-xs sm:text-sm font-mono text-slate-900 focus:bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none"
+                      />
+                    </div>
+                  </div>
+                  <p className="text-[11px] text-slate-500 leading-relaxed">
+                    Sistem membatasi laporan khusus di dalam wilayah 8 Kabupaten & 1 Kota di Provinsi Bali.
+                  </p>
                 </div>
 
                 {formError && (
-                  <div role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700 leading-relaxed">
-                    <i className="fas fa-circle-exclamation mr-1.5"></i>
-                    {formError}
+                  <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3.5 text-xs text-red-700 leading-relaxed flex items-start gap-2.5">
+                    <i className="fas fa-circle-exclamation text-red-500 text-sm mt-0.5 shrink-0"></i>
+                    <span>{formError}</span>
                   </div>
                 )}
 
-                <button
-                  type="submit"
-                  className="w-full bg-primary text-white rounded-xl py-4 text-sm font-bold shadow-lg shadow-primary/20 hover:bg-primaryHover hover:-translate-y-1 hover:shadow-2xl hover:shadow-primary/40 transition-all duration-300 ease-out flex justify-center items-center gap-2 active:scale-95 group"
-                >
-                  <span>Analisis Sekarang</span>
-                  <i className="fas fa-arrow-right group-hover:translate-x-1 transition-transform duration-300 ease-out"></i>
-                </button>
+                {/* 3. Tombol Kirim */}
+                <div className="pt-2">
+                  <button
+                    type="submit"
+                    className="w-full min-h-[50px] bg-primary text-white rounded-xl py-3.5 sm:py-4 px-6 text-sm sm:text-base font-bold shadow-lg shadow-primary/25 hover:bg-primaryHover hover:shadow-xl transition-all duration-200 flex justify-center items-center gap-2.5 active:scale-95 group"
+                  >
+                    <i className="fas fa-brain text-white/80 group-hover:scale-110 transition-transform"></i>
+                    <span>Kirim & Analisis AI Sekarang</span>
+                    <i className="fas fa-arrow-right text-xs group-hover:translate-x-1 transition-transform"></i>
+                  </button>
+                  <p className="text-center text-[11px] text-slate-400 mt-2">
+                    Data foto langsung dianalisis di server tanpa menyimpan metadata pribadi EXIF.
+                  </p>
+                </div>
               </form>
             </div>
           </div>
 
-          <div className="lg:col-span-5 order-2 space-y-6 animate-slide-up" style={{ animationDelay: "0.1s" }}>
-            <div className="bg-blue-50 rounded-2xl p-6 border border-blue-100 hover:shadow-xl hover:-translate-y-1 transition-all duration-500 ease-out group">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 rounded-full bg-white text-blue-600 flex items-center justify-center shadow-sm text-lg">
-                  <i className="fas fa-robot"></i>
+          <div className="lg:col-span-5 order-2 space-y-5 animate-slide-up">
+            {/* Panduan Akurasi AI */}
+            <div className="bg-sky-50/80 rounded-2xl p-5 border border-sky-100 shadow-2xs">
+              <div className="flex items-center gap-3 mb-3.5">
+                <div className="w-9 h-9 rounded-xl bg-sky-600 text-white flex items-center justify-center shadow-xs text-sm">
+                  <i className="fas fa-lightbulb"></i>
                 </div>
                 <div>
-                  <h3 className="font-bold text-blue-900 text-sm group-hover:text-blue-700 transition-colors duration-300">
-                    Panduan Akurasi AI
+                  <h3 className="font-bold text-sky-950 text-sm">
+                    Tips Foto Akurat
                   </h3>
-                  <p className="text-[10px] text-blue-700 group-hover:text-blue-900 transition-colors duration-300">
-                    Ikuti tips ini agar laporan valid.
+                  <p className="text-[11px] text-sky-800">
+                    Membantu model mendeteksi ukuran & kedalaman
                   </p>
                 </div>
               </div>
-              <div className="space-y-3">
+              <div className="space-y-2.5">
                 {TIPS.map((tip) => (
-                  <div key={tip.t} className="flex items-start gap-3 bg-white p-3 rounded-xl border border-blue-100/50 hover:bg-blue-100/50 transition-colors cursor-default group">
-                    <i className={`${tip.icon} mt-0.5 group-hover:scale-110 transition-transform`}></i>
+                  <div key={tip.t} className="flex items-start gap-3 bg-white/90 p-3 rounded-xl border border-sky-100/80">
+                    <i className={`${tip.icon} mt-0.5 text-xs`}></i>
                     <div>
-                      <strong className="block text-xs text-gray-800">{tip.t}</strong>
-                      <p className="text-[10px] text-gray-500">{tip.d}</p>
+                      <strong className="block text-xs text-slate-800">{tip.t}</strong>
+                      <p className="text-[11px] text-slate-500 leading-relaxed">{tip.d}</p>
                     </div>
                   </div>
                 ))}
               </div>
             </div>
 
-            <div className="bg-white rounded-2xl border border-lightBorder p-5 shadow-sm overflow-hidden relative hover:shadow-xl hover:-translate-y-1 transition-all duration-500 ease-out group">
-              <div className="absolute top-0 left-0 w-1 h-full bg-accentGreen"></div>
-              <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2 group-hover:text-accentGreen transition-colors duration-300">
-                <span className="w-2 h-2 rounded-full bg-accentGreen animate-pulse"></span>
-                Aktivitas Warga
-              </h3>
-              <div id="liveActivityList" className="space-y-4 opacity-70">
-                {activity.length === 0 && <p className="text-xs text-gray-400 animate-pulse">Memuat aktivitas...</p>}
+            {/* Aktivitas Warga Terkini */}
+            <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-2xs">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                  Laporan Warga Terkini
+                </h3>
+                <span className="text-[10px] text-slate-400 font-mono">Live WITA</span>
+              </div>
+              <div id="liveActivityList" className="space-y-3">
+                {activity.length === 0 && (
+                  <p className="text-xs text-slate-400 py-2">Memuat aktivitas terbaru...</p>
+                )}
                 {activity.map((item, i) => {
                   const timeStr = formatTimeWita(item.created_at);
-                  let colorClass = "text-gray-600";
+                  let badgeCls = "bg-slate-100 text-slate-700 border-slate-200";
                   const cat = item.issue_class;
-                  // Kunci kelas dari backend: jalan_bolong, sampah_liar, genangan_air, kabel_semrawut.
-                  if (cat === "jalan_bolong") colorClass = "text-red-500";
-                  else if (cat === "sampah_liar") colorClass = "text-amber-500";
-                  else if (cat === "genangan_air") colorClass = "text-accentGreen";
-                  else if (cat === "kabel_semrawut") colorClass = "text-slate-600";
+                  if (cat === "jalan_bolong") badgeCls = "bg-rose-50 text-rose-700 border-rose-200";
+                  else if (cat === "sampah_liar") badgeCls = "bg-amber-50 text-amber-800 border-amber-200";
+                  else if (cat === "genangan_air") badgeCls = "bg-sky-50 text-sky-700 border-sky-200";
+                  else if (cat === "kabel_semrawut") badgeCls = "bg-slate-100 text-slate-700 border-slate-300";
+
                   return (
-                    <div key={i} className="flex items-center gap-3 text-xs hover:translate-x-1 transition-transform duration-300 cursor-default">
-                      <span className="text-gray-400">{timeStr}</span>
-                      <span className="font-medium text-textDark">
-                        Laporan <span className={`${colorClass} font-bold capitalize`}>{String(cat || "").replace(/_/g, " ").toLowerCase()}</span> di {item.kecamatan || "Lokasi"}.
-                      </span>
+                    <div key={i} className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-slate-50/80 border border-slate-100 text-xs">
+                      <div className="min-w-0">
+                        <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold border capitalize mr-2 ${badgeCls}`}>
+                          {String(cat || "Laporan").replace(/_/g, " ")}
+                        </span>
+                        <span className="font-semibold text-slate-800 truncate">
+                          {item.kecamatan || item.kabupaten || "Bali"}
+                        </span>
+                      </div>
+                      <span className="text-[10px] font-mono text-slate-400 shrink-0">{timeStr}</span>
                     </div>
                   );
                 })}
               </div>
             </div>
 
-            <div className="text-center text-[10px] text-gray-400 pt-4">
-              &copy; 2026 BaliCivic AI Project. <br /> Powered by YOLO11 & Gemini Flash.
+            <div className="text-center text-[11px] text-slate-400 pt-1">
+              BaliCivic AI · Pemantauan Infrastruktur Publik Provinsi Bali
             </div>
           </div>
         </div>
@@ -492,9 +548,9 @@ export default function LaporPage() {
         role="dialog"
         aria-modal="true"
         aria-labelledby="modal-title"
-        className={`fixed inset-0 z-[100] ${modal.show ? "flex" : "hidden"} items-center justify-center bg-black/60 backdrop-blur-sm transition-opacity duration-300 ${modal.show ? "opacity-100" : "opacity-0"}`}
+        className={`fixed inset-0 z-[100] ${modal.show ? "flex" : "hidden"} items-center justify-center p-4 bg-black/60 backdrop-blur-sm transition-opacity duration-300 ${modal.show ? "opacity-100" : "opacity-0"}`}
       >
-        <div className="bg-white rounded-2xl shadow-2xl p-6 sm:p-8 max-w-sm w-full mx-4 text-center transform transition-all duration-300 border border-slate-100">
+        <div className="bg-white rounded-2xl shadow-2xl p-6 sm:p-8 max-w-sm w-full mx-auto text-center transform transition-all duration-300 border border-slate-100 max-h-[90vh] overflow-y-auto">
           {modal.stage === "uploading" || modal.stage === "analyzing" ? (
             <div className="flex flex-col items-center">
               <div className="relative mb-5 w-16 h-16 flex items-center justify-center">
