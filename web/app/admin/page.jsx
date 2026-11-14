@@ -29,6 +29,21 @@ function AdminContent() {
   const [toast, setToast] = useState(null);
   const [pdfVisible, setPdfVisible] = useState(false);
   const [actionBusy, setActionBusy] = useState(false);
+  const [aspectMode, setAspectMode] = useState("landscape");
+
+  function handleImageLoad(e) {
+    const nw = e.target?.naturalWidth;
+    const nh = e.target?.naturalHeight;
+    if (!nw || !nh) return;
+    const ratio = nw / nh;
+    if (ratio >= 1.2) {
+      setAspectMode("landscape");
+    } else if (ratio <= 0.85) {
+      setAspectMode("portrait");
+    } else {
+      setAspectMode("square");
+    }
+  }
 
   useEffect(() => {
     if (!token || !id) return;
@@ -347,20 +362,21 @@ function AdminContent() {
             <div className="grid lg:grid-cols-12 gap-4">
               <div className="lg:col-span-7 space-y-4">
                 <div className="bg-white rounded-xl border overflow-hidden">
-                  <div className="relative w-full h-[340px] sm:h-[400px] bg-slate-950 flex items-center justify-center overflow-hidden p-2">
-                    {imgSrc && (
-                      <img
-                        src={imgSrc}
-                        alt=""
-                        aria-hidden="true"
-                        className="absolute inset-0 w-full h-full object-cover filter blur-2xl scale-125 opacity-25 pointer-events-none select-none"
-                      />
-                    )}
+                  <div
+                    className={`relative w-full ${
+                      aspectMode === "portrait"
+                        ? "aspect-[3/4] sm:aspect-[4/5] max-h-[540px]"
+                        : aspectMode === "square"
+                        ? "aspect-square max-h-[480px]"
+                        : "aspect-video max-h-[420px]"
+                    } bg-slate-100 flex items-center justify-center overflow-hidden transition-all duration-300`}
+                  >
                     {imgSrc && (
                       <img
                         src={imgSrc}
                         alt="Bukti"
-                        className="relative z-10 max-w-full max-h-full w-auto h-auto object-contain rounded-lg shadow-md"
+                        onLoad={handleImageLoad}
+                        className="w-full h-full object-cover"
                       />
                     )}
                     <div className="absolute top-2 left-2 z-20 px-2.5 py-1 bg-black/60 backdrop-blur-sm rounded text-white text-xs font-mono">

@@ -29,6 +29,7 @@ export default function DetailPage() {
   const mapRef = useRef(null);
   const [imgLoading, setImgLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
+  const [aspectMode, setAspectMode] = useState("landscape"); // "landscape" | "portrait" | "square"
   const [data, setData] = useState(null);
   const [bar, setBar] = useState({ cls: "h-full w-0 transition-all duration-1000 ease-out rounded-full relative overflow-hidden bg-slate-300", width: "0%" });
   const [scoreUi, setScoreUi] = useState({ val: "0", cls: "text-5xl font-display font-bold text-slate-800" });
@@ -225,6 +226,21 @@ export default function DetailPage() {
     }
   }
 
+  function handleImageLoad(e) {
+    setImgLoading(false);
+    const nw = e.target?.naturalWidth;
+    const nh = e.target?.naturalHeight;
+    if (!nw || !nh) return;
+    const ratio = nw / nh;
+    if (ratio >= 1.2) {
+      setAspectMode("landscape");
+    } else if (ratio <= 0.85) {
+      setAspectMode("portrait");
+    } else {
+      setAspectMode("square");
+    }
+  }
+
   const shortId = data?.id != null ? String(data.id).substring(0, 8) : "...";
   const timeText = data?.created_at
     ? formatDateLongWita(data.created_at) + " • " + formatTimeWitaLabel(data.created_at)
@@ -292,30 +308,27 @@ export default function DetailPage() {
             <div className="lg:col-span-7 space-y-6">
               <div className="glass-panel rounded-3xl p-2 shadow-glass overflow-hidden group relative">
                 <div
-                  className="relative w-full h-[360px] sm:h-[420px] lg:h-[450px] bg-slate-950 rounded-2xl overflow-hidden cursor-zoom-in flex items-center justify-center p-2"
+                  className={`relative w-full ${
+                    aspectMode === "portrait"
+                      ? "aspect-[3/4] sm:aspect-[4/5] max-h-[580px]"
+                      : aspectMode === "square"
+                      ? "aspect-square max-h-[500px]"
+                      : "aspect-video max-h-[460px]"
+                  } bg-slate-100 rounded-2xl overflow-hidden cursor-zoom-in transition-all duration-300`}
                   onClick={() => setModalOpen(true)}
                   title="Klik untuk membuka tampilan resolusi penuh"
                 >
                   {imgLoading && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-slate-100 z-20">
+                    <div className="absolute inset-0 flex items-center justify-center bg-slate-100 z-10">
                       <i className="fas fa-image text-slate-300 text-3xl"></i>
                     </div>
-                  )}
-                  {/* Ambient blurred backdrop agar seluruh proporsi (vertikal/horizontal/persegi) terisi elegan tanpa crop */}
-                  {imgSrc && (
-                    <img
-                      src={imgSrc}
-                      alt=""
-                      aria-hidden="true"
-                      className="absolute inset-0 w-full h-full object-cover filter blur-2xl scale-125 opacity-25 pointer-events-none select-none"
-                    />
                   )}
                   {imgSrc ? (
                     <img
                       src={imgSrc}
                       alt="Bukti Laporan"
-                      onLoad={() => setImgLoading(false)}
-                      className="relative z-10 max-w-full max-h-full w-auto h-auto object-contain rounded-lg shadow-md transition-transform duration-300 group-hover:scale-[1.01]"
+                      onLoad={handleImageLoad}
+                      className="w-full h-full object-cover rounded-2xl transition-transform duration-500 group-hover:scale-[1.02]"
                     />
                   ) : (
                     <div className="absolute inset-0 flex items-center justify-center bg-slate-100">
@@ -323,7 +336,7 @@ export default function DetailPage() {
                     </div>
                   )}
                   <div className="absolute top-4 left-4 z-20 flex gap-2">
-                    <span className="bg-black/60 backdrop-blur-md text-white text-[10px] font-bold px-3 py-1.5 rounded-full border border-white/10 flex items-center gap-1.5 shadow-lg">
+                    <span className="bg-black/50 backdrop-blur-md text-white text-[10px] font-bold px-3 py-1.5 rounded-full border border-white/10 flex items-center gap-1.5 shadow-lg">
                       <i className="fas fa-eye text-emerald-400"></i> YOLOv11 Vision
                     </span>
                   </div>
@@ -334,16 +347,19 @@ export default function DetailPage() {
                         e.stopPropagation();
                         setModalOpen(true);
                       }}
-                      className="bg-black/60 hover:bg-black/80 backdrop-blur-md text-white text-[10px] font-bold px-3 py-1.5 rounded-full border border-white/10 flex items-center gap-1.5 shadow-lg transition-all active:scale-95"
+                      className="bg-black/50 hover:bg-black/70 backdrop-blur-md text-white text-[10px] font-bold px-3 py-1.5 rounded-full border border-white/10 flex items-center gap-1.5 shadow-lg transition-all active:scale-95"
                     >
                       <i className="fas fa-expand text-slate-300"></i> Resolusi Penuh
                     </button>
                   </div>
-                  <div className="absolute bottom-3 left-3 right-3 z-20 flex justify-between items-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
-                    <span className="bg-black/75 backdrop-blur-md text-white text-[11px] font-medium px-3.5 py-1.5 rounded-full border border-white/10 shadow-lg flex items-center gap-1.5">
-                      <i className="fas fa-magnifying-glass-plus text-amber-400"></i>
-                      Klik gambar untuk memperbesar resolusi penuh
-                    </span>
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-6 pointer-events-none z-10">
+                    <div className="transform translate-y-2 group-hover:translate-y-0 transition-transform duration-300">
+                      <p className="text-white font-display font-bold text-base">Bukti Visual Terverifikasi</p>
+                      <p className="text-slate-200 text-xs mt-0.5 flex items-center gap-1.5">
+                        <i className="fas fa-magnifying-glass-plus text-amber-400"></i>
+                        Klik gambar untuk melihat resolusi penuh
+                      </p>
+                    </div>
                   </div>
                 </div>
               </div>
