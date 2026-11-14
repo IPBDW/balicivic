@@ -29,25 +29,46 @@ const TIPS = [
   { icon: "fas fa-ban text-red-500", t: "Hindari Blur", d: "Pegang HP stabil saat memotret." },
 ];
 
+function formatIssueCategory(cat) {
+  if (!cat) return "-";
+  if (cat === "jalan_bolong") return "Jalan Bolong";
+  if (cat === "sampah_liar") return "Sampah Liar";
+  if (cat === "genangan_air") return "Genangan Air";
+  if (cat === "kabel_semrawut") return "Kabel Semrawut";
+  if (cat === "aman") return "Kondisi Aman";
+  return String(cat).replace(/_/g, " ");
+}
+
 export default function LaporPage() {
   const router = useRouter();
   const fileRef = useRef(null);
+  const isMountedRef = useRef(true);
+  const timerRef = useRef(null);
   const [preview, setPreview] = useState(null);
   const [gpsStatus, setGpsStatus] = useState({ text: "GPS Inactive", cls: "text-[10px] text-gray-400" });
   const [lat, setLat] = useState("");
   const [lng, setLng] = useState("");
-  const [modal, setModal] = useState({ show: false, success: false, countdown: 3 });
+  const [modal, setModal] = useState({
+    show: false,
+    stage: "idle",
+    message: "",
+    submessage: "",
+    countdown: 2,
+    issueId: null,
+    issueData: null,
+  });
   const [activity, setActivity] = useState([]);
   const [formError, setFormError] = useState(null);
   const [allowNoLocation, setAllowNoLocation] = useState(false);
 
   useEffect(() => {
+    isMountedRef.current = true;
     async function fetchLiveActivity() {
       try {
         const res = await fetch(`${API_BASE}/api/issues?limit=3`);
         if (!res.ok) return;
         const data = await res.json();
-        setActivity(data.slice(0, 3));
+        if (isMountedRef.current) setActivity(data.slice(0, 3));
       } catch (error) {
         console.error("Gagal load aktivitas:", error);
       }
@@ -58,7 +79,11 @@ export default function LaporPage() {
     // Sengaja TIDAK memanggil getLocation() otomatis: permintaan izin lokasi
     // yang muncul sendiri saat halaman dibuka itu mengganggu, dan di beberapa
     // browser memblokir UI. Pengguna menekan tombol kalau memang mau.
-    return () => clearInterval(interval);
+    return () => {
+      isMountedRef.current = false;
+      if (timerRef.current) clearInterval(timerRef.current);
+      clearInterval(interval);
+    };
   }, []);
 
   function previewFile(e) {
@@ -114,6 +139,13 @@ export default function LaporPage() {
     );
   }
 
+  function goToDetailNow() {
+    if (timerRef.current) clearInterval(timerRef.current);
+    if (modal.issueId) {
+      router.push(`/detail/${modal.issueId}`);
+    }
+  }
+
   async function onSubmit(e) {
     e.preventDefault();
     setFormError(null);
@@ -145,13 +177,22 @@ export default function LaporPage() {
       }
     }
 
-    setModal({ show: true, success: false, countdown: 3 });
+    setModal({
+      show: true,
+      stage: "uploading",
+      message: "Mengunggah Laporan...",
+      submessage: "Mengirim berkas foto dan data koordinat...",
+      countdown: 2,
+      issueId: null,
+      issueData: null,
+    });
 
     const formData = new FormData();
     formData.append("file", fileRef.current.files[0]);
     formData.append("lat", hasCoords ? lat : "0");
     formData.append("long", hasCoords ? lng : "0");
 
+    let issueId = null;
     try {
       const response = await fetch(`${API_BASE}/api/analyze`, { method: "POST", body: formData });
       if (!response.ok) {
@@ -165,22 +206,99 @@ export default function LaporPage() {
         throw new Error(errorData.detail || "Server Error");
       }
       const data = await response.json();
+      issueId = data.id;
 
-      setModal((m) => ({ ...m, success: true }));
-      // Countdown lalu redirect ke halaman detail laporannya sendiri
-      let timeLeft = 2;
-      const interval = setInterval(() => {
+      if (!isMountedRef.current) return;
+
+      setModal((m) => ({
+        ...m,
+        stage: "analyzing",
+        issueId,
+        message: "Menganalisis Kerusakan dengan AI...",
+        submessage: "Model YOLO sedang mendeteksi kerusakan pada foto...",
+      }));
+
+      // Polling backend hingga status AI selesai (issue_class bukan 'processing' lagi)
+      let pollCount = 0;
+      const maxPolls = 25; // ~25 detik batas tunggu
+      let finalIssue = null;
+
+      while (pollCount < maxPolls) {
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        if (!isMountedRef.current) return;
+        pollCount++;
+
+        try {
+          const checkRes = await fetch(`${API_BASE}/api/issues/${issueId}`);
+          if (checkRes.ok) {
+            const checkData = await checkRes.json();
+            if (checkData.issue_class && checkData.issue_class !== "processing") {
+              finalIssue = checkData;
+              break;
+            }
+            if (checkData.status === "ERROR") {
+              finalIssue = checkData;
+              break;
+            }
+          }
+        } catch (err) {
+          console.warn("Polling warning:", err);
+        }
+
+        if (pollCount === 4) {
+          setModal((m) => ({
+            ...m,
+            submessage: "Menghitung tingkat keparahan & menyusun deskripsi...",
+          }));
+        } else if (pollCount === 8) {
+          setModal((m) => ({
+            ...m,
+            submessage: "Memfinalisasi laporan teknis...",
+          }));
+        }
+      }
+
+      if (!isMountedRef.current) return;
+
+      const isCompleted = finalIssue && finalIssue.issue_class !== "processing";
+      if (isCompleted) {
+        setModal({
+          show: true,
+          stage: "success",
+          message: "Analisis Selesai!",
+          submessage: "Laporan berhasil dianalisis oleh AI.",
+          countdown: 2,
+          issueId,
+          issueData: finalIssue,
+        });
+      } else {
+        // Fallback jika timeout / error: biarkan halaman detail melanjutkan polling live
+        setModal({
+          show: true,
+          stage: "fallback",
+          message: "Laporan Tersimpan!",
+          submessage: "AI masih menganalisis di latar belakang. Mengalihkan ke detail laporan...",
+          countdown: 1,
+          issueId,
+          issueData: null,
+        });
+      }
+
+      let timeLeft = isCompleted ? 2 : 1;
+      if (timerRef.current) clearInterval(timerRef.current);
+      timerRef.current = setInterval(() => {
+        if (!isMountedRef.current) return;
         timeLeft--;
-        setModal((m) => ({ ...m, countdown: timeLeft }));
+        setModal((m) => ({ ...m, countdown: Math.max(0, timeLeft) }));
         if (timeLeft <= 0) {
-          clearInterval(interval);
-          router.push(`/detail/${data.id}`);
+          clearInterval(timerRef.current);
+          router.push(`/detail/${issueId}`);
         }
       }, 1000);
     } catch (error) {
       console.error("Upload Error:", error);
       setFormError("Gagal mengirim laporan: " + error.message);
-      setModal({ show: false, success: false, countdown: 3 });
+      setModal({ show: false, stage: "idle", message: "", submessage: "", countdown: 2, issueId: null, issueData: null });
     }
   }
 
@@ -377,26 +495,112 @@ export default function LaporPage() {
         </div>
       </main>
 
-      {/* Modal */}
-      <div className={`fixed inset-0 z-[100] ${modal.show ? "flex" : "hidden"} items-center justify-center bg-black/50 backdrop-blur-sm transition-opacity duration-300 ${modal.show ? "opacity-100" : "opacity-0"}`}>
-        <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full mx-4 text-center transform scale-95 transition-transform duration-300">
-          {!modal.success ? (
+      {/* Modal Status Analisis AI */}
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="modal-title"
+        className={`fixed inset-0 z-[100] ${modal.show ? "flex" : "hidden"} items-center justify-center bg-black/60 backdrop-blur-sm transition-opacity duration-300 ${modal.show ? "opacity-100" : "opacity-0"}`}
+      >
+        <div className="bg-white rounded-2xl shadow-2xl p-6 sm:p-8 max-w-sm w-full mx-4 text-center transform transition-all duration-300 border border-slate-100">
+          {modal.stage === "uploading" || modal.stage === "analyzing" ? (
             <div className="flex flex-col items-center">
-              <div className="loader mb-4 w-12 h-12 border-4 border-t-primary border-gray-200 rounded-full animate-spin"></div>
-              <h3 className="text-lg font-bold text-textDark mb-1">Menganalisis Laporan...</h3>
-              <p className="text-xs text-textSecondary">Mohon tunggu sebentar.</p>
+              <div className="relative mb-5 w-16 h-16 flex items-center justify-center">
+                <div className="absolute inset-0 rounded-full border-4 border-slate-100"></div>
+                <div className="absolute inset-0 rounded-full border-4 border-t-primary border-r-transparent border-b-transparent border-l-transparent animate-spin"></div>
+                <i className={`fas ${modal.stage === "uploading" ? "fa-cloud-arrow-up" : "fa-robot"} text-primary text-xl animate-pulse`}></i>
+              </div>
+              <h3 id="modal-title" className="text-lg font-bold text-textDark mb-1.5">
+                {modal.message}
+              </h3>
+              <p className="text-xs text-textSecondary leading-relaxed min-h-[32px] px-2">
+                {modal.submessage}
+              </p>
+
+              {/* Step indicator */}
+              <div className="w-full mt-5 pt-4 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
+                <div className="flex items-center gap-1.5">
+                  <span className={`w-2 h-2 rounded-full ${modal.stage === "uploading" ? "bg-primary animate-ping" : "bg-emerald-500"}`}></span>
+                  <span className={modal.stage === "uploading" ? "font-bold text-textDark" : "text-slate-400"}>Kirim Foto</span>
+                </div>
+                <i className="fas fa-chevron-right text-[9px] text-slate-300"></i>
+                <div className="flex items-center gap-1.5">
+                  <span className={`w-2 h-2 rounded-full ${modal.stage === "analyzing" ? "bg-primary animate-ping" : "bg-slate-300"}`}></span>
+                  <span className={modal.stage === "analyzing" ? "font-bold text-textDark" : "text-slate-400"}>Deteksi AI</span>
+                </div>
+                <i className="fas fa-chevron-right text-[9px] text-slate-300"></i>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-slate-200"></span>
+                  <span className="text-slate-400">Selesai</span>
+                </div>
+              </div>
+            </div>
+          ) : modal.stage === "success" ? (
+            <div className="flex flex-col items-center">
+              <div className="w-14 h-14 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mb-3 text-2xl shadow-sm">
+                <i className="fas fa-check"></i>
+              </div>
+              <h3 id="modal-title" className="text-xl font-bold text-textDark mb-1">
+                {modal.message}
+              </h3>
+              <p className="text-xs text-textSecondary mb-4">
+                {modal.submessage}
+              </p>
+
+              {modal.issueData && (
+                <div className="bg-slate-50 rounded-xl p-3 w-full mb-4 border border-slate-100 text-left">
+                  <div className="flex items-center justify-between text-xs mb-1.5">
+                    <span className="text-slate-500">Kategori:</span>
+                    <span className="font-bold text-textDark capitalize">
+                      {formatIssueCategory(modal.issueData.issue_class)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-slate-500">Tingkat Keparahan:</span>
+                    <span className="font-bold text-primary">
+                      {modal.issueData.issue_class === "aman"
+                        ? "Aman (0/100)"
+                        : `${modal.issueData.final_score ?? 0}/100 • ${modal.issueData.severity_label || "SEDANG"}`}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              <div className="bg-slate-50 rounded-lg p-3 w-full mb-3 border border-slate-100">
+                <p className="text-xs text-slate-500 mb-1">Mengalihkan ke Detail Laporan dalam</p>
+                <div className="text-2xl font-bold text-primary" id="countdownTimer">{modal.countdown}</div>
+              </div>
+
+              <button
+                type="button"
+                onClick={goToDetailNow}
+                className="w-full py-2.5 px-4 bg-primary text-white rounded-xl text-xs font-bold hover:bg-primaryHover transition-colors shadow-sm"
+              >
+                Buka Detail Sekarang
+              </button>
             </div>
           ) : (
             <div className="flex flex-col items-center">
-              <div className="w-16 h-16 bg-green-100 text-green-500 rounded-full flex items-center justify-center mb-4 text-3xl animate-bounce">
-                <i className="fas fa-check"></i>
+              <div className="w-14 h-14 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mb-3 text-2xl">
+                <i className="fas fa-info"></i>
               </div>
-              <h3 className="text-xl font-bold text-textDark mb-2">Laporan Berhasil!</h3>
-              <p className="text-sm text-textSecondary mb-6">Laporan anda telah tersimpan dan dianalisis oleh AI.</p>
-              <div className="bg-gray-50 rounded-lg p-3 w-full mb-4 border border-gray-100">
-                <p className="text-xs text-gray-500 mb-1">Mengalihkan ke Detail Laporan dalam</p>
+              <h3 id="modal-title" className="text-lg font-bold text-textDark mb-1">
+                {modal.message || "Laporan Tersimpan"}
+              </h3>
+              <p className="text-xs text-textSecondary mb-4 leading-relaxed">
+                {modal.submessage || "Mengalihkan ke halaman detail laporan..."}
+              </p>
+              <div className="bg-slate-50 rounded-lg p-3 w-full mb-3 border border-slate-100">
+                <p className="text-xs text-slate-500 mb-1">Mengalihkan dalam</p>
                 <div className="text-2xl font-bold text-primary" id="countdownTimer">{modal.countdown}</div>
               </div>
+              <button
+                type="button"
+                onClick={goToDetailNow}
+                className="w-full py-2.5 px-4 bg-primary text-white rounded-xl text-xs font-bold hover:bg-primaryHover transition-colors shadow-sm"
+              >
+                Buka Detail Sekarang
+              </button>
             </div>
           )}
         </div>

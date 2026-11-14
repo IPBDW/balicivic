@@ -49,10 +49,26 @@ export default function DetailPage() {
     function applyData(d) {
       setData(d);
 
+      const badge = d.status || "UNKNOWN";
+      // Selesai analisis ditandai issue_class bukan "processing" lagi
+      const isAnalyzing = d.issue_class === "processing" || badge === "processing";
+      const noFinding = !isAnalyzing && (d.issue_class === "aman" || d.issue_class === "unknown");
+      const needsReview = !isAnalyzing && d.meta_data?.needs_review === true;
       const score = typeof d.final_score === "number" ? d.final_score : 0;
-      const noFinding = d.issue_class === "aman" || d.issue_class === "unknown";
-      const needsReview = d.meta_data?.needs_review === true;
+
       let scoreColor, textColor, labelText;
+      if (isAnalyzing) {
+        // Sedang proses: JANGAN tampilkan skor 0/100 atau "Ringan"
+        scoreColor = "bg-amber-400 shadow-sm animate-pulse";
+        textColor = "text-amber-700";
+        labelText = "Sedang Dihitung oleh AI...";
+        setBar({ cls: "h-full transition-all duration-1000 ease-out rounded-full relative overflow-hidden " + scoreColor, width: "35%" });
+        setScoreUi({ val: "...", cls: "text-5xl font-display font-bold text-amber-600 animate-pulse" });
+        setSevUi({ label: labelText, cls: "text-sm font-bold " + textColor });
+        setStatusUi({ label: "MENGANALISIS", cls: "px-4 py-1.5 rounded-full text-[10px] font-bold border shadow-sm bg-amber-50 text-amber-700 border-amber-200 uppercase tracking-wider animate-pulse" });
+        return;
+      }
+
       if (needsReview) {
         // Skor belum dihitung karena model belum cukup yakin — jangan pakai
         // label keparahan apa pun supaya tidak menyesatkan.
@@ -83,13 +99,7 @@ export default function DetailPage() {
       setSevUi({ label: labelText, cls: "text-sm font-bold " + textColor });
       setTimeout(() => setBar({ cls: "h-full transition-all duration-1000 ease-out rounded-full relative overflow-hidden " + scoreColor, width: `${Math.min(Math.max(score, 0), 100)}%` }), 300);
 
-      const badge = d.status || "UNKNOWN";
-      // Selesai analisis ditandai issue_class bukan "processing" lagi
-      // (status tetap PENDING = menunggu verifikasi admin, itu normal).
-      const isAnalyzing = d.issue_class === "processing" || badge === "processing";
-      if (isAnalyzing) {
-        setStatusUi({ label: "MENGANALISIS", cls: "px-4 py-1.5 rounded-full text-[10px] font-bold border shadow-sm bg-amber-50 text-amber-700 border-amber-200 uppercase tracking-wider animate-pulse" });
-      } else if (needsReview) {
+      if (needsReview) {
         // Model tidak yakin, jadi laporan tidak diklaim "aman" — minta admin cek.
         setStatusUi({ label: "PERLU VERIFIKASI", cls: "px-4 py-1.5 rounded-full text-[10px] font-bold border shadow-sm bg-amber-50 text-amber-700 border-amber-200 uppercase tracking-wider" });
       } else if (badge === "OPEN" || badge === "PENDING") {
@@ -380,7 +390,9 @@ export default function DetailPage() {
                   <div>
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Kategori Masalah</span>
                     <p className="text-lg font-display font-bold text-slate-800 capitalize">
-                      {noFinding
+                      {isAnalyzing
+                        ? "Sedang Dianalisis..."
+                        : noFinding
                         ? "Aman / Tidak Ada Temuan"
                         : `${String(data?.issue_class || "-").replace(/_/g, " ")}${needsReview ? " (perlu verifikasi)" : ""}`}
                     </p>
