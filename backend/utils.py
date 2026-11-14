@@ -308,16 +308,16 @@ DETECT_CONF_FLOOR = _env_float("YOLO_CONF_FLOOR", 0.10)
 # Kalau TIDAK ada satu pun deteksi yang lolos CONF_THRESHOLDS, tapi ada
 # kandidat lemah di atas batas ini, laporan tidak langsung dicap "aman" —
 # ditandai "perlu verifikasi" supaya admin tetap bisa menilai.
-LOW_CONF_MIN = _env_float("YOLO_LOW_CONF_MIN", 0.03)
+LOW_CONF_MIN = _env_float("YOLO_LOW_CONF_MIN", 0.02)
 
 # Threshold per kelas (bisa di-override dari .env kalau perlu tuning).
 # Catatan: kabel semrawut berupa utilitas udara dengan kabel tipis; kalibrasi model
-# menghasilkan confidence di rentang 0.04-0.20 sehingga threshold disesuaikan ke 0.05.
+# menghasilkan confidence di rentang 0.025-0.12 sehingga threshold disesuaikan ke 0.025.
 CONF_THRESHOLDS = {
     "jalan_bolong": _env_float("CONF_JALAN_BOLONG", 0.35),
     "genangan_air": _env_float("CONF_GENANGAN_AIR", 0.30),
     "sampah_liar": _env_float("CONF_SAMPAH_LIAR", 0.30),
-    "kabel_semrawut": _env_float("CONF_KABEL_SEMRAWUT", 0.05),
+    "kabel_semrawut": _env_float("CONF_KABEL_SEMRAWUT", 0.025),
 }
 
 SEVERITY_CONFIG = {

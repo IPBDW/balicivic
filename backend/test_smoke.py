@@ -264,7 +264,7 @@ def test_detect_config_sane():
     assert DETECT_IMGSZ >= 640, "imgsz terlalu kecil untuk foto warga"
     assert 0 < LOW_CONF_MIN <= min(CONF_THRESHOLDS.values())
     for cls, thr in CONF_THRESHOLDS.items():
-        assert 0.03 <= thr <= 0.75, f"threshold {cls}={thr} di luar rentang wajar"
+        assert 0.02 <= thr <= 0.75, f"threshold {cls}={thr} di luar rentang wajar"
 
 
 def test_reverse_geocode_parse_address():
