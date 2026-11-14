@@ -111,20 +111,34 @@ export default function HomePage() {
   const [latest, setLatest] = useState(null);
   const mapContainerRef = useRef(null);
 
-  // Ambil laporan terakhir yang sudah selesai dianalisis untuk kartu preview hero.
+  // Ambil laporan kritis untuk kartu preview hero showcase.
+  // Laporan bodong ("aman" / skor 0) sama sekali TIDAK ditampilkan agar citra sistem tetap kredibel & menarik.
+  // Prioritas pemilihan:
+  // 1. Laporan kritis darurat (skor >= 75 / HIGH)
+  // 2. Laporan keparahan tinggi (skor >= 60)
+  // 3. Laporan kerusakan aktual terbaru lainnya (non-aman, skor > 0)
   useEffect(() => {
     let cancelled = false;
     if (!API_BASE) return;
     (async () => {
       try {
-        const res = await fetch(`${API_BASE}/api/issues?limit=10`);
+        const res = await fetch(`${API_BASE}/api/issues?limit=25&exclude_aman=true`);
         if (!res.ok) return;
         const list = await res.json();
         if (cancelled || !Array.isArray(list)) return;
-        const analyzed = list.find(
-          (i) => i.issue_class && i.issue_class !== "processing" && i.final_score != null
+
+        // Saring hanya kerusakan valid (non-processing, non-aman, skor nyata > 0)
+        const validList = list.filter(
+          (i) => i.issue_class && i.issue_class !== "processing" && i.issue_class !== "aman" && (i.final_score || 0) > 0
         );
-        if (analyzed) setLatest(analyzed);
+        if (validList.length === 0) return;
+
+        // Prioritas: Kritis darurat (>=75), lalu prioritas tinggi (>=60), lalu kerusakan valid terbaru
+        const criticalHigh = validList.find((i) => (i.final_score || 0) >= 75);
+        const critical60 = validList.find((i) => (i.final_score || 0) >= 60);
+        const best = criticalHigh || critical60 || validList[0];
+
+        if (best) setLatest(best);
       } catch (e) {
         console.warn("Gagal memuat laporan terbaru untuk preview:", e);
       }
@@ -293,22 +307,29 @@ export default function HomePage() {
                 <div className="bg-white rounded-2xl border border-slate-200 shadow-xl overflow-hidden">
                   <div className="bg-slate-900 px-4 py-3 flex items-center justify-between text-white">
                     <div className="flex items-center gap-2">
-                      <span className="h-2.5 w-2.5 rounded-full bg-emerald-400"></span>
+                      <span className="h-2.5 w-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
                       <span className="text-xs font-mono font-medium">Inference Engine · Vision AI</span>
                     </div>
-                    <span className="text-[10px] bg-slate-800 text-slate-300 px-2 py-0.5 rounded font-mono">
-                      {latest?.kabupaten ? `Live: ${latest.kabupaten}` : "Provinsi Bali"}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      {latest && (latest.final_score || 0) >= 60 && (
+                        <span className="text-[10px] bg-rose-500/20 text-rose-300 border border-rose-500/40 px-2 py-0.5 rounded font-mono font-bold tracking-wider">
+                          KRITIS
+                        </span>
+                      )}
+                      <span className="text-[10px] bg-slate-800 text-slate-300 px-2 py-0.5 rounded font-mono">
+                        {latest?.kabupaten ? `Live: ${latest.kabupaten}` : "Provinsi Bali"}
+                      </span>
+                    </div>
                   </div>
 
                   <div className="p-5 space-y-4">
                     {/* Visual Detection Box Container */}
-                    <div className="relative aspect-video bg-slate-900 rounded-xl overflow-hidden border border-slate-200 flex items-center justify-center">
+                    <div className="relative aspect-video bg-slate-900 rounded-xl overflow-hidden border border-slate-200 flex items-center justify-center group">
                       {latest?.image_url ? (
                         <img
                           src={imgUrl(latest.image_url)}
                           alt="Hasil deteksi Vision AI BaliCivic"
-                          className="w-full h-full object-cover"
+                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                         />
                       ) : (
                         <div className="flex flex-col items-center gap-2 text-slate-400">
@@ -317,10 +338,15 @@ export default function HomePage() {
                         </div>
                       )}
                       {latest && (
-                        <div className="absolute top-3 left-3 bg-black/75 backdrop-blur-sm text-white px-2.5 py-1 rounded-md text-[11px] font-mono border border-white/20">
-                          <i className="fas fa-crosshairs text-primary mr-1.5"></i>
-                          {String(latest.issue_class || "").replace(/_/g, " ")}
-                        </div>
+                        <>
+                          <div className="absolute top-3 left-3 bg-black/75 backdrop-blur-sm text-white px-2.5 py-1 rounded-md text-[11px] font-mono border border-white/20 capitalize">
+                            <i className="fas fa-crosshairs text-primary mr-1.5"></i>
+                            {String(latest.issue_class || "").replace(/_/g, " ")}
+                          </div>
+                          <div className="absolute top-3 right-3 bg-black/75 backdrop-blur-sm text-white px-2.5 py-1 rounded-md text-[11px] font-mono border border-white/20">
+                            <span className="text-rose-400 font-bold">Skor {latest.final_score}/100</span>
+                          </div>
+                        </>
                       )}
                     </div>
 
@@ -345,7 +371,7 @@ export default function HomePage() {
                       <div className="flex justify-between items-center">
                         <span className="text-slate-500 font-medium">Tingkat Keparahan</span>
                         {latest ? (
-                          <span className="font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded border border-rose-200">
+                          <span className={`font-bold px-2 py-0.5 rounded border ${(latest.final_score || 0) >= 75 ? "text-rose-600 bg-rose-50 border-rose-200" : (latest.final_score || 0) >= 45 ? "text-amber-600 bg-amber-50 border-amber-200" : "text-emerald-600 bg-emerald-50 border-emerald-200"}`}>
                             Skor {latest.final_score ?? "—"} · {latest.severity_label || "—"}
                           </span>
                         ) : (
@@ -354,11 +380,21 @@ export default function HomePage() {
                       </div>
                       <div className="flex justify-between items-center border-t border-slate-200 pt-2 text-slate-500">
                         <span>Rekomendasi Dinas</span>
-                        <span className="font-semibold text-slate-800 text-right max-w-[55%] truncate">
+                        <span className="font-semibold text-slate-800 text-right max-w-[55%] truncate" title={latest?.meta_data?.llm_result?.dinas?.recommended_action || ""}>
                           {latest?.meta_data?.llm_result?.dinas?.recommended_action || "—"}
                         </span>
                       </div>
                     </div>
+
+                    {latest?.id && (
+                      <Link
+                        href={`/detail/${latest.id}`}
+                        className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs transition-colors shadow-sm"
+                      >
+                        <span>Lihat Detail Analisis AI PUPR</span>
+                        <i className="fas fa-arrow-right text-[10px]"></i>
+                      </Link>
+                    )}
                   </div>
                 </div>
               </div>

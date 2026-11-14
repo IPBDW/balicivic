@@ -41,6 +41,7 @@ export default function DashboardPage() {
   const [distribution, setDistribution] = useState([]);
   const [barWidths, setBarWidths] = useState({});
   const [issues, setIssues] = useState([]);
+  const [filterKritisOnly, setFilterKritisOnly] = useState(false);
   const [updatedAt, setUpdatedAt] = useState("");
 
   const fetchStats = useCallback(async () => {
@@ -77,8 +78,9 @@ export default function DashboardPage() {
 
   const fetchRecentIssues = useCallback(async () => {
     try {
-      const data = await fetchRecentIssuesList(10);
-      setIssues(data);
+      // Ambil laporan kerusakan nyata terbaru (laporan bodong/aman diabaikan)
+      const data = await fetchRecentIssuesList(20, { excludeAman: true });
+      setIssues(Array.isArray(data) ? data : []);
       setUpdatedAt(new Date().toLocaleTimeString());
     } catch (e) {
       console.error(e);
@@ -157,8 +159,11 @@ export default function DashboardPage() {
     };
   }, [fetchTopLocations, fetchDistribution, fetchStats, fetchRecentIssues, initDashboardMap]);
 
-  const mobileIssues = issues.slice(0, 5);
-  const desktopIssues = issues.slice(0, 10);
+  const displayedIssues = filterKritisOnly
+    ? issues.filter((i) => (i.final_score || 0) >= 60)
+    : issues;
+  const mobileIssues = displayedIssues.slice(0, 5);
+  const desktopIssues = displayedIssues.slice(0, 10);
 
   return (
     <div className="min-h-screen bg-slate-50/60 pb-20">
@@ -356,18 +361,50 @@ export default function DashboardPage() {
 
         {/* Live Reports Table */}
         <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden">
-          <div className="p-5 sm:p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-            <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-              <i className="fas fa-list-ul text-primary"></i> Laporan Masuk (Live)
-            </h3>
-            <Link href="/lapor" className="bg-white border border-slate-200 text-slate-700 px-4 py-2 rounded-lg text-xs font-bold hover:bg-slate-50 hover:text-primary transition-colors flex items-center gap-2 shadow-sm hidden md:flex">
+          <div className="p-4 sm:p-5 border-b border-slate-100 flex flex-wrap gap-3 justify-between items-center bg-slate-50/50">
+            <div className="flex flex-wrap items-center gap-3">
+              <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                <i className="fas fa-list-ul text-primary"></i> Laporan Masuk (Live)
+              </h3>
+              <div className="inline-flex rounded-lg bg-slate-200/70 p-0.5 text-xs font-semibold">
+                <button
+                  type="button"
+                  onClick={() => setFilterKritisOnly(false)}
+                  className={`px-3 py-1 rounded-md transition-all ${
+                    !filterKritisOnly
+                      ? "bg-white text-slate-900 shadow-2xs font-bold"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  Semua Kerusakan
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFilterKritisOnly(true)}
+                  className={`px-3 py-1 rounded-md transition-all flex items-center gap-1.5 ${
+                    filterKritisOnly
+                      ? "bg-rose-600 text-white shadow-2xs font-bold"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  <span className={`w-1.5 h-1.5 rounded-full ${filterKritisOnly ? "bg-white" : "bg-rose-500"}`}></span>
+                  <span>Kritis (&gt;60)</span>
+                </button>
+              </div>
+            </div>
+            <Link href="/lapor" className="bg-white border border-slate-200 text-slate-700 px-4 py-2 rounded-lg text-xs font-bold hover:bg-slate-50 hover:text-primary transition-colors flex items-center gap-2 shadow-sm">
               <i className="fas fa-plus"></i> Buat Laporan
             </Link>
           </div>
 
           {/* Mobile View */}
           <div className="md:hidden space-y-3 p-4 bg-slate-50/50">
-            {mobileIssues.length === 0 && <div className="text-center text-slate-400 text-sm py-4">Belum ada laporan masuk</div>}
+            {mobileIssues.length === 0 && (
+              <div className="text-center text-slate-400 text-sm py-6">
+                <i className="fas fa-shield-halved text-2xl mb-1 block opacity-40"></i>
+                {filterKritisOnly ? "Tidak ada laporan kritis (>60) saat ini" : "Belum ada laporan kerusakan"}
+              </div>
+            )}
             {mobileIssues.map((item) => {
               const timeStr = formatTimeWitaLabel(item.created_at);
               return (
@@ -423,7 +460,10 @@ export default function DashboardPage() {
                 {desktopIssues.length === 0 && (
                   <tr>
                     <td colSpan="6">
-                      <div className="text-center text-slate-400 py-8 text-sm">Belum ada laporan masuk</div>
+                      <div className="text-center text-slate-400 py-8 text-sm">
+                        <i className="fas fa-shield-halved text-2xl mb-1 block opacity-40"></i>
+                        {filterKritisOnly ? "Tidak ada laporan kritis (>60) saat ini" : "Belum ada laporan kerusakan"}
+                      </div>
                     </td>
                   </tr>
                 )}

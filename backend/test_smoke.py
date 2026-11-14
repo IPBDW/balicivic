@@ -316,12 +316,12 @@ def test_reverse_geocode_without_key_uses_fallback(monkeypatch):
 def test_water_detection_in_sky_is_rejected():
     """
     Model puddle sering false-positive di langit. Objek genangan_air yang
-    pusatnya terlalu tinggi di frame harus dibuang sebelum skoring.
+    pusatnya di zona langit atas (< 0.18) harus dibuang sebelum skoring.
     """
     from utils import MAX_Y_CENTER_FOR_WATER
 
-    assert 0.3 < MAX_Y_CENTER_FOR_WATER < 0.9
-    # Box di langit (y center ~0.11) -> di bawah batas, harus ditolak
+    assert 0.10 <= MAX_Y_CENTER_FOR_WATER <= 0.65
+    # Box di langit (y center ~0.105) -> di bawah batas, harus ditolak
     y_center_sky = ((0 + 848) / 2) / 4032
     assert y_center_sky < MAX_Y_CENTER_FOR_WATER
     # Box di jalan (y center ~0.8) -> lolos
@@ -331,19 +331,37 @@ def test_water_detection_in_sky_is_rejected():
 
 def test_pothole_in_sky_or_pole_is_rejected():
     """
-    Regression: model pothole mendeteksi sambungan kabel/tiang listrik di
-    langit sebagai jalan_bolong (contoh: issue #27, y_center=0.48).
-    Pothole harus di permukaan jalan (y_center >= MAX_Y_CENTER_FOR_ROAD).
+    Regression: lubang jalan tidak boleh melayang di zona langit teratas,
+    dan noise kecil di tiang listrik (seperti issue #27) ditolak oleh MIN_AREA_FOR_POTHOLE.
     """
-    from utils import MAX_Y_CENTER_FOR_ROAD
+    from utils import MAX_Y_CENTER_FOR_ROAD, MIN_AREA_FOR_POTHOLE
 
-    assert 0.4 < MAX_Y_CENTER_FOR_ROAD < 0.7
-    # Box di tiang/langit (y center 0.484 seperti issue #27) -> harus ditolak
-    y_center_pole = ((468 + 481) / 2) / 981
-    assert y_center_pole < MAX_Y_CENTER_FOR_ROAD
-    # Box di permukaan jalan (y center 0.82) -> lolos
+    assert 0.10 <= MAX_Y_CENTER_FOR_ROAD <= 0.65
+    # Box di langit teratas (y center 0.05) -> harus ditolak
+    y_center_sky = ((0 + 400) / 2) / 4000
+    assert y_center_sky < MAX_Y_CENTER_FOR_ROAD
+    # Box di jalan (y center 0.62) -> lolos
     y_center_road = ((2446 + 2648) / 2) / 4080
     assert y_center_road > MAX_Y_CENTER_FOR_ROAD
+
+    # Box kecil di tiang (luas 0.045% seperti issue #27) ditolak oleh MIN_AREA
+    tiny_pole_box = (24.5 * 13.3) / (736 * 981)
+    assert tiny_pole_box < MIN_AREA_FOR_POTHOLE
+
+
+def test_nms_deduplicates_overlapping_boxes():
+    """NMS harus menggabungkan deteksi duplikat dari multi-head model."""
+    from utils import _apply_nms
+
+    dups = [
+        {"class": "genangan_air", "conf": 0.60, "box": [100, 100, 200, 200]},
+        {"class": "genangan_air", "conf": 0.58, "box": [102, 101, 198, 202]},  # IoU > 0.9
+        {"class": "genangan_air", "conf": 0.50, "box": [300, 300, 400, 400]},  # Terpisah
+    ]
+    res = _apply_nms(dups, iou_thresh=0.45)
+    assert len(res) == 2
+    assert res[0]["conf"] == 0.60
+    assert res[1]["conf"] == 0.50
 
 
 def test_tiny_pothole_noise_is_rejected():

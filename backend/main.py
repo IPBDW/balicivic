@@ -374,12 +374,14 @@ def read_issues(
         None, alias="status", pattern="^(PENDING|OPEN|IN_PROGRESS|DONE|ERROR)$"
     ),
     issue_class: str | None = Query(None),
+    min_score: int | None = Query(None, ge=0, le=100),
+    exclude_aman: bool = Query(False),
     session: Session = Depends(get_session),
 ):
     """
     Ambil issue dengan pagination + filter.
     Query params:
-      ?limit=50&offset=0&status=PENDING&issue_class=jalan_bolong
+      ?limit=50&offset=0&status=PENDING&issue_class=jalan_bolong&min_score=60&exclude_aman=true
 
     Catatan: "OPEN" diterima demi kompatibilitas data lama dan otomatis
     dipetakan ke "IN_PROGRESS" (status kanonik sekarang).
@@ -391,6 +393,10 @@ def read_issues(
         stmt = stmt.where(Issue.status == normalized)
     if issue_class:
         stmt = stmt.where(Issue.issue_class == issue_class)
+    if min_score is not None:
+        stmt = stmt.where(Issue.final_score >= min_score)
+    if exclude_aman:
+        stmt = stmt.where(Issue.issue_class != "aman")
     stmt = stmt.limit(limit).offset(offset)
     return session.exec(stmt).all()
 
@@ -695,6 +701,9 @@ def get_heatmap_data(
         cls_list = [c.strip() for c in classes.split(",") if c.strip()]
         if cls_list:
             stmt = stmt.where(Issue.issue_class.in_(cls_list))
+    else:
+        # Default: hanya titik kerusakan aktual (titik aman/tanpa temuan diabaikan)
+        stmt = stmt.where(Issue.issue_class != "aman")
 
     stmt = (
         stmt.where(Issue.final_score >= min_score)

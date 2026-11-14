@@ -94,9 +94,14 @@ export async function fetchAllIssues({ pageSize = 200, maxPages = 50 } = {}) {
   return all;
 }
 
-// Ambil N laporan terbaru.
-export async function fetchRecentIssuesList(limit = 10) {
-  const path = `/api/issues?limit=${encodeURIComponent(limit)}`;
+// Ambil N laporan terbaru (mendukung opsi filter seperti excludeAman & minScore).
+export async function fetchRecentIssuesList(limit = 10, options = {}) {
+  const params = new URLSearchParams({ limit: String(limit) });
+  if (options.minScore != null) params.set("min_score", String(options.minScore));
+  if (options.excludeAman) params.set("exclude_aman", "true");
+  if (options.status) params.set("status", options.status);
+  if (options.issueClass) params.set("issue_class", options.issueClass);
+  const path = `/api/issues?${params.toString()}`;
   const res = await fetch(apiUrl(path));
   if (!res.ok) throw await toError(res, path);
   return res.json();
