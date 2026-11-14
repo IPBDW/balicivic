@@ -6,6 +6,7 @@ import hmac
 import hashlib
 import json
 import cv2
+import numpy as np
 from PIL import Image
 from ultralytics import YOLO
 from sqlmodel import Session
@@ -303,6 +304,29 @@ def _get_coco_model():
     return _coco_model
 
 
+def detect_vehicles(abs_path: str, img_w: int, img_h: int) -> list[list[float]]:
+    """
+    Deteksi bounding box kendaraan & orang (car, truck, bus, motorcycle, person) menggunakan YOLO11s (COCO).
+    Dipakai untuk spatial suppression agar komponen kendaraan (spion mobil, wiper, antena,
+    kaca belakang) dan pakaian/tali tas pejalan kaki tidak terdeteksi keliru sebagai 'kabel_semrawut'.
+    """
+    model = _get_coco_model()
+    if model is None:
+        return []
+    try:
+        res = model.predict(abs_path, conf=0.25, imgsz=640, verbose=False)[0]
+    except Exception as e:
+        print(f"[SCENE-GUARD] Gagal deteksi kendaraan/subjek COCO: {e}")
+        return []
+
+    suppress_boxes = []
+    for box in res.boxes:
+        cls_name = model.names[int(box.cls[0])]
+        if cls_name in {"car", "truck", "bus", "motorcycle", "person"}:
+            suppress_boxes.append([float(v) for v in box.xyxy[0].tolist()])
+    return suppress_boxes
+
+
 def detect_indoor_scene(abs_path: str, img_w: int, img_h: int):
     """
     Cek apakah foto ini jelas-jelas bukan foto infrastruktur jalan raya
@@ -484,19 +508,19 @@ LOW_CONF_MIN = _env_float("YOLO_LOW_CONF_MIN", 0.02)
 
 # Threshold per kelas (bisa di-override dari .env kalau perlu tuning).
 # Catatan: kabel semrawut berupa utilitas udara dengan kabel tipis; kalibrasi model
-# menghasilkan confidence di rentang 0.025-0.12 sehingga threshold disesuaikan ke 0.025.
+# menghasilkan confidence di rentang 0.045-0.25 (threshold 0.045 mencegah noise aspal & spion).
 CONF_THRESHOLDS = {
     "jalan_bolong": _env_float("CONF_JALAN_BOLONG", 0.30),
     "genangan_air": _env_float("CONF_GENANGAN_AIR", 0.30),
     "sampah_liar": _env_float("CONF_SAMPAH_LIAR", 0.30),
-    "kabel_semrawut": _env_float("CONF_KABEL_SEMRAWUT", 0.025),
+    "kabel_semrawut": _env_float("CONF_KABEL_SEMRAWUT", 0.045),
 }
 
 SEVERITY_CONFIG = {
-    "jalan_bolong":   {"base": 40, "max": 95, "size_factor": 1.5},
+    "jalan_bolong":   {"base": 40, "max": 95, "size_factor": 2.5},
     "kabel_semrawut": {"base": 30, "max": 80, "size_factor": 1.2},
-    "genangan_air":   {"base": 20, "max": 70, "size_factor": 1.0},
-    "sampah_liar":    {"base": 15, "max": 60, "size_factor": 0.8},
+    "genangan_air":   {"base": 25, "max": 85, "size_factor": 1.2},
+    "sampah_liar":    {"base": 20, "max": 75, "size_factor": 1.0},
 }
 
 CLASS_LABEL_PUBLIC = {
@@ -666,6 +690,7 @@ def calculate_spatial_score(detections, img_w: int, img_h: int):
         box_h = max(1.0, y2 - y1)
 
         area_ratio = (box_w * box_h) / float(img_w * img_h)
+        width_ratio = box_w / float(img_w)
 
         y_center = ((y1 + y2) / 2.0) / float(img_h)
         distance_multiplier = 1.0 + (0.8 * (1.0 - y_center))
@@ -673,6 +698,12 @@ def calculate_spatial_score(detections, img_w: int, img_h: int):
         cfg = SEVERITY_CONFIG.get(cls, {"base": 10, "max": 50, "size_factor": 1.0})
 
         raw_score = cfg["base"] + (area_ratio * distance_multiplier * 100.0 * cfg["size_factor"])
+
+        # Pothole masif / amblas (Bina Marga / PUPR: lubang selebar > 35% FOV jalur atau
+        # luas > 6% frame adalah kerusakan struktural kritis berisiko kecelakaan fatal)
+        if cls == "jalan_bolong" and (area_ratio >= 0.06 or width_ratio >= 0.35):
+            raw_score = max(raw_score, 78.0 + (area_ratio * 100.0))
+
         item_score = min(cfg["max"], int(raw_score))
 
         individual.append(
@@ -1323,18 +1354,24 @@ def process_analysis(issue_id: str, image_path: str, session: Session):
             print("[ENGINE] Selesai: foto ditolak oleh scene guard (bukan infrastruktur jalan).")
             return
 
+        # Deteksi kendaraan untuk spatial suppression false positive kabel pada komponen mobil/truk
+        vehicle_boxes = detect_vehicles(abs_path, img_w, img_h)
+        if vehicle_boxes:
+            print(f"[ENGINE] Terdeteksi {len(vehicle_boxes)} kendaraan di dalam scene jalan.")
+
         # Jalankan inferensi ke seluruh model spesifik yang terpasang.
-        # Resolusi: DETECT_IMGSZ (default 1024) — di 640 lubang yang jelas
-        # kelihatan pun cuma dapat conf 0.05-0.1 dan ikut terbuang.
-        # Untuk gambar beresolusi rendah (< 550px), uji juga di skala 320 agar
-        # objek tidak rusak karena over-upscaling interpolasi.
+        # Resolusi: multi-scale adaptif (640, 1024, 1280) agar mencakup lubang jalan
+        # berskala makro/mikro tanpa kehilangan detail akibat interpolasi.
         for model_cat, mdl in models_dict.items():
-            # Model kabel utilitas mendeteksi bentangan kawat tipis (1-2 px),
-            # butuh resolusi lebih tinggi (1280) dan floor confidence yang
-            # sesuai kalibrasi modelnya agar kabel semrawut tidak terbuang.
             if model_cat == "kabel":
-                scales = [max(DETECT_IMGSZ, 1280)]
-                m_floor = min(DETECT_CONF_FLOOR, CONF_THRESHOLDS.get("kabel_semrawut", 0.05))
+                scales = [1024, 1280]
+                m_floor = min(DETECT_CONF_FLOOR, CONF_THRESHOLDS.get("kabel_semrawut", 0.045))
+            elif model_cat == "pothole":
+                scales = [320, 640, 1024] if max(img_w, img_h) < 550 else [640, 1024, 1280]
+                m_floor = DETECT_CONF_FLOOR
+            elif model_cat == "puddle":
+                scales = [640, 1024]
+                m_floor = DETECT_CONF_FLOOR
             else:
                 scales = [DETECT_IMGSZ, 320] if max(img_w, img_h) < 550 else [DETECT_IMGSZ]
                 m_floor = DETECT_CONF_FLOOR
@@ -1418,6 +1455,24 @@ def process_analysis(issue_id: str, image_path: str, session: Session):
                             )
                             continue
 
+                        # Saring false positive genangan air pada langit biru cerah (terutama foto tiang utilitas menatap ke atas)
+                        crop_x1 = max(0, int(_x1))
+                        crop_y1 = max(0, int(_y1))
+                        crop_x2 = min(img_w, int(_x2))
+                        crop_y2 = min(img_h, int(_y2))
+                        if crop_x2 > crop_x1 and crop_y2 > crop_y1:
+                            crop_bgr = orig_img[crop_y1:crop_y2, crop_x1:crop_x2]
+                            crop_hsv = cv2.cvtColor(crop_bgr, cv2.COLOR_BGR2HSV)
+                            h_c, s_c, v_c = crop_hsv[:, :, 0], crop_hsv[:, :, 1], crop_hsv[:, :, 2]
+                            blue_sky_ratio = float(
+                                np.mean((h_c >= 95) & (h_c <= 125) & (v_c >= 170) & (s_c >= 70))
+                            )
+                            if blue_sky_ratio > 0.40:
+                                print(
+                                    f"[ENGINE] Buang genangan_air di langit biru cerah ({blue_sky_ratio*100:.1f}% piksel langit)."
+                                )
+                                continue
+
                     # 3) Sampah liar: tidak melayang di langit/atap.
                     elif cls_name == "sampah_liar":
                         if y_center < MAX_Y_CENTER_FOR_GARBAGE:
@@ -1428,12 +1483,36 @@ def process_analysis(issue_id: str, image_path: str, session: Session):
                             continue
 
                     # 4) Kabel semrawut: utilitas udara / tiang / gantung.
-                    #    Bukan objek yang tertanam di dasar aspal jalan langsung di bawah kaki.
+                    #    Bukan objek yang tertanam di dasar aspal jalan langsung di bawah kaki,
+                    #    dan bukan komponen kendaraan (spion mobil, wiper, antena, atap).
                     elif cls_name == "kabel_semrawut":
                         if y_center > MIN_Y_CENTER_FOR_CABLE:
                             print(
                                 f"[ENGINE] Buang kabel_semrawut di y={y_center:.2f} "
                                 f"(terlalu bawah / di permukaan aspal, batas={MIN_Y_CENTER_FOR_CABLE})."
+                            )
+                            continue
+
+                        # Spatial suppression: buang kabel yang berada di dalam bounding box kendaraan
+                        # (misal: spion mobil, wiper, antena, jendela, atap mobil)
+                        cx = (_x1 + _x2) / 2.0
+                        cy = (_y1 + _y2) / 2.0
+                        in_vehicle = any(
+                            vx1 <= cx <= vx2 and vy1 <= cy <= vy2
+                            for vx1, vy1, vx2, vy2 in vehicle_boxes
+                        )
+                        if in_vehicle:
+                            print(
+                                f"[ENGINE] Buang kabel_semrawut di koordinat kendaraan ({cx:.1f}, {cy:.1f}), "
+                                "komponen kendaraan (spion/wiper/atap) bukan utilitas udara."
+                            )
+                            continue
+
+                        # Kabel di bagian bawah jalan (y_center > 0.60) dengan conf rendah adalah tekstur aspal/retakan
+                        # Hanya berlaku jika di scene terdapat kendaraan (bukan foto langit tiang utilitas tegak)
+                        if vehicle_boxes and y_center > 0.60 and conf < 0.10:
+                            print(
+                                f"[ENGINE] Buang kabel_semrawut lemah di aspal y={y_center:.2f} (conf={conf:.2f})."
                             )
                             continue
 
@@ -1460,6 +1539,35 @@ def process_analysis(issue_id: str, image_path: str, session: Session):
         # Satukan deteksi duplikat intra-kelas dari model multi-head (misal puddle v1 & v2)
         valid_detections = _apply_nms(valid_detections)
         weak_detections = _apply_nms(weak_detections)
+
+        # Buang kabel yang koordinatnya berada di dalam lubang jalan atau genangan air (retakan aspal / pinggiran lubang)
+        pothole_boxes = [d["box"] for d in valid_detections if d["class"] in {"jalan_bolong", "genangan_air"}]
+        if pothole_boxes:
+            cables_to_keep = []
+            for d in valid_detections:
+                if d["class"] == "kabel_semrawut":
+                    bx = d["box"]
+                    cx = (bx[0] + bx[2]) / 2.0
+                    cy = (bx[1] + bx[3]) / 2.0
+                    if any(px1 <= cx <= px2 and py1 <= cy <= py2 for px1, py1, px2, py2 in pothole_boxes):
+                        print(f"[ENGINE] Buang kabel_semrawut di dalam lubang/genangan jalan ({cx:.1f}, {cy:.1f}).")
+                        continue
+                cables_to_keep.append(d)
+            valid_detections = cables_to_keep
+
+        # Saring deteksi kabel terisolasi tunggal yang sangat kecil di scene kendaraan/jalan ramai
+        # (seperti plang/rambu bundar pinggir jalan atau ornamen tiang)
+        if vehicle_boxes or pothole_boxes:
+            cables_in_scene = [d for d in valid_detections if d["class"] == "kabel_semrawut"]
+            if len(cables_in_scene) == 1:
+                c_det = cables_in_scene[0]
+                bx = c_det["box"]
+                c_area = ((bx[2] - bx[0]) * (bx[3] - bx[1])) / float(img_w * img_h)
+                if c_area < 0.01:
+                    print(
+                        f"[ENGINE] Buang kabel_semrawut terisolasi kecil (area={c_area*100:.3f}%) di area jalan."
+                    )
+                    valid_detections = [d for d in valid_detections if d["class"] != "kabel_semrawut"]
 
         if valid_detections:
             max_conf = max(d["conf"] for d in valid_detections)

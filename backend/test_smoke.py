@@ -442,3 +442,42 @@ def test_scene_guard_classes_configured():
     assert "bird" in _ANIMAL_CLASSES
     assert "person" in _SCENE_LABELS_ID
     assert "backpack" in _LARGE_PORTABLE_CLASSES
+
+
+def test_severe_pothole_scoring_high():
+    """
+    Regression: Lubang jalan berskala besar / amblas (width_ratio >= 0.35 atau area_ratio >= 0.06)
+    harus dinilai HIGH (skor >= 75) sesuai standar Bina Marga / PUPR untuk penanganan darurat.
+    """
+    from utils import calculate_spatial_score, score_to_label
+
+    # Kasus lubang besar di 📌.jpeg: w=400, h=300, box=[86.6, 173.9, 289.3, 268.0]
+    img_w, img_h = 400, 300
+    det = [{
+        "class": "jalan_bolong",
+        "conf": 0.40,
+        "box": [86.6, 173.9, 289.3, 268.0],
+    }]
+    final_score, primary_issue, breakdown, geometry_dom, objects_meta = calculate_spatial_score(
+        det, img_w, img_h
+    )
+    assert primary_issue == "jalan_bolong"
+    assert final_score >= 75, f"Skor lubang besar harus HIGH (>= 75), didapat: {final_score}"
+    assert score_to_label(final_score) == "HIGH"
+
+
+def test_cable_inside_vehicle_suppression():
+    """
+    Regression: Spion mobil, wiper, atau antena kendaraan tidak boleh terdeteksi
+    sebagai 'kabel_semrawut' (issue #63).
+    """
+    from utils import detect_vehicles
+
+    # Buat dummy bounding box mobil dan koordinat spion di dalamnya
+    vehicle_boxes = [[574.6, 337.7, 735.8, 680.2]] # Mobil putih di sisi kanan
+    spion_box = [643.9, 370.5, 698.9, 426.6]        # Spion kanan
+    cx = (spion_box[0] + spion_box[2]) / 2.0
+    cy = (spion_box[1] + spion_box[3]) / 2.0
+
+    in_veh = any(vx1 <= cx <= vx2 and vy1 <= cy <= vy2 for vx1, vy1, vx2, vy2 in vehicle_boxes)
+    assert in_veh is True, "Koordinat spion harus terdeteksi di dalam batas bounding box kendaraan"
