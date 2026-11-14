@@ -457,7 +457,9 @@ def update_status(
     token: str | None = Query(None),
     x_admin_token: str | None = Header(None),
 ):
-    verify_admin_token(issue_id, token, x_admin_token)
+    # Panggil pakai keyword: signature dependency punya parameter `id` di
+    # posisi kedua, jadi positional akan salah map (token masuk ke `id`).
+    verify_admin_token(issue_id=issue_id, token=token, x_admin_token=x_admin_token)
     """
     Update status oleh admin (Dinas) & Catat di Timeline.
     Flow: PENDING -> OPEN (Dikerjakan) -> DONE (Selesai)
@@ -522,7 +524,9 @@ def delete_issue(
     token: str | None = Query(None),
     x_admin_token: str | None = Header(None),
 ):
-    verify_admin_token(issue_id, token, x_admin_token)
+    # Panggil pakai keyword: signature dependency punya parameter `id` di
+    # posisi kedua, jadi positional akan salah map (token masuk ke `id`).
+    verify_admin_token(issue_id=issue_id, token=token, x_admin_token=x_admin_token)
     """
     Hapus laporan oleh admin (untuk laporan spam/palsu/invalid).
     Menghapus baris DB + file annotated di disk. Raw file (kalau masih ada)
