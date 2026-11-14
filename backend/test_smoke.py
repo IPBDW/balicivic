@@ -481,3 +481,280 @@ def test_cable_inside_vehicle_suppression():
 
     in_veh = any(vx1 <= cx <= vx2 and vy1 <= cy <= vy2 for vx1, vy1, vx2, vy2 in vehicle_boxes)
     assert in_veh is True, "Koordinat spion harus terdeteksi di dalam batas bounding box kendaraan"
+
+
+# ============================================================
+# VLM sebagai hakim: konversi band -> skor & normalisasi verdict
+# ============================================================
+
+def test_band_to_score_is_deterministic_and_in_range():
+    """
+    Regression: VLM (model generatif) tidak boleh mengarang skor 0-100.
+    Uji empiris: foto sama 4x run bisa menghasilkan 20, 90, 22, 22.
+    Solusi: VLM hanya memilih band, backend yang mengonversi lewat tabel tetap.
+    """
+    from utils import BAND_SCORE_RANGE, band_to_score, score_to_label
+
+    for band, (lo, hi) in BAND_SCORE_RANGE.items():
+        for yolo_score in (0, 25, 50, 75, 100):
+            got = band_to_score(band, yolo_score)
+            assert lo <= got <= hi, f"band {band} skor {yolo_score} -> {got} di luar {lo}-{hi}"
+            # Deterministik: input sama harus selalu sama.
+            assert got == band_to_score(band, yolo_score)
+
+    # Band harus selaras dengan label: RINGAN=LOW, SEDANG=MEDIUM, BERAT/KRITIS=HIGH.
+    assert score_to_label(band_to_score("RINGAN", 50)) == "LOW"
+    assert score_to_label(band_to_score("SEDANG", 50)) == "MEDIUM"
+    assert score_to_label(band_to_score("BERAT", 50)) == "HIGH"
+    assert score_to_label(band_to_score("KRITIS", 50)) == "HIGH"
+
+    # Band tak dikenal -> jatuh ke skor YOLO apa adanya (tidak crash).
+    assert band_to_score("NGACO", 63) == 63
+    assert band_to_score("", 0) == 0
+
+
+def test_band_to_score_does_not_saturate_on_huge_objects():
+    """
+    Regression: skor matematis YOLO dipotong di 100, dan 11 dari 31 foto uji
+    mentok 100. Kalau posisi di dalam band diambil dari skor itu, semua foto
+    parah keluar dengan angka identik (87) walau luas kerusakannya beda jauh
+    (37% vs 7,9% frame). Luas objek tidak jenuh, jadi dipakai sebagai bukti.
+    """
+    from utils import band_to_score, severity_fraction
+
+    # Luas makin besar -> fraksi makin besar, monoton dan terbatas 0..1.
+    fracs = [severity_fraction(a, "jalan_bolong") for a in (0.0, 0.02, 0.05, 0.10, 0.15, 0.40)]
+    assert fracs == sorted(fracs), "fraksi harus monoton naik terhadap luas"
+    assert fracs[0] == 0.0
+    assert fracs[-1] == 1.0, "luas di atas skala harus di-clamp ke 1"
+
+    # Dengan band yang SAMA dan skor YOLO yang SAMA-SAMA jenuh (100),
+    # luas berbeda harus menghasilkan angka berbeda.
+    small = band_to_score("BERAT", 100, severity_fraction(0.079, "jalan_bolong"))
+    large = band_to_score("BERAT", 100, severity_fraction(0.370, "jalan_bolong"))
+    assert small != large, "foto 37% frame tidak boleh sama skornya dengan 7,9%"
+    assert large > small
+
+    # Semua tetap di dalam band-nya masing-masing.
+    for band, (lo, hi) in {
+        "RINGAN": (0, 44), "SEDANG": (45, 74), "BERAT": (75, 87), "KRITIS": (88, 100)
+    }.items():
+        for area in (0.001, 0.05, 0.5):
+            got = band_to_score(band, 100, severity_fraction(area, "jalan_bolong"))
+            assert lo <= got <= hi, f"{band} area={area} -> {got} keluar {lo}-{hi}"
+
+    # evidence_ratio=None harus kembali ke perilaku lama (pakai skor YOLO).
+    assert band_to_score("BERAT", 50, None) == band_to_score("BERAT", 50)
+
+    # Kelas tak dikenal tetap dapat skala default, tidak crash.
+    assert 0.0 <= severity_fraction(0.1, "kelas_aneh") <= 1.0
+
+
+def test_vlm_verdict_normalization():
+    """Verdict VLM dinormalisasi: kelas valid, band valid, skor dari tabel tetap."""
+    from utils import _normalize_vlm_result, BAND_SCORE_RANGE
+
+    payload = {
+        "score": 54,
+        "severity_label": "MEDIUM",
+        "primary_issue_class": "jalan_bolong",
+    }
+
+    # Kasus nyata issue #46: padang rumput bersampah divonis "jalan_bolong" oleh YOLO.
+    # VLM bilang YOLO salah dan kelas sebenarnya sampah_liar.
+    verdict = _normalize_vlm_result(
+        {
+            "is_infrastruktur": True,
+            "kelas_utama": "sampah_liar",
+            "verifikasi_yolo": "yolo_salah",
+            "tingkat": "SEDANG",
+            "bisa_dilalui": "hati-hati",
+            "catatan_visual": "Hamparan rumput penuh sampah, bukan jalan berlubang.",
+        },
+        payload,
+    )
+    assert verdict["kelas_utama"] == "sampah_liar", "koreksi kelas VLM harus dihormati"
+    assert verdict["verifikasi_yolo"] == "yolo_salah"
+    lo, hi = BAND_SCORE_RANGE["SEDANG"]
+    assert lo <= verdict["final_score"] <= hi
+    assert verdict["severity_label"] == "MEDIUM"
+
+    # Foto bukan infrastruktur & tanpa kelas -> "aman" skor 0.
+    aman = _normalize_vlm_result(
+        {"is_infrastruktur": False, "kelas_utama": "aman", "tingkat": "RINGAN"},
+        payload,
+    )
+    assert aman["kelas_utama"] == "aman"
+    assert aman["final_score"] == 0
+    assert aman["severity_label"] == "LOW"
+
+    # Band ngawur / kelas ngawur -> fallback aman ke data YOLO, tidak crash.
+    weird = _normalize_vlm_result(
+        {"kelas_utama": "alien", "tingkat": "SUPER_PARAH", "verifikasi_yolo": "???"},
+        payload,
+    )
+    assert weird["kelas_utama"] == "jalan_bolong"
+    assert weird["band"] in BAND_SCORE_RANGE
+    assert weird["verifikasi_yolo"] == "cocok"
+
+
+def test_vlm_tie_break_keeps_yolo_class_within_same_family():
+    """
+    Anti flip-flop: lubang jalan penuh air kadang dibaca VLM sebagai
+    'jalan_bolong', kadang 'genangan_air'. Karena satu keluarga
+    (permukaan_jalan) dan YOLO tidak dinyatakan salah, pakai kelas YOLO.
+    """
+    from utils import _normalize_vlm_result
+
+    payload = {
+        "score": 80,
+        "severity_label": "HIGH",
+        "primary_issue_class": "jalan_bolong",
+    }
+    verdict = _normalize_vlm_result(
+        {
+            "is_infrastruktur": True,
+            "kelas_utama": "genangan_air",
+            "verifikasi_yolo": "cocok",
+            "tingkat": "BERAT",
+        },
+        payload,
+    )
+    assert verdict["kelas_utama"] == "jalan_bolong", "satu keluarga -> ikut YOLO"
+
+    # Tapi kalau YOLO dinyatakan SALAH, koreksi lintas keluarga tetap dihormati.
+    corrected = _normalize_vlm_result(
+        {
+            "is_infrastruktur": True,
+            "kelas_utama": "sampah_liar",
+            "verifikasi_yolo": "yolo_salah",
+            "tingkat": "SEDANG",
+        },
+        payload,
+    )
+    assert corrected["kelas_utama"] == "sampah_liar"
+
+
+def test_vlm_llm_result_shape_compatible():
+    """Hasil VLM harus punya bentuk sama dengan ask_llm_combined() (public/dinas/validation)."""
+    from utils import _build_llm_result_from_verdict
+
+    verdict = {
+        "kelas_utama": "jalan_bolong",
+        "band": "KRITIS",
+        "final_score": 99,
+        "severity_label": "HIGH",
+        "verifikasi_yolo": "yolo_kurang_lengkap",
+        "bisa_dilalui": "tidak",
+        "catatan_visual": "Lubang amblas besar dengan rongga bawah aspal kosong.",
+        "public": {"judul": "Jalan Amblas Berbahaya", "pesan": "Hindari area ini."},
+        "dinas": {"judul": "Penanganan Darurat", "rekomendasi": "Tutup area dan perbaiki segera."},
+    }
+    payload = {"location": "Denpasar Barat, Denpasar", "score": 88}
+    geometry = {"estimated_width_m": 2.5, "distance_m": 3.0}
+
+    out = _build_llm_result_from_verdict(verdict, payload, geometry)
+
+    for key in ("size_reasoning", "validation", "public", "dinas"):
+        assert key in out, f"key '{key}' wajib ada agar kompatibel dengan pipeline lama"
+    assert out["validation"]["math_score"] == 99
+    assert out["public"]["severity_label"] == "HIGH"
+    assert out["dinas"]["priority"] == "HIGH"
+    assert out["dinas"]["estimated_width_m"] == 2.5
+    assert out["source"] == "vlm_verdict"
+
+
+def test_stale_meta_keys_include_vlm_traces():
+    """
+    Regression: analisis ulang harus membuang jejak keputusan lama.
+    Tanpa ini, issue yang di-reanalyze bisa menyimpan vlm_verdict dari run
+    sebelumnya padahal run terbaru jatuh ke jalur fallback teks (tanpa VLM),
+    sehingga halaman admin menampilkan alasan yang tidak pernah terjadi.
+    """
+    from utils import _clean_analysis_meta
+
+    prev = {
+        "raw_file": "abc.jpg",
+        "original_filename": "foto.jpeg",
+        "geometry": {"estimated_width_m": 3.0},
+        "objects": [{"class": "jalan_bolong"}],
+        "llm_payload": {"score": 54},
+        "llm_result": {"public": {}},
+        "needs_review": True,
+        "review_reason": "model_low_confidence",
+        "low_conf_candidates": [],
+        "vlm_verdict": {"kelas_utama": "sampah_liar"},
+        "vlm_rescue": True,
+        "yolo_baseline": {"kelas": "jalan_bolong", "skor": 54},
+        "rejected_reason": "bukan_foto_infrastruktur",
+        "scene_evidence": [{"class": "laptop"}],
+        "note": "Tidak ada objek valid terdeteksi oleh model.",
+        "error": "boom",
+    }
+
+    cleaned = _clean_analysis_meta(prev)
+
+    # Yang harus BERTAHAN: identitas file (dipakai recovery & delete).
+    assert cleaned["raw_file"] == "abc.jpg"
+    assert cleaned["original_filename"] == "foto.jpeg"
+
+    # Yang harus HILANG: semua jejak hasil analisis sebelumnya.
+    for stale in (
+        "geometry", "objects", "llm_payload", "llm_result",
+        "needs_review", "review_reason", "low_conf_candidates",
+        "vlm_verdict", "vlm_rescue", "yolo_baseline",
+        "rejected_reason", "scene_evidence", "note", "error",
+    ):
+        assert stale not in cleaned, f"key '{stale}' harus dibersihkan saat analisis ulang"
+
+    # meta_data rusak / bukan dict tidak boleh bikin crash.
+    assert _clean_analysis_meta(None) == {}
+    assert _clean_analysis_meta("bukan dict") == {}
+
+
+def test_vlm_class_correction_drops_stale_yolo_breakdown():
+    """
+    Regression issue #46: setelah VLM mengoreksi 'jalan_bolong' -> 'sampah_liar',
+    breakdown_score & secondary_issues tidak boleh masih berisi deteksi
+    'jalan_bolong' yang justru sudah dinyatakan salah. Kalau dibiarkan,
+    halaman detail menampilkan dua kelas yang saling bertentangan.
+    """
+    from utils import _normalize_vlm_result, _build_llm_result_from_verdict
+
+    payload = {
+        "score": 54,
+        "severity_label": "MEDIUM",
+        "primary_issue_class": "jalan_bolong",
+        "location": "Tabanan, Tabanan",
+        "objects": [{"class": "jalan_bolong", "area_ratio": 0.01}],
+    }
+    verdict = _normalize_vlm_result(
+        {
+            "is_infrastruktur": True,
+            "kelas_utama": "sampah_liar",
+            "verifikasi_yolo": "yolo_salah",
+            "tingkat": "SEDANG",
+        },
+        payload,
+    )
+
+    yolo_class_before = payload["primary_issue_class"]
+    primary = verdict["kelas_utama"]
+    objects_meta = [{"class": "jalan_bolong", "score": 42}]
+
+    # Tiru logika konsistensi di process_analysis.
+    if primary != yolo_class_before:
+        breakdown_out = {primary: verdict["final_score"]}
+        secondary_out = []
+    else:
+        breakdown_out = {"jalan_bolong": 54}
+        secondary_out = [o for o in objects_meta if o.get("class") != primary]
+
+    assert primary == "sampah_liar"
+    assert breakdown_out == {"sampah_liar": verdict["final_score"]}
+    assert secondary_out == []
+
+    # Narasi yang dihasilkan juga harus menyebut kelas yang sudah dikoreksi.
+    narr = _build_llm_result_from_verdict(verdict, payload, None)
+    assert "sampah" in narr["dinas"]["technical_report"].lower()
+    assert "jalan_bolong" not in narr["dinas"]["technical_report"].lower()

@@ -5,6 +5,7 @@ import html
 import hmac
 import hashlib
 import json
+import base64
 import cv2
 import numpy as np
 from PIL import Image
@@ -55,6 +56,33 @@ if LLM_BASE_URL:
     LLM_BASE_URL = LLM_BASE_URL.strip().rstrip("/")
 if LLM_MODEL:
     LLM_MODEL = LLM_MODEL.strip()
+
+# --- VLM (Vision-Language Model) sebagai HAKIM pipeline ---
+# Band keparahan kualitatif -> rentang skor numerik yang TETAP.
+# Rentang sengaja disejajarkan dengan score_to_label() supaya band dan label
+# tidak pernah bertentangan:
+#   RINGAN  -> LOW    (0-44)
+#   SEDANG  -> MEDIUM (45-74)
+#   BERAT   -> HIGH   (75-87)
+#   KRITIS  -> HIGH   (88-100)
+BAND_SCORE_RANGE = {
+    "RINGAN": (0, 44),
+    "SEDANG": (45, 74),
+    "BERAT": (75, 87),
+    "KRITIS": (88, 100),
+}
+
+# Keluarga kelas kerusakan. Dipakai untuk tie-break ketika VLM dan YOLO
+# sama-sama menunjuk kerusakan permukaan jalan (mis. lubang berair bisa
+# dibaca "jalan_bolong" atau "genangan_air"). Dalam keluarga yang sama,
+# kelas YOLO dipakai supaya hasil antar-run konsisten.
+_CLASS_FAMILY = {
+    "jalan_bolong": "permukaan_jalan",
+    "genangan_air": "permukaan_jalan",
+    "kabel_semrawut": "utilitas",
+    "sampah_liar": "kebersihan",
+    "aman": "aman",
+}
 
 # --- Reverse Geocoding ---
 LOCATIONIQ_API_KEY = os.getenv("LOCATIONIQ_API_KEY")
@@ -462,6 +490,34 @@ def _env_int(key: str, default: int) -> int:
     return int(_env_float(key, float(default)))
 
 
+def _env_bool(key: str, default: bool) -> bool:
+    """Baca boolean dari .env ('1'/'true'/'ya'/'on' vs '0'/'false'/'tidak'/'off')."""
+    raw = os.getenv(key)
+    if raw is None or str(raw).strip() == "":
+        return default
+    val = str(raw).strip().lower()
+    if val in {"1", "true", "ya", "yes", "on"}:
+        return True
+    if val in {"0", "false", "tidak", "no", "off"}:
+        return False
+    print(f"[WARN] Nilai {key}='{raw}' bukan boolean, pakai default {default}.")
+    return default
+
+
+# --- VLM (Vision-Language Model) sebagai HAKIM pipeline ---
+# YOLO tetap jadi sensor (bbox presisi + skor dasar, deterministik & offline).
+# VLM dikasih FOTO + output YOLO, lalu memverifikasi apakah YOLO benar, dan
+# menentukan band keparahan. Skor final tetap dikonversi backend lewat tabel
+# tetap (BAND_SCORE_RANGE) supaya tidak ikut-ikutan "lotre" seperti angka
+# mentah dari model generatif.
+VLM_ENABLED = _env_bool("VLM_ENABLED", True)
+
+# Batas dimensi sisi terpanjang gambar yang dikirim ke VLM. 1024 px cukup
+# untuk konteks makro (jenis kerusakan, kondisi jalan) tanpa membengkakkan token.
+VLM_MAX_IMAGE_DIM = _env_int("VLM_MAX_IMAGE_DIM", 1024)
+VLM_JPEG_QUALITY = _env_int("VLM_JPEG_QUALITY", 85)
+
+
 # Batas kewajaran posisi objek di dalam frame (0 = tepi atas / langit, 1 = tepi bawah / jalan dekat kamera).
 # Model genangan air (dataset puddle) sering "mendeteksi" langit/awan di
 # bagian paling atas foto sebagai genangan. Hanya buang objek yang pusatnya
@@ -822,6 +878,442 @@ def _fallback_llm_result(payload: dict):
             "summary": f"{pretty.title()} dengan prioritas {severity_label} di {loc}.",
             "technical_report": dinas_tech,
             "recommended_action": "Mohon dilakukan verifikasi lapangan dan penanganan sesuai prosedur standar.",
+            "priority": severity_label,
+            "estimated_width_m": geom.get("estimated_width_m"),
+            "estimated_width_range_m": geom.get("estimated_width_range_m"),
+            "distance_m": geom.get("distance_m"),
+        },
+    }
+
+
+def _encode_image_for_vlm(image_path: str) -> Optional[str]:
+    """
+    Encode gambar ke data-URL base64 (JPEG, sisi terpanjang <= VLM_MAX_IMAGE_DIM).
+    Return None kalau file tidak bisa dibaca.
+    """
+    try:
+        img = cv2.imread(image_path)
+        if img is None:
+            return None
+        h, w = img.shape[:2]
+        longest = max(h, w)
+        if longest > VLM_MAX_IMAGE_DIM:
+            scale = VLM_MAX_IMAGE_DIM / float(longest)
+            img = cv2.resize(
+                img, (max(1, int(w * scale)), max(1, int(h * scale))),
+                interpolation=cv2.INTER_AREA,
+            )
+        ok, buf = cv2.imencode(
+            ".jpg", img, [int(cv2.IMWRITE_JPEG_QUALITY), VLM_JPEG_QUALITY]
+        )
+        if not ok:
+            return None
+        return "data:image/jpeg;base64," + base64.b64encode(buf.tobytes()).decode("ascii")
+    except Exception as e:
+        print(f"[VLM] Gagal encode gambar: {e}")
+        return None
+
+
+# Skala luas per kelas: area_ratio yang dianggap "sangat besar" untuk kelas
+# tersebut. Dipakai menghitung posisi skor DI DALAM band secara deterministik.
+# Angka berbeda per kelas karena objeknya beda sifat: kabel membentang lebar
+# (area besar itu normal), sedangkan lubang 15% frame sudah sangat besar.
+_AREA_SCALE = {
+    "jalan_bolong": 0.15,
+    "genangan_air": 0.25,
+    "sampah_liar": 0.15,
+    "kabel_semrawut": 0.30,
+}
+
+
+def severity_fraction(area_ratio: float, cls: str = "") -> float:
+    """
+    Ubah luas objek dominan menjadi angka 0-1 TANPA titik jenuh.
+
+    Kenapa perlu: skor matematis YOLO dipotong di 100, dan pada 11 dari 31
+    foto nilainya mentok 100. Kalau posisi di dalam band diambil dari skor itu,
+    semua foto parah keluar dengan angka identik (87) sehingga laporan yang
+    jelas berbeda keparahannya terlihat sama. Luas objek tidak jenuh, jadi
+    bisa dipakai membedakan.
+    """
+    scale = _AREA_SCALE.get(cls, 0.20)
+    if scale <= 0:
+        return 0.0
+    return max(0.0, min(1.0, float(area_ratio or 0.0) / scale))
+
+
+def band_to_score(band: str, yolo_score: int = 0, evidence_ratio: float = None) -> int:
+    """
+    Konversi band keparahan kualitatif (pilihan VLM) menjadi skor numerik TETAP.
+
+    Ini kunci anti-"lotre": model generatif hanya boleh memilih band, bukan
+    mengarang angka 0-100 (uji empiris: foto sama bisa jadi 20 lalu 90).
+    Band menentukan RENTANG, lalu posisi di dalam rentang ditentukan
+    deterministik dari bukti terukur: luas objek dominan kalau tersedia
+    (tidak jenuh), kalau tidak dari skor matematis YOLO.
+    """
+    key = str(band or "").strip().upper()
+    if key not in BAND_SCORE_RANGE:
+        return int(max(0, min(100, yolo_score or 0)))
+    lo, hi = BAND_SCORE_RANGE[key]
+    if evidence_ratio is None:
+        ratio = max(0.0, min(1.0, float(yolo_score or 0) / 100.0))
+    else:
+        ratio = max(0.0, min(1.0, float(evidence_ratio)))
+    return int(round(lo + ratio * (hi - lo)))
+
+
+def _normalize_vlm_result(raw: dict, payload: dict) -> dict:
+    """
+    Rapikan jawaban VLM menjadi bentuk yang dipakai pipeline.
+
+    Yang dinormalisasi:
+    - kelas_utama  -> harus salah satu CLASS_LABEL_PUBLIC atau "aman"
+    - band         -> RINGAN/SEDANG/BERAT/KRITIS
+    - skor final   -> hasil band_to_score (BUKAN angka karangan VLM)
+    - verifikasi_yolo -> cocok / yolo_salah / yolo_kurang_lengkap
+    """
+    yolo_score = int(payload.get("score", 0) or 0)
+    yolo_class = payload.get("primary_issue_class", "unknown")
+
+    # --- kelas ---
+    raw_cls = str(raw.get("kelas_utama", "") or "").strip().lower().replace(" ", "_")
+    cls = raw_cls if (raw_cls in CLASS_LABEL_PUBLIC or raw_cls == "aman") else yolo_class
+
+    # "aman" hanya kalau VLM menyatakan foto BUKAN infrastruktur DAN tidak
+    # menyebut kelas kerusakan apa pun. Kalau dia tetap menyebut kelas
+    # (misal sampah_liar di padang rumput), hormati kelas itu — itu justru
+    # koreksi paling berharga dibanding YOLO.
+    is_infra = raw.get("is_infrastruktur")
+    if is_infra is False and raw_cls not in CLASS_LABEL_PUBLIC:
+        cls = "aman"
+
+    # --- band keparahan ---
+    band = str(raw.get("tingkat", "") or "").strip().upper()
+    if band not in BAND_SCORE_RANGE:
+        # Turunkan dari skor YOLO kalau VLM tidak memberi band yang dikenal.
+        band = {
+            "LOW": "RINGAN",
+            "MEDIUM": "SEDANG",
+            "HIGH": "BERAT",
+        }.get(str(payload.get("severity_label", "")).upper(), "SEDANG")
+
+    # --- verifikasi YOLO ---
+    verif = str(raw.get("verifikasi_yolo", "") or "").strip().lower()
+    if verif not in {"cocok", "yolo_salah", "yolo_kurang_lengkap"}:
+        verif = "cocok"
+
+    # --- tie-break kelas (anti flip-flop) ---
+    # VLM bisa berganti-ganti antara dua kelas yang sama-sama benar secara
+    # visual (contoh: lubang jalan yang penuh air -> kadang "jalan_bolong",
+    # kadang "genangan_air"). Kalau keduanya masih satu keluarga kerusakan
+    # permukaan jalan dan YOLO tidak dinyatakan salah, pakai kelas YOLO yang
+    # deterministik supaya hasil antar-run konsisten. Koreksi kelas tetap
+    # dihormati kalau VLM bilang "yolo_salah" atau kelasnya beda keluarga.
+    if verif != "yolo_salah" and cls != yolo_class:
+        if _CLASS_FAMILY.get(cls) == _CLASS_FAMILY.get(yolo_class):
+            print(
+                f"[VLM] Tie-break: '{cls}' vs '{yolo_class}' satu keluarga "
+                f"({_CLASS_FAMILY.get(cls)}), pakai kelas YOLO yang deterministik."
+            )
+            cls = yolo_class
+
+    if cls == "aman":
+        final_score = 0
+        band = "RINGAN"
+    else:
+        # Bukti terukur untuk posisi di dalam band: luas objek dominan dari
+        # kelas yang akhirnya dipilih. Kalau kelas final hasil koreksi VLM
+        # tidak punya bbox (mis. sampah_liar pada foto yang YOLO baca sebagai
+        # jalan_bolong), pakai objek terluas yang tersedia sebagai perkiraan.
+        objects = payload.get("objects", []) or []
+        areas_for_cls = [
+            float(o.get("area_ratio", 0.0) or 0.0)
+            for o in objects if o.get("class") == cls
+        ]
+        if areas_for_cls:
+            evidence = max(areas_for_cls)
+        elif objects:
+            evidence = max(float(o.get("area_ratio", 0.0) or 0.0) for o in objects)
+        else:
+            evidence = None
+        final_score = band_to_score(
+            band, yolo_score, None if evidence is None else severity_fraction(evidence, cls)
+        )
+
+    return {
+        "kelas_utama": cls,
+        "is_infrastruktur": bool(is_infra) if is_infra is not None else cls != "aman",
+        "verifikasi_yolo": verif,
+        "band": band,
+        "final_score": final_score,
+        "severity_label": score_to_label(final_score),
+        "bisa_dilalui": str(raw.get("bisa_dilalui", "") or "").strip().lower() or None,
+        "catatan_visual": str(raw.get("catatan_visual", "") or "").strip() or None,
+    }
+
+
+def ask_vlm_verdict(payload: dict, image_path: str):
+    """
+    VLM sebagai HAKIM: kirim FOTO + ringkasan output YOLO, minta verifikasi.
+
+    Bedanya dengan ask_llm_combined lama: fungsi itu cuma mengirim JSON angka
+    (LLM buta gambar), jadi tidak mungkin tahu kalau YOLO salah. Di sini model
+    benar-benar melihat fotonya, sehingga bisa menangkap kasus seperti padang
+    rumput bersampah yang divonis "jalan_bolong" oleh YOLO.
+
+    Return dict ternormalisasi, atau None kalau VLM tidak tersedia/gagal
+    (pemanggil harus fallback ke jalur YOLO-only).
+    """
+    if not VLM_ENABLED:
+        print("[VLM] Dinonaktifkan lewat VLM_ENABLED=false.")
+        return None
+    if not LLM_API_KEY:
+        print("[VLM] API key tidak ada, lewati verifikasi VLM.")
+        return None
+
+    data_url = _encode_image_for_vlm(image_path)
+    if not data_url:
+        print("[VLM] Gambar tidak bisa di-encode, lewati verifikasi VLM.")
+        return None
+
+    # Ringkasan YOLO sengaja RINGKAS: VLM tidak perlu seluruh bbox, cukup
+    # apa yang dideteksi, berapa banyak, dan seberapa besar areanya.
+    objects = payload.get("objects", []) or []
+    per_class = {}
+    for o in objects:
+        c = o.get("class", "unknown")
+        entry = per_class.setdefault(c, {"kelas": c, "jumlah": 0, "luas_persen": 0.0})
+        entry["jumlah"] += 1
+        entry["luas_persen"] += float(o.get("area_ratio", 0.0)) * 100.0
+    yolo_summary = {
+        "deteksi": [
+            {**v, "luas_persen": round(v["luas_persen"], 2)}
+            for v in per_class.values()
+        ],
+        "skor_matematis": payload.get("score", 0),
+        "label_matematis": payload.get("severity_label", "LOW"),
+        "lokasi": payload.get("location", "tidak diketahui"),
+    }
+
+    prompt = f"""PERAN:
+Anda insinyur sipil senior yang memverifikasi hasil deteksi otomatis (YOLO)
+pada foto laporan warga. Anda MELIHAT fotonya langsung.
+
+HASIL DETEKSI YOLO (bisa saja salah):
+{json.dumps(yolo_summary, ensure_ascii=False, indent=2)}
+
+TUGAS:
+1) Lihat foto. Tentukan apakah ini benar foto masalah infrastruktur / fasilitas
+   publik (jalan, trotoar, drainase, utilitas, sampah di ruang publik).
+   Sampah berserakan di taman/padang juga dihitung YA, bukan ditolak.
+   Foto hewan peliharaan, potret orang, barang dalam ruangan dihitung TIDAK.
+2) Verifikasi hasil YOLO:
+   - "cocok"              = YOLO benar, kelas & temuannya wajar
+   - "yolo_salah"         = YOLO salah kelas / salah objek (misal padang rumput
+                            divonis jalan berlubang, spion mobil divonis kabel)
+   - "yolo_kurang_lengkap"= YOLO benar tapi banyak kerusakan terlewat
+3) Tentukan kelas utama yang BENAR menurut foto Anda.
+4) Tentukan tingkat keparahan sebagai BAND kualitatif (JANGAN memberi angka).
+5) Tulis narasi publik (bahasa awam) dan rekomendasi dinas (teknis).
+
+PANDUAN BAND:
+- RINGAN  : kerusakan kecil, tidak mengganggu, bisa diabaikan sementara
+- SEDANG  : mengganggu kenyamanan/keselamatan, perlu perbaikan terjadwal
+- BERAT   : membahayakan pengendara, perlu perbaikan segera
+- KRITIS  : kerusakan struktural/amblas, berisiko kecelakaan fatal, darurat
+
+ATURAN KETAT:
+- JANGAN memberi skor angka 0-100. Hanya pilih band.
+- Kalau foto bukan infrastruktur jalan: is_infrastruktur=false, kelas_utama="aman".
+- Balas HANYA JSON valid, tanpa markdown.
+
+FORMAT:
+{{
+  "is_infrastruktur": true/false,
+  "kelas_utama": "jalan_bolong" | "kabel_semrawut" | "genangan_air" | "sampah_liar" | "aman",
+  "verifikasi_yolo": "cocok" | "yolo_salah" | "yolo_kurang_lengkap",
+  "tingkat": "RINGAN" | "SEDANG" | "BERAT" | "KRITIS",
+  "bisa_dilalui": "ya" | "hati-hati" | "tidak",
+  "catatan_visual": "<1 kalimat: apa yang benar-benar terlihat di foto>",
+  "public": {{"judul": "<3-8 kata>", "pesan": "<2-3 kalimat bahasa awam>"}},
+  "dinas": {{"judul": "<judul teknis>", "rekomendasi": "<1-2 kalimat tindakan teknis>"}}
+}}"""
+
+    try:
+        client = OpenAI(
+            base_url=LLM_BASE_URL,
+            api_key=LLM_API_KEY,
+            timeout=90.0,
+            max_retries=2,
+        )
+        completion = client.chat.completions.create(
+            model=LLM_MODEL,
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": prompt},
+                        {"type": "image_url", "image_url": {"url": data_url}},
+                    ],
+                }
+            ],
+            temperature=0.0,
+            response_format={"type": "json_object"},
+        )
+    except Exception as e:
+        print(f"[VLM ERROR] {type(e).__name__}: {e}")
+        return None
+
+    raw_text = (completion.choices[0].message.content or "").strip()
+    usage = getattr(completion, "usage", None)
+    tok = getattr(usage, "total_tokens", "?") if usage else "?"
+    print(f"[VLM] Verdict diterima ({tok} token): {raw_text[:160]}")
+
+    parsed = None
+    try:
+        parsed = json.loads(raw_text)
+    except Exception:
+        start, end = raw_text.find("{"), raw_text.rfind("}")
+        if start != -1 and end > start:
+            try:
+                parsed = json.loads(raw_text[start:end + 1])
+            except Exception:
+                parsed = None
+
+    if not isinstance(parsed, dict):
+        print("[VLM PARSE ERROR] Gagal parse JSON verdict.")
+        return None
+
+    verdict = _normalize_vlm_result(parsed, payload)
+    verdict["public"] = parsed.get("public") if isinstance(parsed.get("public"), dict) else {}
+    verdict["dinas"] = parsed.get("dinas") if isinstance(parsed.get("dinas"), dict) else {}
+    verdict["raw"] = parsed
+    return verdict
+
+
+def _build_llm_result_from_verdict(verdict: dict, payload: dict, geometry: dict) -> dict:
+    """
+    Ubah verdict VLM menjadi bentuk yang sama dengan ask_llm_combined(),
+    supaya sisa pipeline (title, description, email, meta_data) tidak perlu
+    diubah dan tetap kompatibel dengan data lama.
+
+    Catatan: validation.math_score sengaja diisi skor FINAL (hasil band),
+    karena itulah yang benar-benar disimpan & ditampilkan sistem.
+    """
+    band = verdict.get("band", "SEDANG")
+    final_score = verdict.get("final_score", 0)
+    severity_label = verdict.get("severity_label", "LOW")
+    primary = verdict.get("kelas_utama", "unknown")
+    pretty = CLASS_LABEL_PUBLIC.get(primary, str(primary).replace("_", " "))
+    loc = payload.get("location", "lokasi yang dilaporkan")
+    geom = geometry or {}
+
+    public_in = verdict.get("public") or {}
+    dinas_in = verdict.get("dinas") or {}
+    catatan = verdict.get("catatan_visual") or ""
+
+    # VLM menyimpulkan tidak ada kerusakan: jangan paksakan narasi "kerusakan
+    # aman dengan prioritas LOW" yang membingungkan pembaca.
+    if primary == "aman":
+        _why = catatan or "Foto tidak menunjukkan kerusakan infrastruktur."
+        return {
+            "source": "vlm_verdict",
+            "size_reasoning": {
+                "adjusted_width_m": None,
+                "adjusted_width_range_m": None,
+                "size_category": None,
+                "reason": "Tidak ada kerusakan yang perlu diukur.",
+            },
+            "validation": {
+                "math_score": 0,
+                "severity_label_math": "LOW",
+                "severity_label_opinion": "LOW",
+                "consistency_flag": "Konsisten",
+                "consistency_notes": _why,
+                "uncertainty_level": "Rendah",
+                "uncertainty_reason": "Verifikasi visual langsung pada foto.",
+                "yolo_verification": verdict.get("verifikasi_yolo"),
+                "bisa_dilalui": verdict.get("bisa_dilalui"),
+            },
+            "public": {
+                "title": "Tidak Ditemukan Kerusakan",
+                "message": (
+                    "Terima kasih atas laporannya. Setelah diperiksa, foto yang "
+                    "dikirim tidak menunjukkan kerusakan infrastruktur yang perlu "
+                    "ditangani."
+                ),
+                "severity_label": "LOW",
+            },
+            "dinas": {
+                "title": "Tidak Ditemukan Kerusakan",
+                "summary": "Tidak ada kerusakan infrastruktur yang teridentifikasi.",
+                "technical_report": _why,
+                "risk_notes": "Tidak ada risiko yang teridentifikasi dari foto ini.",
+                "recommended_action": "Tidak ada tindakan yang diperlukan.",
+                "followup_suggestion": "Tidak perlu tindak lanjut.",
+                "priority": "LOW",
+                "estimated_width_m": None,
+                "estimated_width_range_m": None,
+                "distance_m": None,
+            },
+        }
+
+    public_title = public_in.get("judul") or f"{pretty.title()} Teridentifikasi"
+    public_msg = public_in.get("pesan") or (
+        f"Sistem mendeteksi {pretty} di {loc}. "
+        f"Tingkat bahaya dikategorikan {severity_label.lower()}."
+    )
+
+    dinas_title = dinas_in.get("judul") or f"{pretty.title()} - {severity_label}"
+    dinas_reco = dinas_in.get("rekomendasi") or (
+        "Mohon verifikasi lapangan dan penanganan sesuai prosedur standar."
+    )
+
+    band_note = {
+        "RINGAN": "kerusakan ringan, dapat ditangani dalam pemeliharaan rutin",
+        "SEDANG": "kerusakan sedang, perlu perbaikan terjadwal",
+        "BERAT": "kerusakan berat, membahayakan pengendara dan perlu segera ditangani",
+        "KRITIS": "kerusakan kritis/struktural, berisiko kecelakaan fatal dan bersifat darurat",
+    }.get(band, "keparahan sesuai hasil verifikasi visual")
+
+    return {
+        "source": "vlm_verdict",
+        "size_reasoning": {
+            "adjusted_width_m": geom.get("estimated_width_m"),
+            "adjusted_width_range_m": geom.get("estimated_width_range_m"),
+            "size_category": None,
+            "reason": "Ukuran mengikuti estimasi geometri YOLO; VLM memverifikasi konteks visual.",
+        },
+        "validation": {
+            "math_score": final_score,
+            "severity_label_math": severity_label,
+            "severity_label_opinion": severity_label,
+            "consistency_flag": "Konsisten",
+            "consistency_notes": f"Band {band}: {band_note}.",
+            "uncertainty_level": "Rendah",
+            "uncertainty_reason": "Keputusan diambil setelah verifikasi visual langsung pada foto.",
+            "yolo_verification": verdict.get("verifikasi_yolo"),
+            "bisa_dilalui": verdict.get("bisa_dilalui"),
+        },
+        "public": {
+            "title": public_title,
+            "message": public_msg,
+            "severity_label": severity_label,
+        },
+        "dinas": {
+            "title": dinas_title,
+            "summary": f"{pretty.title()} dengan prioritas {severity_label} di {loc}.",
+            "technical_report": (
+                f"Hasil verifikasi visual: {catatan} " if catatan else ""
+            ) + (
+                f"Klasifikasi {pretty} dengan tingkat {band} (skor {final_score}/100, "
+                f"prioritas {severity_label}). Verifikasi YOLO: "
+                f"{verdict.get('verifikasi_yolo', 'cocok')}."
+            ),
+            "risk_notes": band_note.capitalize() + ".",
+            "recommended_action": dinas_reco,
+            "followup_suggestion": "Lakukan inspeksi lapangan untuk konfirmasi dan penjadwalan perbaikan.",
             "priority": severity_label,
             "estimated_width_m": geom.get("estimated_width_m"),
             "estimated_width_range_m": geom.get("estimated_width_range_m"),
@@ -1253,6 +1745,16 @@ _STALE_ANALYSIS_KEYS = (
     "needs_review",
     "review_reason",
     "low_conf_candidates",
+    # Jejak keputusan VLM / penolakan scene guard. Wajib ikut dibersihkan,
+    # kalau tidak: issue yang di analisis ulang bisa menyimpan verdict lama
+    # padahal hasil barunya jalur fallback (YOLO teks) tanpa VLM.
+    "vlm_verdict",
+    "vlm_rescue",
+    "yolo_baseline",
+    "rejected_reason",
+    "scene_evidence",
+    "note",
+    "error",
 )
 
 
@@ -1622,6 +2124,88 @@ def process_analysis(issue_id: str, image_path: str, session: Session):
         if not valid_detections:
             _prev_meta = _clean_analysis_meta(issue.meta_data)
 
+            # --- VLM RESCUE ---
+            # YOLO nol deteksi BUKAN berarti foto aman. Kasus nyata: foto
+            # "tes jalan nya bos .jpeg" gagal total di satu resolusi padahal
+            # jalannya penuh lubang besar. Jadi justru di titik ini VLM
+            # paling berguna: dikirimi foto tanpa "bias" dari YOLO.
+            if VLM_ENABLED and not weak_detections:
+                print("[ENGINE] YOLO nol deteksi -> minta pendapat VLM (rescue).")
+                rescue_payload = {
+                    "severity_label": "LOW",
+                    "score": 0,
+                    "primary_issue_class": "aman",
+                    "location": _build_location_text(issue),
+                    "geometry": None,
+                    "breakdown": {},
+                    "objects": [],
+                    "road_width_m": CAMERA_CFG["road_width_m"],
+                    "timestamp": issue.created_at.isoformat() if issue.created_at else None,
+                }
+                rescue = ask_vlm_verdict(rescue_payload, abs_path)
+                if rescue and rescue["kelas_utama"] != "aman":
+                    # Skor rescue: YOLO tidak punya angka sama sekali (0), jadi
+                    # interpolasi band akan menghasilkan batas bawah. Untuk band
+                    # RINGAN batas bawahnya 0 — itu akan salah dibaca sebagai
+                    # "tidak ada kerusakan". Pakai titik tengah band sebagai
+                    # estimasi deterministik saat YOLO benar-benar buta.
+                    rescue_score = rescue["final_score"]
+                    if rescue_score <= 0:
+                        _lo, _hi = BAND_SCORE_RANGE.get(rescue["band"], (45, 74))
+                        rescue_score = int(round((_lo + _hi) / 2))
+                    print(
+                        f"[VLM] RESCUE: YOLO buta, VLM melihat '{rescue['kelas_utama']}' "
+                        f"band={rescue['band']} skor={rescue_score}."
+                    )
+                    issue.issue_class = rescue["kelas_utama"]
+                    issue.severity_label = score_to_label(rescue_score)
+                    issue.final_score = rescue_score
+                    issue.breakdown_score = {rescue["kelas_utama"]: rescue_score}
+                    issue.secondary_issues = []
+                    issue.meta_data = {
+                        **_prev_meta,
+                        "geometry": None,
+                        "objects": [],
+                        "detect_imgsz": DETECT_IMGSZ,
+                        "vlm_rescue": True,
+                        "vlm_verdict": {
+                            "kelas_utama": rescue["kelas_utama"],
+                            "band": rescue["band"],
+                            "final_score": rescue_score,
+                            "severity_label": score_to_label(rescue_score),
+                            "verifikasi_yolo": rescue["verifikasi_yolo"],
+                            "bisa_dilalui": rescue["bisa_dilalui"],
+                            "catatan_visual": rescue["catatan_visual"],
+                        },
+                        "yolo_baseline": {"kelas": "aman", "skor": 0},
+                    }
+                    _rescue_for_narr = {**rescue, "final_score": rescue_score,
+                                        "severity_label": score_to_label(rescue_score)}
+                    rescue_llm = _build_llm_result_from_verdict(
+                        _rescue_for_narr, rescue_payload, None
+                    )
+                    issue.meta_data["llm_result"] = rescue_llm
+                    issue.title = rescue_llm["dinas"].get("title") or "Laporan Kerusakan"
+                    issue.description = (
+                        rescue_llm["dinas"].get("technical_report")
+                        or rescue_llm["public"].get("message")
+                        or "Terdeteksi kerusakan melalui verifikasi visual."
+                    )
+                    issue.image_url = f"/static/{detected_filename}"
+                    issue.status = "PENDING"
+                    session.add(issue)
+                    session.commit()
+                    session.refresh(issue)
+                    print("[ENGINE] Selesai lewat VLM rescue (YOLO tidak melihat apa pun).")
+                    try:
+                        norm_path = os.path.normpath(image_path)
+                        if ("uploads_raw" in norm_path or norm_path.startswith("uploads_raw")) and os.path.exists(image_path):
+                            os.remove(image_path)
+                    except Exception:
+                        pass
+                    send_email_alert(issue)
+                    return
+
             # Ada kandidat lemah? Jangan langsung bilang "aman" — tandai
             # perlu verifikasi supaya admin tetap bisa menilai fotonya.
             if weak_detections:
@@ -1689,14 +2273,14 @@ def process_analysis(issue_id: str, image_path: str, session: Session):
             print("[ENGINE] Selesai tanpa temuan.")
             return
 
-        # Hitung skor spasial + geometri
+        # Hitung skor spasial + geometri (BASELINE dari YOLO)
         final_score, primary_issue, breakdown, geometry_dom, objects_meta = calculate_spatial_score(
             valid_detections, img_w, img_h
         )
 
         severity_label = score_to_label(final_score)
 
-        # Build payload untuk LLM
+        # Build payload untuk VLM/LLM
         loc_text = _build_location_text(issue)
         payload = {
             "severity_label": severity_label,
@@ -1710,8 +2294,37 @@ def process_analysis(issue_id: str, image_path: str, session: Session):
             "timestamp": issue.created_at.isoformat() if issue.created_at else None,
         }
 
-        print("[ENGINE] Mengontak LLM narasi (size reasoning + validation + public + dinas).")
-        llm_result = ask_llm_combined(payload)
+        # --- VLM SEBAGAI HAKIM ---
+        # Kirim FOTO + ringkasan YOLO. VLM bisa menangkap kasus yang mustahil
+        # diketahui oleh jalur teks lama (mis. padang rumput divonis jalan
+        # berlubang), lalu menentukan band keparahan. Skor final tetap
+        # dikonversi backend lewat BAND_SCORE_RANGE (deterministik).
+        yolo_score_before = final_score
+        yolo_class_before = primary_issue
+        vlm_verdict = None
+        if VLM_ENABLED:
+            print("[ENGINE] Mengontak VLM untuk verifikasi visual (foto + hasil YOLO).")
+            vlm_verdict = ask_vlm_verdict(payload, abs_path)
+
+        if vlm_verdict:
+            primary_issue = vlm_verdict["kelas_utama"]
+            final_score = vlm_verdict["final_score"]
+            severity_label = vlm_verdict["severity_label"]
+            print(
+                f"[VLM] Keputusan: {primary_issue} | band={vlm_verdict['band']} | "
+                f"skor={final_score} ({severity_label}) | verifikasi YOLO={vlm_verdict['verifikasi_yolo']}"
+            )
+            if primary_issue != yolo_class_before:
+                print(
+                    f"[VLM] KOREKSI KELAS: YOLO bilang '{yolo_class_before}' "
+                    f"(skor {yolo_score_before}) -> VLM bilang '{primary_issue}'."
+                )
+            llm_result = _build_llm_result_from_verdict(vlm_verdict, payload, geometry_dom)
+        else:
+            # Fallback: jalur lama (LLM teks). Tetap dipakai kalau VLM mati,
+            # API error, atau VLM_ENABLED=false.
+            print("[ENGINE] VLM tidak tersedia -> fallback LLM narasi (size reasoning + validation + public + dinas).")
+            llm_result = ask_llm_combined(payload)
 
         size_reasoning = llm_result.get("size_reasoning", {}) or {}
         public_out = llm_result.get("public", {}) or {}
@@ -1730,10 +2343,29 @@ def process_analysis(issue_id: str, image_path: str, session: Session):
         issue.issue_class = primary_issue
         issue.severity_label = severity_label
         issue.final_score = final_score
-        issue.breakdown_score = breakdown
-        issue.secondary_issues = [
-            o for o in objects_meta if o.get("class") != primary_issue
-        ]
+
+        # Kalau VLM mengoreksi kelas, breakdown & secondary_issues dari YOLO
+        # jadi menyesatkan (bisa berisi kelas yang justru dinyatakan salah,
+        # mis. "jalan_bolong" pada foto padang rumput). Bersihkan supaya yang
+        # tersisa hanya konsisten dengan kelas final.
+        if primary_issue != yolo_class_before:
+            issue.breakdown_score = {primary_issue: final_score}
+            issue.secondary_issues = []
+        else:
+            issue.breakdown_score = breakdown
+            issue.secondary_issues = [
+                o for o in objects_meta if o.get("class") != primary_issue
+            ]
+
+        # Kalau VLM menyimpulkan fotonya aman (bukan kerusakan), geometri dan
+        # objek YOLO tidak lagi mewakili apa pun yang nyata — jangan simpan
+        # supaya halaman detail tidak menampilkan angka lubang yang fiktif.
+        if primary_issue == "aman":
+            geometry_dom = None
+            objects_meta = []
+            breakdown = {}
+            issue.breakdown_score = {}
+            issue.secondary_issues = []
 
         # Meta data teknis full (pertahankan raw_file agar recovery/delete tetap jalan)
         # Bersihkan dulu key analisis lama supaya tidak ada sisa needs_review /
@@ -1746,6 +2378,21 @@ def process_analysis(issue_id: str, image_path: str, session: Session):
             "llm_payload": payload,
             "llm_result": llm_result,
         }
+        if vlm_verdict:
+            # Simpan jejak keputusan supaya admin bisa audit kenapa skor berubah.
+            issue.meta_data["vlm_verdict"] = {
+                "kelas_utama": vlm_verdict["kelas_utama"],
+                "band": vlm_verdict["band"],
+                "final_score": vlm_verdict["final_score"],
+                "severity_label": vlm_verdict["severity_label"],
+                "verifikasi_yolo": vlm_verdict["verifikasi_yolo"],
+                "bisa_dilalui": vlm_verdict["bisa_dilalui"],
+                "catatan_visual": vlm_verdict["catatan_visual"],
+            }
+            issue.meta_data["yolo_baseline"] = {
+                "kelas": yolo_class_before,
+                "skor": yolo_score_before,
+            }
 
         # Title & description
         issue.title = dinas_out.get(
