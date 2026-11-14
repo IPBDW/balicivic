@@ -1,5 +1,11 @@
 // Satu pintu akses API ke backend FastAPI.
-// NEXT_PUBLIC_API_BASE wajib diset (mis. http://127.0.0.1:8000).
+//
+// NEXT_PUBLIC_API_BASE berisi URL backend (mis. http://127.0.0.1:8000).
+// Kalau dikosongkan, semua request memakai origin yang sama (same-origin),
+// yaitu pola yang dipakai saat deploy di balik reverse proxy: frontend dan
+// backend dilayani dari satu domain, jadi tidak ada masalah CORS.
+// Jangan pernah menganggap base kosong sebagai "backend tidak ada" — request
+// dengan path relatif tetap valid.
 
 const apiBaseFromEnv = process.env.NEXT_PUBLIC_API_BASE;
 
@@ -10,10 +16,11 @@ function resolveBase() {
 
 export const API_BASE = resolveBase();
 
-if (!API_BASE) {
-  console.error(
-    '[BaliCivic] NEXT_PUBLIC_API_BASE belum diset. ' +
-      'Frontend tidak bisa terhubung ke backend FastAPI.'
+// Hanya info, bukan error: base kosong = mode same-origin (valid).
+if (!API_BASE && process.env.NODE_ENV !== 'production') {
+  console.info(
+    '[BaliCivic] NEXT_PUBLIC_API_BASE kosong — memakai origin yang sama ' +
+      '(request ke /api/... di domain frontend).'
   );
 }
 

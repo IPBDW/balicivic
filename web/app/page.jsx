@@ -3,7 +3,7 @@
 import Link from "next/link";
 import NavbarApp from "@/components/NavbarApp";
 import BottomNav from "@/components/BottomNav";
-import { API_BASE, imgUrl } from "@/lib/api";
+import { apiUrl, imgUrl } from "@/lib/api";
 import { waitForLeaflet } from "@/lib/leaflet";
 import { useEffect, useRef, useState } from "react";
 
@@ -119,10 +119,10 @@ export default function HomePage() {
   // 3. Laporan kerusakan aktual terbaru lainnya (non-aman, skor > 0)
   useEffect(() => {
     let cancelled = false;
-    if (!API_BASE) return;
     (async () => {
       try {
-        const res = await fetch(`${API_BASE}/api/issues?limit=25&exclude_aman=true`);
+        // Path relatif: aman untuk base kosong (same-origin) maupun base absolut.
+        const res = await fetch(apiUrl("/api/issues?limit=25&exclude_aman=true"));
         if (!res.ok) return;
         const list = await res.json();
         if (cancelled || !Array.isArray(list)) return;
@@ -173,16 +173,14 @@ export default function HomePage() {
         }).addTo(mapInstance);
 
         let points = [];
-        if (API_BASE) {
-          try {
-            const res = await fetch(`${API_BASE}/api/heatmap?limit=15`);
-            if (res.ok) {
-              const data = await res.json();
-              points = data.points || [];
-            }
-          } catch (e) {
-            console.warn("Gagal ambil data heatmap untuk mini map:", e);
+        try {
+          const res = await fetch(apiUrl("/api/heatmap?limit=15"));
+          if (res.ok) {
+            const data = await res.json();
+            points = data.points || [];
           }
+        } catch (e) {
+          console.warn("Gagal ambil data heatmap untuk mini map:", e);
         }
 
         points.slice(0, 15).forEach((p) => {
