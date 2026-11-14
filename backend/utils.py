@@ -111,28 +111,59 @@ def reverse_geocode(lat: Optional[float], lon: Optional[float]) -> Tuple[Optiona
         return None, None
 
 
-# --- GLOBAL YOLO MODEL (Lazy Singleton) ---
-_model_instance = None
+# --- GLOBAL YOLO MODELS (Multi-Model Registry) ---
+_models_registry = {}
+
+
+def get_models():
+    """
+    Load semua model kerusakan infrastruktur yang tersedia di weights/ (lazy load).
+    Kategori yang didukung:
+      - pothole (pothole.pt / best.pt) -> jalan_bolong
+      - garbage (garbage.pt)           -> sampah_liar
+      - kabel (kabel.pt)               -> kabel_semrawut
+      - puddle (puddle.pt)             -> genangan_air
+    Fallback: weights/yolo11s.pt jika tidak ada model spesifik.
+    """
+    global _models_registry
+    if not _models_registry:
+        print("[SYSTEM] Loading AI Models ke Memory...")
+        weights_dir = "weights"
+
+        model_specs = [
+            ("pothole", ["pothole.pt", "best.pt"]),
+            ("garbage", ["garbage.pt"]),
+            ("kabel", ["kabel.pt"]),
+            ("puddle", ["puddle.pt"]),
+        ]
+
+        for cat, filenames in model_specs:
+            for fname in filenames:
+                p = os.path.join(weights_dir, fname)
+                if os.path.exists(p):
+                    try:
+                        _models_registry[cat] = YOLO(p)
+                        print(f"[SYSTEM] Model {cat.upper()} Loaded: '{p}'")
+                        break
+                    except Exception as e:
+                        print(f"[WARN] Gagal load model '{p}': {e}")
+
+        # Fallback jika tidak ada model custom sama sekali
+        if not _models_registry:
+            fb = os.path.join(weights_dir, "yolo11s.pt")
+            if os.path.exists(fb):
+                print(f"[WARN] Menggunakan model fallback '{fb}'.")
+                _models_registry["fallback"] = YOLO(fb)
+            else:
+                raise FileNotFoundError("Tidak ada model YOLO ditemukan di folder weights/.")
+
+    return _models_registry
 
 
 def get_model():
-    """
-    Load model YOLO sekali saja (lazy load).
-    """
-    global _model_instance
-    if _model_instance is None:
-        print("[SYSTEM] Loading AI Model ke Memory...")
-        try:
-            if os.path.exists(os.path.join("weights", "best.pt")):
-                _model_instance = YOLO(os.path.join("weights", "best.pt"))
-                print("[SYSTEM] Model Custom 'weights/best.pt' Loaded.")
-            else:
-                print("[WARN] 'weights/best.pt' tidak ada. Menggunakan 'weights/yolo11s.pt'.")
-                _model_instance = YOLO(os.path.join("weights", "yolo11s.pt"))
-        except Exception as e:
-            print(f"[FATAL] Gagal load model: {e}")
-            raise e
-    return _model_instance
+    """Backwards compatibility: mengembalikan model utama (pothole / default)."""
+    models = get_models()
+    return models.get("pothole") or list(models.values())[0]
 
 
 # --- DETEKSI CONFIG ---
@@ -859,71 +890,105 @@ def process_analysis(issue_id: str, image_path: str, session: Session):
     print(f"\n[ENGINE] === MEMULAI ANALISIS ID: {issue_id} ===")
 
     try:
-        model = get_model()
+        models_dict = get_models()
 
         abs_path = os.path.abspath(image_path)
         print(f"[ENGINE] Reading image: {abs_path}")
 
-        results = model.predict(abs_path, conf=0.15, save=False, verbose=False)
-        r = results[0]
-
-        # Simpan gambar dengan bbox
-        annotated_img = r.plot()
-        filename = os.path.basename(image_path)
-        detected_filename = filename.replace(".jpg", "_detected.jpg")
-        detected_path = os.path.join("uploads", detected_filename)
-        cv2.imwrite(detected_path, annotated_img)
-        print(f"[ENGINE] Gambar hasil deteksi disimpan ke: {detected_path}")
+        orig_img = cv2.imread(abs_path)
+        if orig_img is None:
+            raise FileNotFoundError(f"Gagal membaca gambar dari: {abs_path}")
+        img_h, img_w = orig_img.shape[:2]
 
         valid_detections = []
         max_conf = 0.0
         primary_class_conf = "aman"
 
-        for box in r.boxes:
-            cls_id = int(box.cls[0])
-            raw_name = model.names[cls_id]
+        # Palet warna per kelas kerusakan untuk visualisasi bounding box (BGR)
+        CLASS_COLORS = {
+            "jalan_bolong": (0, 69, 255),       # Orange-Red
+            "sampah_liar": (34, 139, 34),       # Forest Green
+            "kabel_semrawut": (211, 0, 148),    # Purple / Magenta
+            "genangan_air": (255, 140, 0),      # Blue
+        }
 
-            # Buang kelas negatif ("Not Garbage", "-", dll) SEBELUM normalisasi
-            # keyword. Kalau tidak, "Not Garbage" ikut ke-match jadi sampah_liar.
-            if str(raw_name).strip().lower() in IGNORED_CLASSES:
+        # Jalankan inferensi ke seluruh model spesifik yang terpasang
+        for model_cat, mdl in models_dict.items():
+            try:
+                results = mdl.predict(abs_path, conf=0.15, save=False, verbose=False)
+                r = results[0]
+            except Exception as e:
+                print(f"[ENGINE WARN] Model {model_cat} gagal inferensi: {e}")
                 continue
 
-            cls_name = CLASS_ALIASES.get(raw_name, raw_name)
+            for box in r.boxes:
+                cls_id = int(box.cls[0])
+                raw_name = mdl.names[cls_id]
 
-            # Normalisasi otomatis jika dataset memakai variasi kata kunci
-            if cls_name not in CLASS_LABEL_PUBLIC:
-                ln = str(raw_name).lower()
-                if "pothole" in ln or "lubang" in ln or "bolong" in ln or "damage" in ln or "crack" in ln:
-                    cls_name = "jalan_bolong"
-                elif "garbage" in ln or "trash" in ln or "waste" in ln or "sampah" in ln:
-                    cls_name = "sampah_liar"
-                elif "cardboard" in ln or "tire" in ln or "mattress" in ln or "cart" in ln or "dumping" in ln:
-                    cls_name = "sampah_liar"
-                elif "water" in ln or "flood" in ln or "genangan" in ln:
-                    cls_name = "genangan_air"
-                elif "cable" in ln or "kabel" in ln or "utilitas" in ln or "taktertata" in ln:
-                    cls_name = "kabel_semrawut"
+                # Buang kelas negatif ("Not Garbage", "-", dll) SEBELUM normalisasi
+                # keyword. Kalau tidak, "Not Garbage" ikut ke-match jadi sampah_liar.
+                if str(raw_name).strip().lower() in IGNORED_CLASSES:
+                    continue
 
-            conf = float(box.conf[0])
+                cls_name = CLASS_ALIASES.get(raw_name, raw_name)
 
-            # Hanya kelas yang dikenal sistem (jangan terima class COCO
-            # seperti person/car dari model fallback yolo11s)
-            if cls_name not in CLASS_LABEL_PUBLIC:
-                continue
+                # Normalisasi otomatis jika dataset memakai variasi kata kunci
+                if cls_name not in CLASS_LABEL_PUBLIC:
+                    ln = str(raw_name).lower()
+                    if "pothole" in ln or "lubang" in ln or "bolong" in ln or "damage" in ln or "crack" in ln:
+                        cls_name = "jalan_bolong"
+                    elif "garbage" in ln or "trash" in ln or "waste" in ln or "sampah" in ln:
+                        cls_name = "sampah_liar"
+                    elif "cardboard" in ln or "tire" in ln or "mattress" in ln or "cart" in ln or "dumping" in ln:
+                        cls_name = "sampah_liar"
+                    elif "water" in ln or "flood" in ln or "genangan" in ln or "puddle" in ln:
+                        cls_name = "genangan_air"
+                    elif "cable" in ln or "kabel" in ln or "utilitas" in ln or "taktertata" in ln:
+                        cls_name = "kabel_semrawut"
 
-            if conf >= CONF_THRESHOLDS.get(cls_name, 0.25):
-                valid_detections.append(
-                    {
-                        "class": cls_name,
-                        "box": box.xyxy[0].tolist(),
-                        "conf": conf,
-                    }
-                )
-                if conf > max_conf:
-                    max_conf = conf
-                    primary_class_conf = cls_name
+                conf = float(box.conf[0])
 
-                print(f"[ENGINE] Deteksi Valid: {len(valid_detections)} objek.")
+                # Hanya kelas yang dikenal sistem (jangan terima class COCO
+                # seperti person/car dari model fallback yolo11s)
+                if cls_name not in CLASS_LABEL_PUBLIC:
+                    continue
+
+                if conf >= CONF_THRESHOLDS.get(cls_name, 0.25):
+                    valid_detections.append(
+                        {
+                            "class": cls_name,
+                            "box": box.xyxy[0].tolist(),
+                            "conf": conf,
+                        }
+                    )
+                    if conf > max_conf:
+                        max_conf = conf
+                        primary_class_conf = cls_name
+
+        print(f"[ENGINE] Total Deteksi Valid dari Semua Model: {len(valid_detections)} objek.")
+
+        # Gambar anotasi semua bounding box ke gambar asli
+        annotated_img = orig_img.copy()
+        for det in valid_detections:
+            cname = det["class"]
+            box_coords = [int(v) for v in det["box"]]
+            x1, y1, x2, y2 = box_coords
+            color = CLASS_COLORS.get(cname, (0, 255, 255))
+            label_text = f"{cname} {det['conf']:.2f}"
+
+            # Kotak deteksi
+            cv2.rectangle(annotated_img, (x1, y1), (x2, y2), color, 2)
+            # Tag label teks dengan background
+            (tw, th), baseline = cv2.getTextSize(label_text, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)
+            y_label = max(y1, th + 4)
+            cv2.rectangle(annotated_img, (x1, y_label - th - 4), (x1 + tw + 4, y_label + baseline), color, -1)
+            cv2.putText(annotated_img, label_text, (x1 + 2, y_label - 2), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1, cv2.LINE_AA)
+
+        filename = os.path.basename(image_path)
+        detected_filename = filename.replace(".jpg", "_detected.jpg")
+        detected_path = os.path.join("uploads", detected_filename)
+        cv2.imwrite(detected_path, annotated_img)
+        print(f"[ENGINE] Gambar hasil deteksi multi-model disimpan ke: {detected_path}")
 
         # Ambil issue dari DB
         issue = session.get(Issue, issue_id)
@@ -966,7 +1031,6 @@ def process_analysis(issue_id: str, image_path: str, session: Session):
             return
 
         # Hitung skor spasial + geometri
-        img_h, img_w = r.orig_shape[0], r.orig_shape[1]
         final_score, primary_issue, breakdown, geometry_dom, objects_meta = calculate_spatial_score(
             valid_detections, img_w, img_h
         )
