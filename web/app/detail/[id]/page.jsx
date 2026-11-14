@@ -281,25 +281,39 @@ export default function DetailPage() {
             {/* Left: Visuals */}
             <div className="lg:col-span-7 space-y-6">
               <div className="glass-panel rounded-3xl p-2 shadow-glass overflow-hidden group relative">
-                <div className="relative aspect-video bg-slate-100 rounded-2xl overflow-hidden cursor-zoom-in" onClick={() => setModalOpen(true)}>
+                <div className="relative aspect-video bg-slate-900 rounded-2xl overflow-hidden cursor-zoom-in flex items-center justify-center" onClick={() => setModalOpen(true)}>
                   {imgLoading && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-slate-100">
+                    <div className="absolute inset-0 flex items-center justify-center bg-slate-100 z-20">
                       <i className="fas fa-image text-slate-300 text-3xl"></i>
                     </div>
                   )}
+                  {/* Ambient blurred backdrop agar seluruh proporsi (vertikal/horizontal) terisi elegan */}
+                  {imgSrc && (
+                    <img
+                      src={imgSrc}
+                      alt=""
+                      aria-hidden="true"
+                      className="absolute inset-0 w-full h-full object-cover filter blur-xl scale-110 opacity-40 pointer-events-none"
+                    />
+                  )}
                   {imgSrc ? (
-                    <img src={imgSrc} alt="Bukti Laporan" onLoad={() => setImgLoading(false)} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+                    <img
+                      src={imgSrc}
+                      alt="Bukti Laporan"
+                      onLoad={() => setImgLoading(false)}
+                      className="relative z-10 max-w-full max-h-full w-auto h-auto object-contain transition-transform duration-500 group-hover:scale-[1.02]"
+                    />
                   ) : (
                     <div className="absolute inset-0 flex items-center justify-center bg-slate-100">
                       <i className="fas fa-image text-slate-300 text-3xl"></i>
                     </div>
                   )}
-                  <div className="absolute top-4 left-4 z-10 flex gap-2">
-                    <span className="bg-black/40 backdrop-blur-md text-white text-[10px] font-bold px-3 py-1.5 rounded-full border border-white/10 flex items-center gap-1.5 shadow-lg">
+                  <div className="absolute top-4 left-4 z-20 flex gap-2">
+                    <span className="bg-black/50 backdrop-blur-md text-white text-[10px] font-bold px-3 py-1.5 rounded-full border border-white/10 flex items-center gap-1.5 shadow-lg">
                       <i className="fas fa-eye text-emerald-400"></i> YOLOv11 Vision
                     </span>
                   </div>
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-8">
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-8 z-20 pointer-events-none">
                     <div className="transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300">
                       <p className="text-white font-display font-bold text-lg">Bukti Visual Terverifikasi</p>
                       <p className="text-slate-300 text-sm mt-1">Klik untuk melihat resolusi penuh</p>
@@ -462,12 +476,18 @@ export default function DetailPage() {
 
       {/* Image Modal */}
       <div
-        className={`fixed inset-0 z-[100] bg-slate-900/95 backdrop-blur-md ${modalOpen ? "flex" : "hidden"} items-center justify-center p-4 opacity-0 transition-opacity duration-300 print:hidden`}
+        className={`fixed inset-0 z-[100] bg-slate-900/95 backdrop-blur-md ${modalOpen ? "flex opacity-100" : "hidden opacity-0"} items-center justify-center p-4 transition-opacity duration-300 print:hidden cursor-zoom-out`}
         onClick={() => setModalOpen(false)}
       >
         <div className="relative max-w-6xl w-full max-h-[90vh] flex flex-col items-center">
-          {imgSrc && <img src={imgSrc} alt="Tampilan penuh" className="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl border border-white/10" />}
-          <button className="mt-6 bg-white/10 hover:bg-white/20 text-white px-6 py-2 rounded-full font-bold transition-all flex items-center gap-2 backdrop-blur-sm border border-white/10">
+          {imgSrc && (
+            <img
+              src={imgSrc}
+              alt="Tampilan penuh"
+              className="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl border border-white/10"
+            />
+          )}
+          <button className="mt-4 bg-white/10 hover:bg-white/20 text-white px-5 py-2 rounded-full font-bold text-xs transition-all flex items-center gap-2 backdrop-blur-sm border border-white/10">
             <i className="fas fa-times"></i> Tutup Tampilan Penuh
           </button>
         </div>

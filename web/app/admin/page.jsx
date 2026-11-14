@@ -347,9 +347,25 @@ function AdminContent() {
             <div className="grid lg:grid-cols-12 gap-4">
               <div className="lg:col-span-7 space-y-4">
                 <div className="bg-white rounded-xl border overflow-hidden">
-                  <div className="relative aspect-video bg-slate-100">
-                    {imgSrc && <img src={imgSrc} alt="Bukti" className="w-full h-full object-cover" />}
-                    <div className="absolute top-2 left-2 px-2 py-1 bg-black/60 rounded text-white text-xs font-mono">YOLO11s</div>
+                  <div className="relative aspect-video bg-slate-900 flex items-center justify-center overflow-hidden">
+                    {imgSrc && (
+                      <img
+                        src={imgSrc}
+                        alt=""
+                        aria-hidden="true"
+                        className="absolute inset-0 w-full h-full object-cover filter blur-xl scale-110 opacity-40 pointer-events-none"
+                      />
+                    )}
+                    {imgSrc && (
+                      <img
+                        src={imgSrc}
+                        alt="Bukti"
+                        className="relative z-10 max-w-full max-h-full object-contain"
+                      />
+                    )}
+                    <div className="absolute top-2 left-2 z-20 px-2 py-1 bg-black/60 backdrop-blur-sm rounded text-white text-xs font-mono">
+                      YOLO11s
+                    </div>
                   </div>
                 </div>
                 <div className="bg-white rounded-xl border p-4">

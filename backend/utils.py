@@ -886,9 +886,22 @@ def send_email_alert(issue_data: Issue):
         if not SENDER_EMAIL or not SENDER_PASS:
             print("[EMAIL] SMTP belum dikonfigurasi di .env. Email dilewati.")
             return
-        # Filter Cerdas: Hanya kirim jika skor > 60 (Medium ke atas)
-        if issue_data.final_score < 60:
-            print(f"[EMAIL] Skor {issue_data.final_score} (Low/Medium-Low). Email dilewati.")
+
+        # Jangan kirim email jika foto dinilai aman / tanpa temuan kerusakan
+        # (kecuali jika model ragu dan menandai perlu verifikasi manual).
+        is_safe = issue_data.issue_class == "aman"
+        needs_review = bool(
+            isinstance(issue_data.meta_data, dict)
+            and issue_data.meta_data.get("needs_review")
+        )
+
+        min_score = int(os.getenv("MIN_EMAIL_SCORE", "0"))
+        if is_safe and not needs_review:
+            print(f"[EMAIL] Kondisi aman (score: {issue_data.final_score}). Email dilewati.")
+            return
+
+        if (issue_data.final_score or 0) < min_score and not needs_review:
+            print(f"[EMAIL] Skor {issue_data.final_score} di bawah MIN_EMAIL_SCORE ({min_score}). Email dilewati.")
             return
 
         print(f"[EMAIL] Mempersiapkan pengiriman peringatan untuk ID {issue_data.id}...")
@@ -897,11 +910,19 @@ def send_email_alert(issue_data: Issue):
         scoped_token = generate_issue_token(issue_data.id)
         dashboard_url = f"{frontend_base}/admin?token={scoped_token}&id={issue_data.id}"
 
+        # Subject dinamis sesuai urgensi tindak lanjut
+        if needs_review:
+            subject = f"⚠️ PERLU VERIFIKASI: {issue_data.title or 'Laporan Kerusakan'} (ID #{issue_data.id})"
+        elif (issue_data.final_score or 0) >= 70:
+            subject = f"🚨 URGENT: {issue_data.title} ({issue_data.severity_label}) - #{issue_data.id}"
+        else:
+            subject = f"📋 LAPORAN TINDAK LANJUT: {issue_data.title} ({issue_data.severity_label}) - #{issue_data.id}"
+
         # Setup Pesan Multipart
         msg = MIMEMultipart('related')
         msg['From'] = f"BaliCivic AI <{SENDER_EMAIL}>"
         msg['To'] = TARGET_EMAIL
-        msg['Subject'] = f"🚨 PERINGATAN: {issue_data.title} ({issue_data.severity_label})"
+        msg['Subject'] = subject
 
         # Template HTML Email dengan gambar inline
         html_body = f"""
