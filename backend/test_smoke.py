@@ -388,3 +388,45 @@ def test_cable_in_ground_is_rejected():
     assert 0.45 < MIN_Y_CENTER_FOR_CABLE
     # Objek di aspal paling bawah (y center 0.95) -> ditolak
     assert 0.95 > MIN_Y_CENTER_FOR_CABLE
+
+
+def test_scene_guard_rejects_indoor_photo():
+    """
+    Regression: foto laptop + tas di meja kerja sempat terdeteksi sebagai
+    'kabel_semrawut' (issue #36 & #37). Scene guard harus menolak foto
+    yang jelas berisi benda dalam ruangan.
+    """
+    import cv2
+    import os
+    from utils import detect_indoor_scene, SCENE_GUARD_ENABLED
+
+    assert SCENE_GUARD_ENABLED, "scene guard harus aktif di produksi"
+
+    fixtures = [
+        ("uploads/a158735c_detected.jpg", {"laptop", "keyboard", "tv"}),
+        ("uploads/041ab0dd_detected.jpg", {"backpack", "suitcase"}),
+    ]
+    for path, expected in fixtures:
+        if not os.path.exists(path):
+            continue  # fixture opsional: lewati kalau file tidak ada
+        img = cv2.imread(path)
+        h, w = img.shape[:2]
+        is_indoor, evidence = detect_indoor_scene(path, w, h)
+        assert is_indoor, f"{path} seharusnya ditolak sebagai foto indoor"
+        found = {e["class"] for e in evidence}
+        assert found & expected, f"bukti {found} tidak cocok dengan {expected}"
+
+
+def test_scene_guard_allows_road_photo():
+    """Foto jalan asli tidak boleh ditolak scene guard."""
+    import cv2
+    import os
+    from utils import detect_indoor_scene
+
+    path = "uploads/f7f3f593_detected.jpg"  # foto kabel utilitas di jalan
+    if not os.path.exists(path):
+        return
+    img = cv2.imread(path)
+    h, w = img.shape[:2]
+    is_indoor, evidence = detect_indoor_scene(path, w, h)
+    assert not is_indoor, f"foto jalan salah ditolak: {evidence}"

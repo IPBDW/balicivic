@@ -203,6 +203,122 @@ def get_model():
     return models.get("pothole") or list(models.values())[0]
 
 
+# --- SCENE GUARD (deteksi "ini bukan foto infrastruktur jalan") ---
+# Model spesifik (kabel/pothole) sering false positive pada foto dalam ruangan:
+# meja kerja, laptop, keyboard, tas, kursi. Model COCO yolo11s sangat akurat
+# mengenali benda indoor tersebut, jadi kita pakai sebagai penjaga konteks.
+_coco_model = None
+_COCO_WEIGHTS = os.path.join("weights", "yolo11s.pt")
+
+# Kelas COCO yang praktis tidak mungkin muncul besar-besar di foto jalan raya.
+# Sengaja TIDAK memuat couch/bed/dining table/kursi: barang bekas seperti itu
+# justru sering jadi objek laporan "sampah liar" di pinggir jalan.
+_INDOOR_CLASSES = {
+    "laptop", "keyboard", "mouse", "tv", "cell phone", "book", "clock",
+    "vase", "scissors", "teddy bear", "hair drier", "toothbrush",
+    "cup", "fork", "knife", "spoon", "bowl", "wine glass",
+    "toilet", "sink", "refrigerator", "microwave", "oven", "toaster", "remote",
+}
+
+# Barang yang bisa ada di jalan (tas, koper) hanya dicurigai kalau ukurannya
+# sangat besar — artinya kamera menempel ke barang itu, bukan memotret jalan.
+# Catatan: "chair" sengaja TIDAK dimasukkan — kursi bekas di pinggir jalan
+# justru sering jadi objek laporan sampah liar.
+_LARGE_PORTABLE_CLASSES = {"backpack", "handbag", "suitcase"}
+
+# Label bahasa Indonesia untuk pesan penolakan (biar warga paham).
+_SCENE_LABELS_ID = {
+    "laptop": "laptop",
+    "keyboard": "keyboard",
+    "mouse": "mouse",
+    "tv": "layar/monitor",
+    "cell phone": "ponsel",
+    "book": "buku",
+    "clock": "jam",
+    "vase": "vas",
+    "scissors": "gunting",
+    "teddy bear": "boneka",
+    "hair drier": "pengering rambut",
+    "toothbrush": "sikat gigi",
+    "cup": "gelas",
+    "fork": "garpu",
+    "knife": "pisau",
+    "spoon": "sendok",
+    "bowl": "mangkuk",
+    "wine glass": "gelas kaca",
+    "bottle": "botol",
+    "dining table": "meja",
+    "couch": "sofa",
+    "bed": "kasur",
+    "toilet": "toilet",
+    "sink": "wastafel",
+    "refrigerator": "kulkas",
+    "microwave": "microwave",
+    "oven": "oven",
+    "toaster": "pemanggang roti",
+    "remote": "remote",
+    "backpack": "tas punggung",
+    "handbag": "tas",
+    "suitcase": "koper",
+    "chair": "kursi",
+}
+
+
+def _scene_label(name: str) -> str:
+    return _SCENE_LABELS_ID.get(name, name)
+
+
+def _get_coco_model():
+    """Load model COCO (yolo11s) sekali saja untuk scene guard."""
+    global _coco_model
+    if _coco_model is None:
+        if not os.path.exists(_COCO_WEIGHTS):
+            return None
+        try:
+            _coco_model = YOLO(_COCO_WEIGHTS)
+            print(f"[SCENE-GUARD] Model konteks dimuat: '{_COCO_WEIGHTS}'")
+        except Exception as e:
+            print(f"[SCENE-GUARD] Gagal load '{_COCO_WEIGHTS}': {e}")
+            return None
+    return _coco_model
+
+
+def detect_indoor_scene(abs_path: str, img_w: int, img_h: int):
+    """
+    Cek apakah foto ini jelas-jelas di dalam ruangan / bukan jalan raya.
+
+    Return (is_indoor, evidence) — evidence berupa daftar
+    {"class", "conf", "area_ratio"} yang memicu penolakan.
+    """
+    if not SCENE_GUARD_ENABLED:
+        return False, []
+
+    model = _get_coco_model()
+    if model is None:
+        return False, []
+
+    try:
+        res = model.predict(abs_path, conf=SCENE_GUARD_CONF, imgsz=640, verbose=False)[0]
+    except Exception as e:
+        print(f"[SCENE-GUARD] Inferensi gagal: {e}")
+        return False, []
+
+    frame_area = float(img_w * img_h)
+    evidence = []
+    for box in res.boxes:
+        name = str(model.names[int(box.cls[0])]).lower()
+        conf = float(box.conf[0])
+        x1, y1, x2, y2 = [float(v) for v in box.xyxy[0].tolist()]
+        area_ratio = ((x2 - x1) * (y2 - y1)) / frame_area
+
+        if name in _INDOOR_CLASSES and area_ratio >= SCENE_GUARD_AREA:
+            evidence.append({"class": name, "conf": round(conf, 3), "area_ratio": round(area_ratio, 4)})
+        elif name in _LARGE_PORTABLE_CLASSES and area_ratio >= SCENE_GUARD_AREA * 2:
+            evidence.append({"class": name, "conf": round(conf, 3), "area_ratio": round(area_ratio, 4)})
+
+    return bool(evidence), evidence
+
+
 # --- DETEKSI CONFIG ---
 
 # Nama class kanonik: "genangan_air" (dipakai frontend & dashboard).
@@ -296,6 +412,12 @@ MAX_Y_CENTER_FOR_GARBAGE = _env_float("MAX_Y_CENTER_FOR_GARBAGE", 0.20)
 
 # Kabel semrawut adalah utilitas udara (bukan objek di aspal tepat di bawah kaki).
 MIN_Y_CENTER_FOR_CABLE = _env_float("MIN_Y_CENTER_FOR_CABLE", 0.90)
+
+# Scene guard: tolak foto yang jelas-jelas bukan infrastruktur jalan
+# (meja kerja, laptop, keyboard, tas, kursi) sebelum skoring dijalankan.
+SCENE_GUARD_ENABLED = _env_float("SCENE_GUARD_ENABLED", 1) != 0
+SCENE_GUARD_CONF = _env_float("SCENE_GUARD_CONF", 0.45)
+SCENE_GUARD_AREA = _env_float("SCENE_GUARD_AREA", 0.08)
 
 
 # Resolusi inferensi.
@@ -1042,6 +1164,28 @@ def _apply_nms(detections, iou_thresh: float = 0.45):
     return kept
 
 
+# Key meta_data yang hanya valid untuk analisis kerusakan. Kalau hasil akhirnya
+# "tidak ada temuan" (misal foto bukan infrastruktur jalan), key ini WAJIB
+# dibuang supaya narasi lama (mis. "kabel semrawut") tidak ikut tampil lagi
+# di halaman detail.
+_STALE_ANALYSIS_KEYS = (
+    "geometry",
+    "objects",
+    "llm_payload",
+    "llm_result",
+    "needs_review",
+    "review_reason",
+    "low_conf_candidates",
+)
+
+
+def _clean_analysis_meta(prev_meta: dict) -> dict:
+    """Salin meta lama tanpa jejak hasil analisis kerusakan sebelumnya."""
+    if not isinstance(prev_meta, dict):
+        return {}
+    return {k: v for k, v in prev_meta.items() if k not in _STALE_ANALYSIS_KEYS}
+
+
 def process_analysis(issue_id: str, image_path: str, session: Session):
     print(f"\n[ENGINE] === MEMULAI ANALISIS ID: {issue_id} ===")
 
@@ -1068,6 +1212,70 @@ def process_analysis(issue_id: str, image_path: str, session: Session):
             "kabel_semrawut": (211, 0, 148),    # Purple / Magenta
             "genangan_air": (255, 140, 0),      # Blue
         }
+
+        # --- SCENE GUARD ---
+        # Foto meja kerja / laptop / tas / kursi sering memicu false positive
+        # "kabel_semrawut" pada model kabel. Kalau konteksnya jelas bukan
+        # infrastruktur jalan, hentikan analisis lebih awal: jangan skor,
+        # jangan kirim email alert.
+        is_indoor, scene_evidence = detect_indoor_scene(abs_path, img_w, img_h)
+        if is_indoor:
+            _scene_note = ", ".join(
+                f"{e['class']} ({e['conf']:.2f})" for e in scene_evidence
+            )
+            print(f"[SCENE-GUARD] Foto bukan infrastruktur jalan -> tolak. Bukti: {_scene_note}")
+
+            # Simpan gambar tanpa anotasi (tidak ada yang perlu dilingkari).
+            filename = os.path.basename(image_path)
+            detected_filename = filename.replace(".jpg", "_detected.jpg")
+            cv2.imwrite(os.path.join("uploads", detected_filename), orig_img)
+
+            issue = session.get(Issue, issue_id)
+            if not issue:
+                print("[ERROR] Issue ID tidak ditemukan di DB.")
+                return
+            _prev_meta = _clean_analysis_meta(issue.meta_data)
+
+            _found_id = []
+            for e in scene_evidence:
+                lbl = _scene_label(e["class"])
+                if lbl not in _found_id:
+                    _found_id.append(lbl)
+
+            issue.issue_class = "aman"
+            issue.severity_label = "LOW"
+            issue.final_score = 0
+            issue.breakdown_score = {}
+            issue.secondary_issues = []
+            issue.meta_data = {
+                **_prev_meta,
+                "rejected_reason": "bukan_foto_infrastruktur",
+                "scene_evidence": scene_evidence,
+                "detect_imgsz": DETECT_IMGSZ,
+            }
+            issue.title = "Tidak Ditemukan Kerusakan"
+            issue.description = (
+                "Foto yang dikirim tidak menampilkan jalan atau infrastruktur publik. "
+                "Sistem mendeteksi objek dalam ruangan ("
+                + ", ".join(_found_id)
+                + "), sehingga tidak ada kerusakan yang bisa dinilai. "
+                "Silakan unggah foto jalan, trotoar, atau utilitas umum dari lokasi kejadian."
+            )
+            issue.image_url = f"/static/{detected_filename}"
+            issue.status = "PENDING"
+            session.add(issue)
+            session.commit()
+            session.refresh(issue)
+
+            try:
+                norm_path = os.path.normpath(image_path)
+                if ("uploads_raw" in norm_path or norm_path.startswith("uploads_raw")) and os.path.exists(image_path):
+                    os.remove(image_path)
+            except Exception as ce:
+                print(f"[STRIP-EXIF] Gagal hapus raw: {ce}")
+
+            print("[ENGINE] Selesai: foto ditolak oleh scene guard (bukan infrastruktur jalan).")
+            return
 
         # Jalankan inferensi ke seluruh model spesifik yang terpasang.
         # Resolusi: DETECT_IMGSZ (default 1024) — di 640 lubang yang jelas
@@ -1255,7 +1463,7 @@ def process_analysis(issue_id: str, image_path: str, session: Session):
 
         # Kalau tidak ada deteksi kuat sama sekali
         if not valid_detections:
-            _prev_meta = issue.meta_data if isinstance(issue.meta_data, dict) else {}
+            _prev_meta = _clean_analysis_meta(issue.meta_data)
 
             # Ada kandidat lemah? Jangan langsung bilang "aman" — tandai
             # perlu verifikasi supaya admin tetap bisa menilai fotonya.
@@ -1371,7 +1579,9 @@ def process_analysis(issue_id: str, image_path: str, session: Session):
         ]
 
         # Meta data teknis full (pertahankan raw_file agar recovery/delete tetap jalan)
-        _prev_meta = issue.meta_data if isinstance(issue.meta_data, dict) else {}
+        # Bersihkan dulu key analisis lama supaya tidak ada sisa needs_review /
+        # narasi dari percobaan sebelumnya.
+        _prev_meta = _clean_analysis_meta(issue.meta_data)
         issue.meta_data = {
             **_prev_meta,
             "geometry": geometry_dom,
