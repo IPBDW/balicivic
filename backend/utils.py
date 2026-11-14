@@ -58,10 +58,42 @@ if LLM_MODEL:
 # --- Reverse Geocoding ---
 LOCATIONIQ_API_KEY = os.getenv("LOCATIONIQ_API_KEY")
 LOCATIONIQ_URL = "https://us1.locationiq.com/v1/reverse.php"
+# Fallback gratis (tanpa API key) kalau LocationIQ tidak dikonfigurasi / gagal.
+NOMINATIM_URL = "https://nominatim.openstreetmap.org/reverse"
+GEOCODE_UA = "BaliCivicAI/1.0 (+https://balicivicai.site)"
+
+# Urutan field address yang dicoba untuk "kecamatan" dan "kabupaten/kota".
+# LocationIQ & Nominatim beda penamaan: LocationIQ pakai city/county,
+# Nominatim pakai town/city_district/suburb dan region/city/county.
+_KECAMATAN_KEYS = ("town", "city_district", "suburb", "village", "hamlet", "municipality", "city")
+_KABUPATEN_KEYS = ("county", "region", "state_district", "city", "municipality", "town")
+
+
+def _pick_first(addr: dict, keys) -> Optional[str]:
+    for k in keys:
+        v = addr.get(k)
+        if isinstance(v, str) and v.strip():
+            return v.strip()
+    return None
+
+
+def _parse_address(addr: dict) -> Tuple[Optional[str], Optional[str]]:
+    """Ambil (kecamatan, kabupaten) dari objek address LocationIQ/Nominatim."""
+    if not isinstance(addr, dict):
+        return None, None
+    kec = _pick_first(addr, _KECAMATAN_KEYS)
+    kab = _pick_first(addr, _KABUPATEN_KEYS)
+    # Jangan tampilkan "Kuta, Kuta" — kalau sama, kabupaten kosongkan saja
+    # supaya frontend tidak menampilkan duplikat.
+    if kec and kab and kec.lower() == kab.lower():
+        kab = None
+    return kec, kab
+
 
 def reverse_geocode(lat: Optional[float], lon: Optional[float]) -> Tuple[Optional[str], Optional[str]]:
     """
-    Reverse geocoding via LocationIQ.
+    Reverse geocoding via LocationIQ (kalau API key ada), lalu fallback
+    ke Nominatim (gratis) kalau LocationIQ kosong/gagal.
     Input  : lat, lon
     Output : (kecamatan, kabupaten) -> bisa None, None kalau gagal.
     """
@@ -72,43 +104,48 @@ def reverse_geocode(lat: Optional[float], lon: Optional[float]) -> Tuple[Optiona
     if abs(lat) < 1e-6 and abs(lon) < 1e-6:
         return None, None
 
-    if not LOCATIONIQ_API_KEY:
-        print("[GEOCODER] LOCATIONIQ_API_KEY tidak ditemukan di .env")
-        return None, None
+    headers = {"User-Agent": GEOCODE_UA}
 
+    # 1) LocationIQ (akurasi lebih baik untuk Indonesia, butuh API key)
+    if LOCATIONIQ_API_KEY:
+        try:
+            params = {
+                "key": LOCATIONIQ_API_KEY,
+                "lat": lat,
+                "lon": lon,
+                "format": "json",
+                "normalizeaddress": 1,
+                "accept-language": "id",
+            }
+            resp = requests.get(LOCATIONIQ_URL, params=params, headers=headers, timeout=5)
+            resp.raise_for_status()
+            kec, kab = _parse_address(resp.json().get("address", {}))
+            if kec or kab:
+                print(f"[GEOCODER] LocationIQ: kec={kec}, kab={kab}")
+                return kec, kab
+            print("[GEOCODER] LocationIQ tidak memberi kecamatan/kabupaten, coba Nominatim.")
+        except Exception as e:
+            print(f"[GEOCODER] Reverse geocoding gagal (LocationIQ): {e}")
+
+    # 2) Nominatim (fallback gratis, tanpa key)
     try:
         params = {
-            "key": LOCATIONIQ_API_KEY,
             "lat": lat,
             "lon": lon,
-            "format": "json",
-            "normalizeaddress": 1,
+            "format": "jsonv2",
+            "addressdetails": 1,
+            "zoom": 18,
+            "accept-language": "id",
         }
-        headers = {
-            "User-Agent": "BaliCivicAI/1.0 (+https://balicivicai.site)"
-        }
-
-        resp = requests.get(LOCATIONIQ_URL, params=params, headers=headers, timeout=5)
+        resp = requests.get(NOMINATIM_URL, params=params, headers=headers, timeout=6)
         resp.raise_for_status()
-        data = resp.json()
-        addr = data.get("address", {})
-
-        # Cari "kecamatan"
-        kec = addr.get("city")
-        # Cari "kabupaten / kota"
-        kab = addr.get("county")
-
-        if kec:
-            kec = kec.strip()
-        if kab:
-            kab = kab.strip()
-
-        print(f"[GEOCODER] Hasil reverse geocode: kec={kec}, kab={kab}")
+        kec, kab = _parse_address(resp.json().get("address", {}))
+        print(f"[GEOCODER] Nominatim: kec={kec}, kab={kab}")
         return kec, kab
-
     except Exception as e:
-        print(f"[GEOCODER] Reverse geocoding gagal (LocationIQ): {e}")
-        return None, None
+        print(f"[GEOCODER] Reverse geocoding gagal (Nominatim): {e}")
+
+    return None, None
 
 
 # --- GLOBAL YOLO MODELS (Multi-Model Registry) ---
@@ -223,11 +260,53 @@ IGNORED_CLASSES = {
     "12",
 }
 
+# Batas kewajaran posisi objek di dalam frame.
+# Model genangan air (dataset puddle) sering "mendeteksi" langit/awan di
+# bagian atas foto sebagai genangan. Objek yang pusatnya terlalu tinggi di
+# frame (langit/jauh di atas horizon) dibuang untuk kelas genangan_air.
+MAX_Y_CENTER_FOR_WATER = 0.65
+
+def _env_float(key: str, default: float) -> float:
+    """Baca angka dari .env dengan aman (kalau kosong/ngawur pakai default)."""
+    raw = os.getenv(key)
+    if raw is None or str(raw).strip() == "":
+        return default
+    try:
+        return float(str(raw).strip())
+    except ValueError:
+        print(f"[WARN] Nilai {key}='{raw}' bukan angka, pakai default {default}.")
+        return default
+
+
+def _env_int(key: str, default: int) -> int:
+    return int(_env_float(key, float(default)))
+
+
+# Resolusi inferensi.
+# Model dilatih di 640/512, tapi foto warga biasanya 1000-4000 px dan lubang
+# jalan sering cuma menempati sebagian kecil frame. Inferensi di 640 membuat
+# lubang yang jelas terlihat cuma dapat confidence 0.05-0.1 (alias hilang),
+# sedangkan di 1024 confidence-nya naik ke 0.4-0.5. Bisa diatur lewat .env.
+DETECT_IMGSZ = _env_int("YOLO_IMGSZ", 1024)
+
+# Batas bawah saat predict: semua kandidat di atas ini dikumpulkan dulu,
+# baru disaring pakai CONF_THRESHOLDS per kelas di bawah.
+DETECT_CONF_FLOOR = _env_float("YOLO_CONF_FLOOR", 0.10)
+
+# Kalau TIDAK ada satu pun deteksi yang lolos CONF_THRESHOLDS, tapi ada
+# kandidat lemah di atas batas ini, laporan tidak langsung dicap "aman" —
+# ditandai "perlu verifikasi" supaya admin tetap bisa menilai.
+LOW_CONF_MIN = _env_float("YOLO_LOW_CONF_MIN", 0.05)
+
+# Threshold per kelas (bisa di-override dari .env kalau perlu tuning).
+# Catatan: nilai lama jalan_bolong=0.65 terlalu tinggi untuk model sekarang —
+# foto berlubang jelas pun cuma dapat 0.47-0.53 di imgsz 1024, jadi semuanya
+# dibuang dan laporan jatuh ke "Tidak Ditemukan Kerusakan".
 CONF_THRESHOLDS = {
-    "jalan_bolong": 0.65,
-    "genangan_air": 0.35,
-    "sampah_liar": 0.30,
-    "kabel_semrawut": 0.20,
+    "jalan_bolong": _env_float("CONF_JALAN_BOLONG", 0.35),
+    "genangan_air": _env_float("CONF_GENANGAN_AIR", 0.30),
+    "sampah_liar": _env_float("CONF_SAMPAH_LIAR", 0.30),
+    "kabel_semrawut": _env_float("CONF_KABEL_SEMRAWUT", 0.25),
 }
 
 SEVERITY_CONFIG = {
@@ -901,6 +980,7 @@ def process_analysis(issue_id: str, image_path: str, session: Session):
         img_h, img_w = orig_img.shape[:2]
 
         valid_detections = []
+        weak_detections = []   # kandidat di bawah threshold kelas (perlu verifikasi)
         max_conf = 0.0
         primary_class_conf = "aman"
 
@@ -912,10 +992,18 @@ def process_analysis(issue_id: str, image_path: str, session: Session):
             "genangan_air": (255, 140, 0),      # Blue
         }
 
-        # Jalankan inferensi ke seluruh model spesifik yang terpasang
+        # Jalankan inferensi ke seluruh model spesifik yang terpasang.
+        # Resolusi: DETECT_IMGSZ (default 1024) — di 640 lubang yang jelas
+        # kelihatan pun cuma dapat conf 0.05-0.1 dan ikut terbuang.
         for model_cat, mdl in models_dict.items():
             try:
-                results = mdl.predict(abs_path, conf=0.15, save=False, verbose=False)
+                results = mdl.predict(
+                    abs_path,
+                    conf=DETECT_CONF_FLOOR,
+                    imgsz=DETECT_IMGSZ,
+                    save=False,
+                    verbose=False,
+                )
                 r = results[0]
             except Exception as e:
                 print(f"[ENGINE WARN] Model {model_cat} gagal inferensi: {e}")
@@ -953,19 +1041,40 @@ def process_analysis(issue_id: str, image_path: str, session: Session):
                 if cls_name not in CLASS_LABEL_PUBLIC:
                     continue
 
+                # Filter kewajaran posisi: genangan air tidak mungkin ada di
+                # langit. Model puddle kerap false-positive di awan/atap.
+                if cls_name == "genangan_air":
+                    _x1, _y1, _x2, _y2 = [float(v) for v in box.xyxy[0].tolist()]
+                    y_center = ((_y1 + _y2) / 2.0) / float(img_h)
+                    if y_center < MAX_Y_CENTER_FOR_WATER:
+                        print(
+                            f"[ENGINE] Buang genangan_air di y={y_center:.2f} "
+                            "(terlalu atas, kemungkinan langit/awan)."
+                        )
+                        continue
+
+                det = {
+                    "class": cls_name,
+                    "box": box.xyxy[0].tolist(),
+                    "conf": conf,
+                }
+
                 if conf >= CONF_THRESHOLDS.get(cls_name, 0.25):
-                    valid_detections.append(
-                        {
-                            "class": cls_name,
-                            "box": box.xyxy[0].tolist(),
-                            "conf": conf,
-                        }
-                    )
+                    valid_detections.append(det)
                     if conf > max_conf:
                         max_conf = conf
                         primary_class_conf = cls_name
+                elif conf >= LOW_CONF_MIN:
+                    # Jangan dibuang total: dipakai kalau tidak ada deteksi kuat
+                    # sama sekali, supaya laporan jadi "perlu verifikasi"
+                    # bukan langsung dicap "aman / tidak ditemukan kerusakan".
+                    weak_detections.append(det)
 
-        print(f"[ENGINE] Total Deteksi Valid dari Semua Model: {len(valid_detections)} objek.")
+        print(
+            f"[ENGINE] Deteksi kuat: {len(valid_detections)} objek | "
+            f"kandidat lemah: {len(weak_detections)} objek "
+            f"(imgsz={DETECT_IMGSZ})."
+        )
 
         # Gambar anotasi semua bounding box ke gambar asli
         annotated_img = orig_img.copy()
@@ -1006,8 +1115,55 @@ def process_analysis(issue_id: str, image_path: str, session: Session):
                 session.commit()
                 session.refresh(issue)
 
-        # Kalau tidak ada deteksi sama sekali
+        # Kalau tidak ada deteksi kuat sama sekali
         if not valid_detections:
+            _prev_meta = issue.meta_data if isinstance(issue.meta_data, dict) else {}
+
+            # Ada kandidat lemah? Jangan langsung bilang "aman" — tandai
+            # perlu verifikasi supaya admin tetap bisa menilai fotonya.
+            if weak_detections:
+                weak_detections.sort(key=lambda d: d["conf"], reverse=True)
+                weak_primary = weak_detections[0]
+                weak_label = CLASS_LABEL_PUBLIC.get(
+                    weak_primary["class"], weak_primary["class"].replace("_", " ")
+                )
+                print(
+                    f"[ENGINE] Tidak ada deteksi kuat, tapi ada {len(weak_detections)} "
+                    f"kandidat lemah (conf tertinggi {weak_primary['conf']:.2f}) -> perlu verifikasi."
+                )
+                issue.issue_class = weak_primary["class"]
+                issue.severity_label = "LOW"
+                issue.final_score = 0
+                issue.breakdown_score = {}
+                issue.secondary_issues = [
+                    {"class": d["class"], "conf": round(d["conf"], 3)}
+                    for d in weak_detections[1:]
+                ]
+                issue.meta_data = {
+                    **_prev_meta,
+                    "needs_review": True,
+                    "review_reason": "model_low_confidence",
+                    "low_conf_candidates": [
+                        {"class": d["class"], "conf": round(d["conf"], 3)}
+                        for d in weak_detections
+                    ],
+                    "detect_imgsz": DETECT_IMGSZ,
+                }
+                issue.title = f"Perlu Verifikasi: {weak_label.title()}"
+                issue.description = (
+                    f"Model mendeteksi kemungkinan {weak_label}, tetapi keyakinannya "
+                    f"({weak_primary['conf'] * 100:.0f}%) masih di bawah ambang yang "
+                    "dipakai sistem untuk menghitung skor keparahan. Laporan diteruskan "
+                    "ke admin untuk dicek manual pada foto aslinya."
+                )
+                issue.image_url = f"/static/{detected_filename}"
+                issue.status = "PENDING"
+                session.add(issue)
+                session.commit()
+                session.refresh(issue)
+                print("[ENGINE] Selesai dengan tanda perlu verifikasi.")
+                return
+
             print("[ENGINE] Tidak ada kerusakan terdeteksi.")
             issue.issue_class = "aman"
             issue.severity_label = "LOW"
@@ -1015,10 +1171,10 @@ def process_analysis(issue_id: str, image_path: str, session: Session):
             issue.breakdown_score = {}
             issue.secondary_issues = []
             # Pertahankan raw_file (dipakai recovery & delete) — jangan timpa total
-            _prev_meta = issue.meta_data if isinstance(issue.meta_data, dict) else {}
             issue.meta_data = {
                 **_prev_meta,
                 "note": "Tidak ada objek valid terdeteksi oleh model.",
+                "detect_imgsz": DETECT_IMGSZ,
             }
             issue.title = "Tidak Ditemukan Kerusakan"
             issue.description = "Sistem tidak menemukan kerusakan signifikan pada foto yang dikirim."

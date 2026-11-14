@@ -247,3 +247,83 @@ def test_upload_image_dimension_limit():
     r = client.post("/api/analyze", files=files)
     assert r.status_code == 400
     assert "maksimal 4096x4096" in r.json().get("detail", "")
+
+
+# ============================================================
+# Deteksi & geocoding (regression)
+# ============================================================
+
+def test_detect_config_sane():
+    """
+    Regression: threshold jalan_bolong dulu 0.65 sehingga foto berlubang
+    yang jelas pun dibuang semua dan laporan jatuh ke "Tidak Ditemukan
+    Kerusakan". Pastikan konfigurasi tetap masuk akal.
+    """
+    from utils import CONF_THRESHOLDS, DETECT_IMGSZ, LOW_CONF_MIN
+
+    assert DETECT_IMGSZ >= 640, "imgsz terlalu kecil untuk foto warga"
+    assert 0 < LOW_CONF_MIN < min(CONF_THRESHOLDS.values())
+    for cls, thr in CONF_THRESHOLDS.items():
+        assert 0.05 <= thr <= 0.75, f"threshold {cls}={thr} di luar rentang wajar"
+
+
+def test_reverse_geocode_parse_address():
+    """Parsing address LocationIQ/Nominatim -> (kecamatan, kabupaten)."""
+    from utils import _parse_address
+
+    # Format Nominatim (Denpasar Barat)
+    assert _parse_address(
+        {"suburb": "Padangsambian", "town": "Denpasar Barat", "city": "Denpasar"}
+    ) == ("Denpasar Barat", "Denpasar")
+
+    # Format LocationIQ (county = kabupaten)
+    assert _parse_address({"city": "Kuta", "county": "Badung"}) == ("Kuta", "Badung")
+
+    # Jangan hasilkan duplikat "Kuta, Kuta"
+    kec, kab = _parse_address({"city": "Kuta", "town": "Kuta"})
+    assert kec == "Kuta" and kab is None
+
+    # Kosong / bukan dict -> None, None
+    assert _parse_address({}) == (None, None)
+    assert _parse_address(None) == (None, None)
+
+
+def test_reverse_geocode_without_key_uses_fallback(monkeypatch):
+    """Tanpa LOCATIONIQ_API_KEY, fungsi tetap mencoba Nominatim (bukan langsung None)."""
+    import utils
+
+    called = {}
+
+    class FakeResp:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {"address": {"town": "Kuta", "county": "Badung"}}
+
+    def fake_get(url, **kwargs):
+        called["url"] = url
+        return FakeResp()
+
+    monkeypatch.setattr(utils, "LOCATIONIQ_API_KEY", None)
+    monkeypatch.setattr(utils.requests, "get", fake_get)
+
+    kec, kab = utils.reverse_geocode(-8.7201, 115.1750)
+    assert "nominatim" in called["url"]
+    assert (kec, kab) == ("Kuta", "Badung")
+
+
+def test_water_detection_in_sky_is_rejected():
+    """
+    Model puddle sering false-positive di langit. Objek genangan_air yang
+    pusatnya terlalu tinggi di frame harus dibuang sebelum skoring.
+    """
+    from utils import MAX_Y_CENTER_FOR_WATER
+
+    assert 0.3 < MAX_Y_CENTER_FOR_WATER < 0.9
+    # Box di langit (y center ~0.11) -> di bawah batas, harus ditolak
+    y_center_sky = ((0 + 848) / 2) / 4032
+    assert y_center_sky < MAX_Y_CENTER_FOR_WATER
+    # Box di jalan (y center ~0.8) -> lolos
+    y_center_road = ((3000 + 3600) / 2) / 4032
+    assert y_center_road > MAX_Y_CENTER_FOR_WATER
