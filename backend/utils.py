@@ -278,17 +278,21 @@ def _env_int(key: str, default: int) -> int:
 
 # Batas kewajaran posisi objek di dalam frame (0 = tepi atas / langit, 1 = tepi bawah / jalan dekat kamera).
 # Model genangan air (dataset puddle) sering "mendeteksi" langit/awan di
-# bagian atas foto sebagai genangan. Objek yang pusatnya terlalu tinggi di
-# frame (langit/jauh di atas horizon) dibuang untuk kelas genangan_air.
-MAX_Y_CENTER_FOR_WATER = _env_float("MAX_Y_CENTER_FOR_WATER", 0.65)
+# bagian paling atas foto sebagai genangan. Hanya buang objek yang pusatnya
+# benar-benar di zona langit (y_center < 0.18). Jangan gunakan batas terlalu
+# tinggi (seperti 0.5/0.65) karena jalan yang difoto memanjang ke depan
+# membentang dari bawah (1.0) hingga mendekati horizon (0.2).
+MAX_Y_CENTER_FOR_WATER = _env_float("MAX_Y_CENTER_FOR_WATER", 0.18)
 
-# Pothole (jalan_bolong) hanya ada di permukaan aspal/jalan (bukan di langit, tiang, kabel, atap).
-# Objek di atas batas ini dipastikan bukan jalan raya.
-MAX_Y_CENTER_FOR_ROAD = _env_float("MAX_Y_CENTER_FOR_ROAD", 0.52)
+# Pothole (jalan_bolong) hanya ada di permukaan jalan raya.
+# Objek di langit paling atas (y_center < 0.18) dibuang.
+# Untuk objek spek kecil (< 0.08% area) di ketinggian tengah/atas dibuang agar
+# tidak mendeteksi baut/braket tiang listrik atau atap gedung.
+MAX_Y_CENTER_FOR_ROAD = _env_float("MAX_Y_CENTER_FOR_ROAD", 0.18)
 MIN_AREA_FOR_POTHOLE = _env_float("MIN_AREA_FOR_POTHOLE", 0.0008)
 
-# Sampah liar tidak melayang di langit.
-MAX_Y_CENTER_FOR_GARBAGE = _env_float("MAX_Y_CENTER_FOR_GARBAGE", 0.35)
+# Sampah liar tidak melayang di langit paling atas.
+MAX_Y_CENTER_FOR_GARBAGE = _env_float("MAX_Y_CENTER_FOR_GARBAGE", 0.20)
 
 # Kabel semrawut adalah utilitas udara (bukan objek di aspal tepat di bawah kaki).
 MIN_Y_CENTER_FOR_CABLE = _env_float("MIN_Y_CENTER_FOR_CABLE", 0.90)
@@ -314,7 +318,7 @@ LOW_CONF_MIN = _env_float("YOLO_LOW_CONF_MIN", 0.02)
 # Catatan: kabel semrawut berupa utilitas udara dengan kabel tipis; kalibrasi model
 # menghasilkan confidence di rentang 0.025-0.12 sehingga threshold disesuaikan ke 0.025.
 CONF_THRESHOLDS = {
-    "jalan_bolong": _env_float("CONF_JALAN_BOLONG", 0.35),
+    "jalan_bolong": _env_float("CONF_JALAN_BOLONG", 0.30),
     "genangan_air": _env_float("CONF_GENANGAN_AIR", 0.30),
     "sampah_liar": _env_float("CONF_SAMPAH_LIAR", 0.30),
     "kabel_semrawut": _env_float("CONF_KABEL_SEMRAWUT", 0.025),
@@ -997,6 +1001,47 @@ def send_email_alert(issue_data: Issue):
 # 4. CORE PROCESSOR (dipanggil dari background task)
 # ============================================================
 
+def _apply_nms(detections, iou_thresh: float = 0.45):
+    """
+    Non-Maximum Suppression per kelas untuk menyatukan deteksi duplikat
+    dari multi-model (misal model puddle v1 dan v2 sama-sama mendeteksi
+    kubangan air yang sama dengan koordinat hampir identik).
+    """
+    if not detections:
+        return []
+    by_class = {}
+    for d in detections:
+        by_class.setdefault(d["class"], []).append(d)
+
+    kept = []
+    for cls, dets in by_class.items():
+        dets.sort(key=lambda x: x["conf"], reverse=True)
+        cls_kept = []
+        for d in dets:
+            box_a = d["box"]
+            overlap = False
+            for k in cls_kept:
+                box_b = k["box"]
+                xA = max(box_a[0], box_b[0])
+                yA = max(box_a[1], box_b[1])
+                xB = min(box_a[2], box_b[2])
+                yB = min(box_a[3], box_b[3])
+                inter = max(0.0, xB - xA) * max(0.0, yB - yA)
+                areaA = (box_a[2] - box_a[0]) * (box_a[3] - box_a[1])
+                areaB = (box_b[2] - box_b[0]) * (box_b[3] - box_b[1])
+                union = areaA + areaB - inter
+                iou = inter / union if union > 0 else 0
+                if iou >= iou_thresh:
+                    overlap = True
+                    break
+            if not overlap:
+                cls_kept.append(d)
+        kept.extend(cls_kept)
+
+    kept.sort(key=lambda x: x["conf"], reverse=True)
+    return kept
+
+
 def process_analysis(issue_id: str, image_path: str, session: Session):
     print(f"\n[ENGINE] === MEMULAI ANALISIS ID: {issue_id} ===")
 
@@ -1155,8 +1200,16 @@ def process_analysis(issue_id: str, image_path: str, session: Session):
                     # bukan langsung dicap "aman / tidak ditemukan kerusakan".
                     weak_detections.append(det)
 
+        # Satukan deteksi duplikat intra-kelas dari model multi-head (misal puddle v1 & v2)
+        valid_detections = _apply_nms(valid_detections)
+        weak_detections = _apply_nms(weak_detections)
+
+        if valid_detections:
+            max_conf = max(d["conf"] for d in valid_detections)
+            primary_class_conf = valid_detections[0]["class"]
+
         print(
-            f"[ENGINE] Deteksi kuat: {len(valid_detections)} objek | "
+            f"[ENGINE] Deteksi kuat setelah NMS: {len(valid_detections)} objek | "
             f"kandidat lemah: {len(weak_detections)} objek "
             f"(imgsz={DETECT_IMGSZ})."
         )

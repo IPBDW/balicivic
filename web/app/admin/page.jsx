@@ -347,23 +347,23 @@ function AdminContent() {
             <div className="grid lg:grid-cols-12 gap-4">
               <div className="lg:col-span-7 space-y-4">
                 <div className="bg-white rounded-xl border overflow-hidden">
-                  <div className="relative aspect-video bg-slate-900 flex items-center justify-center overflow-hidden">
+                  <div className="relative w-full h-[340px] sm:h-[400px] bg-slate-950 flex items-center justify-center overflow-hidden p-2">
                     {imgSrc && (
                       <img
                         src={imgSrc}
                         alt=""
                         aria-hidden="true"
-                        className="absolute inset-0 w-full h-full object-cover filter blur-xl scale-110 opacity-40 pointer-events-none"
+                        className="absolute inset-0 w-full h-full object-cover filter blur-2xl scale-125 opacity-25 pointer-events-none select-none"
                       />
                     )}
                     {imgSrc && (
                       <img
                         src={imgSrc}
                         alt="Bukti"
-                        className="relative z-10 max-w-full max-h-full object-contain"
+                        className="relative z-10 max-w-full max-h-full w-auto h-auto object-contain rounded-lg shadow-md"
                       />
                     )}
-                    <div className="absolute top-2 left-2 z-20 px-2 py-1 bg-black/60 backdrop-blur-sm rounded text-white text-xs font-mono">
+                    <div className="absolute top-2 left-2 z-20 px-2.5 py-1 bg-black/60 backdrop-blur-sm rounded text-white text-xs font-mono">
                       YOLO11s
                     </div>
                   </div>
