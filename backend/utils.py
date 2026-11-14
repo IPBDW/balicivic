@@ -218,6 +218,15 @@ _INDOOR_CLASSES = {
     "vase", "scissors", "teddy bear", "hair drier", "toothbrush",
     "cup", "fork", "knife", "spoon", "bowl", "wine glass",
     "toilet", "sink", "refrigerator", "microwave", "oven", "toaster", "remote",
+    # Makanan / camilan
+    "banana", "apple", "sandwich", "orange", "broccoli", "carrot", "hot dog", "pizza", "donut", "cake",
+    # Olahraga / mainan personal
+    "frisbee", "skis", "snowboard", "sports ball", "baseball bat", "baseball glove", "tennis racket",
+}
+
+# Hewan yang jika menutupi porsi besar frame berarti foto hewan/peliharaan, bukan jalan.
+_ANIMAL_CLASSES = {
+    "dog", "cat", "bird", "horse", "sheep", "cow", "elephant", "bear", "zebra", "giraffe"
 }
 
 # Barang yang bisa ada di jalan (tas, koper) hanya dicurigai kalau ukurannya
@@ -261,6 +270,17 @@ _SCENE_LABELS_ID = {
     "handbag": "tas",
     "suitcase": "koper",
     "chair": "kursi",
+    "person": "orang / swafoto",
+    "dog": "anjing",
+    "cat": "kucing",
+    "bird": "burung / unggas",
+    "horse": "kuda",
+    "sheep": "domba",
+    "cow": "sapi",
+    "elephant": "gajah",
+    "bear": "beruang",
+    "zebra": "zebra",
+    "giraffe": "jerapah",
 }
 
 
@@ -285,7 +305,9 @@ def _get_coco_model():
 
 def detect_indoor_scene(abs_path: str, img_w: int, img_h: int):
     """
-    Cek apakah foto ini jelas-jelas di dalam ruangan / bukan jalan raya.
+    Cek apakah foto ini jelas-jelas bukan foto infrastruktur jalan raya
+    (misal: barang indoor/elektronik, koper close-up, potret wajah/swafoto,
+    atau foto hewan/peliharaan close-up).
 
     Return (is_indoor, evidence) — evidence berupa daftar
     {"class", "conf", "area_ratio"} yang memicu penolakan.
@@ -297,24 +319,48 @@ def detect_indoor_scene(abs_path: str, img_w: int, img_h: int):
     if model is None:
         return False, []
 
-    try:
-        res = model.predict(abs_path, conf=SCENE_GUARD_CONF, imgsz=640, verbose=False)[0]
-    except Exception as e:
-        print(f"[SCENE-GUARD] Inferensi gagal: {e}")
-        return False, []
-
     frame_area = float(img_w * img_h)
     evidence = []
-    for box in res.boxes:
-        name = str(model.names[int(box.cls[0])]).lower()
-        conf = float(box.conf[0])
-        x1, y1, x2, y2 = [float(v) for v in box.xyxy[0].tolist()]
-        area_ratio = ((x2 - x1) * (y2 - y1)) / frame_area
+    seen = set()
 
-        if name in _INDOOR_CLASSES and area_ratio >= SCENE_GUARD_AREA:
-            evidence.append({"class": name, "conf": round(conf, 3), "area_ratio": round(area_ratio, 4)})
-        elif name in _LARGE_PORTABLE_CLASSES and area_ratio >= SCENE_GUARD_AREA * 2:
-            evidence.append({"class": name, "conf": round(conf, 3), "area_ratio": round(area_ratio, 4)})
+    # Periksa di dua skala (640 standard + 320 untuk low-res / macro selfie hewan)
+    sz_list = [640, 320] if max(img_w, img_h) <= 1280 else [640]
+    for sz in sz_list:
+        try:
+            res = model.predict(abs_path, conf=0.15, imgsz=sz, verbose=False)[0]
+        except Exception as e:
+            print(f"[SCENE-GUARD] Inferensi gagal: {e}")
+            continue
+
+        for box in res.boxes:
+            name = str(model.names[int(box.cls[0])]).lower()
+            conf = float(box.conf[0])
+            x1, y1, x2, y2 = [float(v) for v in box.xyxy[0].tolist()]
+            area_ratio = ((x2 - x1) * (y2 - y1)) / frame_area
+
+            # 1. Objek indoor / elektronik / makanan / mainan
+            if name in _INDOOR_CLASSES and conf >= SCENE_GUARD_CONF and area_ratio >= SCENE_GUARD_AREA:
+                if (name, "indoor") not in seen:
+                    seen.add((name, "indoor"))
+                    evidence.append({"class": name, "conf": round(conf, 3), "area_ratio": round(area_ratio, 4)})
+
+            # 2. Barang pribadi besar (tas/koper yang menutupi kamera)
+            elif name in _LARGE_PORTABLE_CLASSES and conf >= SCENE_GUARD_CONF and area_ratio >= SCENE_GUARD_AREA * 2:
+                if (name, "portable") not in seen:
+                    seen.add((name, "portable"))
+                    evidence.append({"class": name, "conf": round(conf, 3), "area_ratio": round(area_ratio, 4)})
+
+            # 3. Potret orang / swafoto: orang mendominasi frame (area >= 25%, conf >= 0.50)
+            elif name == "person" and conf >= 0.50 and area_ratio >= 0.25:
+                if ("person", "portrait") not in seen:
+                    seen.add(("person", "portrait"))
+                    evidence.append({"class": name, "conf": round(conf, 3), "area_ratio": round(area_ratio, 4)})
+
+            # 4. Hewan peliharaan / satwa close-up: area >= 15% atau mendominasi frame
+            elif name in _ANIMAL_CLASSES and ((area_ratio >= 0.15 and conf >= 0.30) or (area_ratio >= 0.50 and conf >= 0.15)):
+                if (name, "animal") not in seen:
+                    seen.add((name, "animal"))
+                    evidence.append({"class": name, "conf": round(conf, 3), "area_ratio": round(area_ratio, 4)})
 
     return bool(evidence), evidence
 
@@ -1280,133 +1326,136 @@ def process_analysis(issue_id: str, image_path: str, session: Session):
         # Jalankan inferensi ke seluruh model spesifik yang terpasang.
         # Resolusi: DETECT_IMGSZ (default 1024) — di 640 lubang yang jelas
         # kelihatan pun cuma dapat conf 0.05-0.1 dan ikut terbuang.
+        # Untuk gambar beresolusi rendah (< 550px), uji juga di skala 320 agar
+        # objek tidak rusak karena over-upscaling interpolasi.
         for model_cat, mdl in models_dict.items():
             # Model kabel utilitas mendeteksi bentangan kawat tipis (1-2 px),
             # butuh resolusi lebih tinggi (1280) dan floor confidence yang
             # sesuai kalibrasi modelnya agar kabel semrawut tidak terbuang.
             if model_cat == "kabel":
-                m_imgsz = max(DETECT_IMGSZ, 1280)
+                scales = [max(DETECT_IMGSZ, 1280)]
                 m_floor = min(DETECT_CONF_FLOOR, CONF_THRESHOLDS.get("kabel_semrawut", 0.05))
             else:
-                m_imgsz = DETECT_IMGSZ
+                scales = [DETECT_IMGSZ, 320] if max(img_w, img_h) < 550 else [DETECT_IMGSZ]
                 m_floor = DETECT_CONF_FLOOR
 
-            try:
-                results = mdl.predict(
-                    abs_path,
-                    conf=m_floor,
-                    imgsz=m_imgsz,
-                    save=False,
-                    verbose=False,
-                )
-                r = results[0]
-            except Exception as e:
-                print(f"[ENGINE WARN] Model {model_cat} gagal inferensi: {e}")
-                continue
-
-            for box in r.boxes:
-                cls_id = int(box.cls[0])
-                raw_name = mdl.names[cls_id]
-
-                # Buang kelas negatif ("Not Garbage", "-", dll) SEBELUM normalisasi
-                # keyword. Kalau tidak, "Not Garbage" ikut ke-match jadi sampah_liar.
-                if str(raw_name).strip().lower() in IGNORED_CLASSES:
+            for cur_sz in scales:
+                try:
+                    results = mdl.predict(
+                        abs_path,
+                        conf=m_floor,
+                        imgsz=cur_sz,
+                        save=False,
+                        verbose=False,
+                    )
+                    r = results[0]
+                except Exception as e:
+                    print(f"[ENGINE WARN] Model {model_cat} gagal inferensi (imgsz={cur_sz}): {e}")
                     continue
 
-                cls_name = CLASS_ALIASES.get(raw_name, raw_name)
+                for box in r.boxes:
+                    cls_id = int(box.cls[0])
+                    raw_name = mdl.names[cls_id]
 
-                # Normalisasi otomatis jika dataset memakai variasi kata kunci
-                if cls_name not in CLASS_LABEL_PUBLIC:
-                    ln = str(raw_name).lower()
-                    if "pothole" in ln or "lubang" in ln or "bolong" in ln or "damage" in ln or "crack" in ln:
-                        cls_name = "jalan_bolong"
-                    elif "garbage" in ln or "trash" in ln or "waste" in ln or "sampah" in ln:
-                        cls_name = "sampah_liar"
-                    elif "cardboard" in ln or "tire" in ln or "mattress" in ln or "cart" in ln or "dumping" in ln:
-                        cls_name = "sampah_liar"
-                    elif "water" in ln or "flood" in ln or "genangan" in ln or "puddle" in ln:
-                        cls_name = "genangan_air"
-                    elif "cable" in ln or "kabel" in ln or "utilitas" in ln or "taktertata" in ln:
-                        cls_name = "kabel_semrawut"
-
-                conf = float(box.conf[0])
-
-                # Hanya kelas yang dikenal sistem (jangan terima class COCO
-                # seperti person/car dari model fallback yolo11s)
-                if cls_name not in CLASS_LABEL_PUBLIC:
-                    continue
-
-                # Filter kewajaran posisi & ukuran objek dalam frame:
-                _x1, _y1, _x2, _y2 = [float(v) for v in box.xyxy[0].tolist()]
-                y_center = ((_y1 + _y2) / 2.0) / float(img_h)
-                area_ratio = ((_x2 - _x1) * (_y2 - _y1)) / float(img_w * img_h)
-
-                # 1) Jalan bolong (pothole): kerusakan permukaan aspal/jalan.
-                #    Harus berada di bidang permukaan jalan (tengah-bawah/bawah frame).
-                #    Objek di bagian atas (y_center < MAX_Y_CENTER_FOR_ROAD) adalah langit,
-                #    tiang, kabel utilitas, atau latar belakang gedung.
-                #    Objek sangat kecil (< 0.08% area) di ketinggian tengah juga dibuang sebagai noise.
-                if cls_name == "jalan_bolong":
-                    if y_center < MAX_Y_CENTER_FOR_ROAD:
-                        print(
-                            f"[ENGINE] Buang jalan_bolong di y={y_center:.2f} "
-                            f"(terlalu atas / bukan permukaan jalan, batas={MAX_Y_CENTER_FOR_ROAD})."
-                        )
-                        continue
-                    if area_ratio < MIN_AREA_FOR_POTHOLE and y_center < 0.65:
-                        print(
-                            f"[ENGINE] Buang jalan_bolong kecil (area={area_ratio*100:.3f}%) di y={y_center:.2f} "
-                            "(noise/bukan lubang jalan signifikan)."
-                        )
+                    # Buang kelas negatif ("Not Garbage", "-", dll) SEBELUM normalisasi
+                    # keyword. Kalau tidak, "Not Garbage" ikut ke-match jadi sampah_liar.
+                    if str(raw_name).strip().lower() in IGNORED_CLASSES:
                         continue
 
-                # 2) Genangan air: tidak mungkin ada di langit/awan/atap.
-                elif cls_name == "genangan_air":
-                    if y_center < MAX_Y_CENTER_FOR_WATER:
-                        print(
-                            f"[ENGINE] Buang genangan_air di y={y_center:.2f} "
-                            f"(terlalu atas, kemungkinan langit/awan, batas={MAX_Y_CENTER_FOR_WATER})."
-                        )
+                    cls_name = CLASS_ALIASES.get(raw_name, raw_name)
+
+                    # Normalisasi otomatis jika dataset memakai variasi kata kunci
+                    if cls_name not in CLASS_LABEL_PUBLIC:
+                        ln = str(raw_name).lower()
+                        if "pothole" in ln or "lubang" in ln or "bolong" in ln or "damage" in ln or "crack" in ln:
+                            cls_name = "jalan_bolong"
+                        elif "garbage" in ln or "trash" in ln or "waste" in ln or "sampah" in ln:
+                            cls_name = "sampah_liar"
+                        elif "cardboard" in ln or "tire" in ln or "mattress" in ln or "cart" in ln or "dumping" in ln:
+                            cls_name = "sampah_liar"
+                        elif "water" in ln or "flood" in ln or "genangan" in ln or "puddle" in ln:
+                            cls_name = "genangan_air"
+                        elif "cable" in ln or "kabel" in ln or "utilitas" in ln or "taktertata" in ln:
+                            cls_name = "kabel_semrawut"
+
+                    conf = float(box.conf[0])
+
+                    # Hanya kelas yang dikenal sistem (jangan terima class COCO
+                    # seperti person/car dari model fallback yolo11s)
+                    if cls_name not in CLASS_LABEL_PUBLIC:
                         continue
 
-                # 3) Sampah liar: tidak melayang di langit/atap.
-                elif cls_name == "sampah_liar":
-                    if y_center < MAX_Y_CENTER_FOR_GARBAGE:
-                        print(
-                            f"[ENGINE] Buang sampah_liar di y={y_center:.2f} "
-                            f"(terlalu atas / di langit, batas={MAX_Y_CENTER_FOR_GARBAGE})."
-                        )
-                        continue
+                    # Filter kewajaran posisi & ukuran objek dalam frame:
+                    _x1, _y1, _x2, _y2 = [float(v) for v in box.xyxy[0].tolist()]
+                    y_center = ((_y1 + _y2) / 2.0) / float(img_h)
+                    area_ratio = ((_x2 - _x1) * (_y2 - _y1)) / float(img_w * img_h)
 
-                # 4) Kabel semrawut: utilitas udara / tiang / gantung.
-                #    Bukan objek yang tertanam di dasar aspal jalan langsung di bawah kaki.
-                elif cls_name == "kabel_semrawut":
-                    if y_center > MIN_Y_CENTER_FOR_CABLE:
-                        print(
-                            f"[ENGINE] Buang kabel_semrawut di y={y_center:.2f} "
-                            f"(terlalu bawah / di permukaan aspal, batas={MIN_Y_CENTER_FOR_CABLE})."
-                        )
-                        continue
+                    # 1) Jalan bolong (pothole): kerusakan permukaan aspal/jalan.
+                    #    Harus berada di bidang permukaan jalan (tengah-bawah/bawah frame).
+                    #    Objek di bagian atas (y_center < MAX_Y_CENTER_FOR_ROAD) adalah langit,
+                    #    tiang, kabel utilitas, atau latar belakang gedung.
+                    #    Objek sangat kecil (< 0.08% area) di ketinggian tengah juga dibuang sebagai noise.
+                    if cls_name == "jalan_bolong":
+                        if y_center < MAX_Y_CENTER_FOR_ROAD:
+                            print(
+                                f"[ENGINE] Buang jalan_bolong di y={y_center:.2f} "
+                                f"(terlalu atas / bukan permukaan jalan, batas={MAX_Y_CENTER_FOR_ROAD})."
+                            )
+                            continue
+                        if area_ratio < MIN_AREA_FOR_POTHOLE and y_center < 0.65:
+                            print(
+                                f"[ENGINE] Buang jalan_bolong kecil (area={area_ratio*100:.3f}%) di y={y_center:.2f} "
+                                "(noise/bukan lubang jalan signifikan)."
+                            )
+                            continue
 
-                det = {
-                    "class": cls_name,
-                    "box": box.xyxy[0].tolist(),
-                    "conf": conf,
-                }
+                    # 2) Genangan air: tidak mungkin ada di langit/awan/atap.
+                    elif cls_name == "genangan_air":
+                        if y_center < MAX_Y_CENTER_FOR_WATER:
+                            print(
+                                f"[ENGINE] Buang genangan_air di y={y_center:.2f} "
+                                f"(terlalu atas, kemungkinan langit/awan, batas={MAX_Y_CENTER_FOR_WATER})."
+                            )
+                            continue
 
-                cls_threshold = CONF_THRESHOLDS.get(cls_name, 0.25)
-                weak_threshold = min(LOW_CONF_MIN, cls_threshold * 0.7)
+                    # 3) Sampah liar: tidak melayang di langit/atap.
+                    elif cls_name == "sampah_liar":
+                        if y_center < MAX_Y_CENTER_FOR_GARBAGE:
+                            print(
+                                f"[ENGINE] Buang sampah_liar di y={y_center:.2f} "
+                                f"(terlalu atas / di langit, batas={MAX_Y_CENTER_FOR_GARBAGE})."
+                            )
+                            continue
 
-                if conf >= cls_threshold:
-                    valid_detections.append(det)
-                    if conf > max_conf:
-                        max_conf = conf
-                        primary_class_conf = cls_name
-                elif conf >= weak_threshold:
-                    # Jangan dibuang total: dipakai kalau tidak ada deteksi kuat
-                    # sama sekali, supaya laporan jadi "perlu verifikasi"
-                    # bukan langsung dicap "aman / tidak ditemukan kerusakan".
-                    weak_detections.append(det)
+                    # 4) Kabel semrawut: utilitas udara / tiang / gantung.
+                    #    Bukan objek yang tertanam di dasar aspal jalan langsung di bawah kaki.
+                    elif cls_name == "kabel_semrawut":
+                        if y_center > MIN_Y_CENTER_FOR_CABLE:
+                            print(
+                                f"[ENGINE] Buang kabel_semrawut di y={y_center:.2f} "
+                                f"(terlalu bawah / di permukaan aspal, batas={MIN_Y_CENTER_FOR_CABLE})."
+                            )
+                            continue
+
+                    det = {
+                        "class": cls_name,
+                        "box": box.xyxy[0].tolist(),
+                        "conf": conf,
+                    }
+
+                    cls_threshold = CONF_THRESHOLDS.get(cls_name, 0.25)
+                    weak_threshold = min(LOW_CONF_MIN, cls_threshold * 0.7)
+
+                    if conf >= cls_threshold:
+                        valid_detections.append(det)
+                        if conf > max_conf:
+                            max_conf = conf
+                            primary_class_conf = cls_name
+                    elif conf >= weak_threshold:
+                        # Jangan dibuang total: dipakai kalau tidak ada deteksi kuat
+                        # sama sekali, supaya laporan jadi "perlu verifikasi"
+                        # bukan langsung dicap "aman / tidak ditemukan kerusakan".
+                        weak_detections.append(det)
 
         # Satukan deteksi duplikat intra-kelas dari model multi-head (misal puddle v1 & v2)
         valid_detections = _apply_nms(valid_detections)

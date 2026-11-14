@@ -721,6 +721,12 @@ export default function HomePage() {
               <ul className="space-y-2">
                 <li><Link href="/bantuan" className="hover:text-primary transition-colors">Panduan Penggunaan</Link></li>
                 <li><a href="#metodologi" className="hover:text-primary transition-colors">Metodologi Riset</a></li>
+                <li>
+                  <Link href="/admin" className="hover:text-primary transition-colors inline-flex items-center gap-1.5 font-medium text-slate-700">
+                    <i className="fas fa-lock text-[10px] text-primary"></i>
+                    <span>Portal Dinas (Admin)</span>
+                  </Link>
+                </li>
                 <li className="pt-2 text-[11px] text-slate-400">
                   Lisensi Terbuka AGPL-3.0 · Khusus Pemerintah & Publik Bali
                 </li>

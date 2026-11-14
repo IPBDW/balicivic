@@ -41,8 +41,10 @@ export function apiUrl(path) {
   return `${base}${p}`;
 }
 
-export async function apiGet(path) {
-  const res = await fetch(apiUrl(path));
+export async function apiGet(path, opts = {}) {
+  const res = await fetch(apiUrl(path), {
+    headers: opts.headers || {},
+  });
   if (!res.ok) throw await toError(res, path);
   return res.json();
 }

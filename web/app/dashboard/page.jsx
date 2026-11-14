@@ -201,6 +201,14 @@ export default function DashboardPage() {
               <i className="fas fa-rotate text-xs"></i>
               <span>Segarkan</span>
             </button>
+            <Link
+              href="/admin"
+              className="min-h-[36px] px-3.5 py-1.5 rounded-full bg-slate-900 text-white hover:bg-slate-800 text-xs font-bold transition-all shadow-2xs flex items-center gap-1.5 active:scale-95"
+              title="Masuk ke Portal Disposisi Dinas"
+            >
+              <i className="fas fa-lock text-[10px] text-amber-400"></i>
+              <span>Portal Dinas</span>
+            </Link>
           </div>
         </div>
 
