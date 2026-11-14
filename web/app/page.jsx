@@ -245,7 +245,7 @@ export default function HomePage() {
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="grid gap-12 lg:grid-cols-12 lg:items-center">
               {/* Left Column: Heading and CTAs */}
-              <div className="lg:col-span-7 space-y-6">
+              <div className="lg:col-span-7 space-y-6 min-w-0">
                 <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-semibold">
                   <span className="flex h-2 w-2 rounded-full bg-primary animate-pulse"></span>
                   <span>Inisiatif Digital Pemantauan Infrastruktur Provinsi Bali</span>
@@ -301,7 +301,7 @@ export default function HomePage() {
               </div>
 
               {/* Right Column: Visual AI Inspection Preview */}
-              <div className="lg:col-span-5">
+              <div className="lg:col-span-5 min-w-0">
                 <div className="bg-white rounded-2xl border border-slate-200 shadow-xl overflow-hidden">
                   <div className="bg-slate-900 px-4 py-3 flex items-center justify-between text-white">
                     <div className="flex items-center gap-2">
