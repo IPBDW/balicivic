@@ -180,12 +180,9 @@ export default function DashboardPage() {
             </p>
           </div>
           <div className="flex items-center gap-2.5 flex-wrap">
-            <div className="text-xs font-semibold bg-white text-slate-700 px-3 py-1.5 rounded-full border border-slate-200 shadow-2xs flex items-center gap-2">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-              </span>
-              <span>WITA Real-time Feed</span>
+            <div className="text-xs font-medium bg-white text-slate-600 px-3 py-1.5 rounded-full border border-slate-200 flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+              <span>Pembaruan Berkala (WITA)</span>
             </div>
             <button
               type="button"
@@ -195,7 +192,7 @@ export default function DashboardPage() {
                 fetchDistribution();
                 fetchRecentIssues();
               }}
-              className="min-h-[36px] px-3.5 py-1.5 rounded-full bg-white border border-slate-200 text-xs font-bold text-slate-700 hover:text-primary hover:border-primary/30 transition-all shadow-2xs flex items-center gap-1.5 active:scale-95"
+              className="min-h-[36px] px-3.5 py-1.5 rounded-full bg-white border border-slate-200 text-xs font-semibold text-slate-700 hover:text-primary hover:border-primary/30 transition-all flex items-center gap-1.5 active:scale-95"
               title="Perbarui data sekarang"
             >
               <i className="fas fa-rotate text-xs"></i>
@@ -203,11 +200,11 @@ export default function DashboardPage() {
             </button>
             <Link
               href="/admin"
-              className="min-h-[36px] px-3.5 py-1.5 rounded-full bg-slate-900 text-white hover:bg-slate-800 text-xs font-bold transition-all shadow-2xs flex items-center gap-1.5 active:scale-95"
-              title="Masuk ke Portal Disposisi Dinas"
+              className="min-h-[36px] px-3.5 py-1.5 rounded-full border border-slate-300 bg-white text-slate-700 hover:text-slate-900 hover:border-slate-400 text-xs font-semibold transition-colors flex items-center gap-1.5"
+              title="Masuk ke Portal Administrasi Dinas"
             >
-              <i className="fas fa-lock text-[10px] text-amber-400"></i>
-              <span>Portal Dinas</span>
+              <i className="fas fa-lock text-slate-400 text-xs"></i>
+              <span>Portal Admin</span>
             </Link>
           </div>
         </div>
