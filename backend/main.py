@@ -590,13 +590,16 @@ def get_dashboard(session: Session = Depends(get_session)):
 def get_issue_distribution(session: Session = Depends(get_session)):
     """
     Distribusi jenis kerusakan (pie chart / donut chart di frontend).
+    Hanya menghitung 4 kelas kerusakan yang dikenal. Laporan "aman"
+    (tidak ada temuan) sengaja tidak dihitung supaya persentase donut
+    tetap berjumlah 100% — sebelumnya total ikut menghitung "aman"
+    sehingga semua slice tampak lebih kecil dari seharusnya.
     """
     # Hitung per-kelas di sisi DB (GROUP BY), bukan memuat semua baris.
     rows = session.exec(
         select(Issue.issue_class, func.count()).group_by(Issue.issue_class)
     ).all()
     by_class = {cls: count for cls, count in rows}
-    total = sum(by_class.values()) or 1  # hindari bagi 0
 
     counts = {
         "jalan_bolong": by_class.get("jalan_bolong", 0),
@@ -604,6 +607,7 @@ def get_issue_distribution(session: Session = Depends(get_session)):
         "genangan_air": by_class.get("genangan_air", 0),
         "kabel_semrawut": by_class.get("kabel_semrawut", 0),
     }
+    total = sum(counts.values()) or 1  # hindari bagi 0
 
     data = [
         {

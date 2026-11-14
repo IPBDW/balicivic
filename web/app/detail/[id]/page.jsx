@@ -50,8 +50,22 @@ export default function DetailPage() {
       setData(d);
 
       const score = typeof d.final_score === "number" ? d.final_score : 0;
+      const noFinding = d.issue_class === "aman" || d.issue_class === "unknown";
+      const needsReview = d.meta_data?.needs_review === true;
       let scoreColor, textColor, labelText;
-      if (score >= SEVERITY_HIGH_MIN) {
+      if (needsReview) {
+        // Skor belum dihitung karena model belum cukup yakin — jangan pakai
+        // label keparahan apa pun supaya tidak menyesatkan.
+        scoreColor = "bg-amber-400 shadow-sm";
+        textColor = "text-amber-700";
+        labelText = "Belum Dinilai - Perlu Verifikasi Manual";
+      } else if (noFinding) {
+        // Skor 0 = tidak ada temuan, jangan ditulis "RINGAN - Monitor Berkala"
+        // (itu label untuk kerusakan ringan, bukan untuk "aman").
+        scoreColor = "bg-slate-400 shadow-sm";
+        textColor = "text-slate-500";
+        labelText = "Tidak Ada Kerusakan Terdeteksi";
+      } else if (score >= SEVERITY_HIGH_MIN) {
         scoreColor = "bg-red-700 shadow-sm";
         textColor = "text-red-700";
         labelText = "KRITIS - Perlu Penanganan Segera";
@@ -75,6 +89,9 @@ export default function DetailPage() {
       const isAnalyzing = d.issue_class === "processing" || badge === "processing";
       if (isAnalyzing) {
         setStatusUi({ label: "MENGANALISIS", cls: "px-4 py-1.5 rounded-full text-[10px] font-bold border shadow-sm bg-amber-50 text-amber-700 border-amber-200 uppercase tracking-wider animate-pulse" });
+      } else if (needsReview) {
+        // Model tidak yakin, jadi laporan tidak diklaim "aman" — minta admin cek.
+        setStatusUi({ label: "PERLU VERIFIKASI", cls: "px-4 py-1.5 rounded-full text-[10px] font-bold border shadow-sm bg-amber-50 text-amber-700 border-amber-200 uppercase tracking-wider" });
       } else if (badge === "OPEN" || badge === "PENDING") {
         setStatusUi({ label: badge, cls: "px-4 py-1.5 rounded-full text-[10px] font-bold border shadow-sm bg-slate-100 text-slate-700 border-slate-200 uppercase tracking-wider" });
       } else if (badge === "IN_PROGRESS" || badge === "INPROGRESS") {
@@ -193,6 +210,8 @@ export default function DetailPage() {
     ? formatDateLongWita(data.created_at) + " • " + formatTimeWitaLabel(data.created_at)
     : "-";
   const isAnalyzing = data?.issue_class === "processing";
+  const needsReview = data?.meta_data?.needs_review === true;
+  const noFinding = data?.issue_class === "aman" || data?.issue_class === "unknown";
   const desc = isAnalyzing
     ? "Laporan sedang dianalisis oleh AI. Hasil akan muncul otomatis dalam beberapa detik."
     : (data?.meta_data?.llm_result?.public?.message
@@ -210,8 +229,19 @@ export default function DetailPage() {
     if (isNaN(d.getTime())) return String(ts);
     return formatDateWita(d) + " • " + formatTimeWita(d);
   }
-  const locText = `${data?.kecamatan || "Lokasi Unknown"}, ${data?.kabupaten || "Lokasi Unknown"}`;
-  const gmapsHref = data?.latitude && data?.longitude ? `https://www.google.com/maps/search/?api=1&query=${data.latitude},${data.longitude}` : "#";
+  // Lokasi: jangan tampilkan "Lokasi Unknown, Lokasi Unknown" — pakai
+  // koordinat kalau nama wilayah belum ter-geocode, atau teks netral kalau
+  // memang tidak ada data sama sekali.
+  const hasCoords = data?.latitude != null && data?.longitude != null;
+  const locParts = [data?.kecamatan, data?.kabupaten].filter(
+    (v) => v && String(v).trim() && !/^lokasi unknown$/i.test(String(v).trim())
+  );
+  const locText = locParts.length > 0
+    ? locParts.join(", ")
+    : hasCoords
+      ? `Koordinat ${Number(data.latitude).toFixed(5)}, ${Number(data.longitude).toFixed(5)}`
+      : "Lokasi tidak tersedia";
+  const gmapsHref = hasCoords ? `https://www.google.com/maps/search/?api=1&query=${data.latitude},${data.longitude}` : null;
   const imgSrc = data?.image_url ? imgUrl(data.image_url) : "";
 
   return (
@@ -273,12 +303,24 @@ export default function DetailPage() {
                   <h3 className="font-display font-bold text-slate-700 flex items-center gap-2">
                     <i className="fas fa-map-marked-alt text-primary/70"></i> Lokasi Kejadian
                   </h3>
-                  <a href={gmapsHref} target="_blank" rel="noreferrer" className="text-xs font-bold text-primary hover:text-primary/80 flex items-center gap-1 bg-primary/5 px-3 py-1.5 rounded-full hover:bg-primary/10 transition-colors">
-                    Buka Google Maps <i className="fas fa-external-link-alt ml-1"></i>
-                  </a>
+                  {gmapsHref ? (
+                    <a href={gmapsHref} target="_blank" rel="noreferrer" className="text-xs font-bold text-primary hover:text-primary/80 flex items-center gap-1 bg-primary/5 px-3 py-1.5 rounded-full hover:bg-primary/10 transition-colors">
+                      Buka Google Maps <i className="fas fa-external-link-alt ml-1"></i>
+                    </a>
+                  ) : (
+                    <span className="text-xs font-bold text-slate-400 bg-slate-100 px-3 py-1.5 rounded-full flex items-center gap-1" title="Laporan ini tidak menyertakan koordinat">
+                      <i className="fas fa-location-crosshairs"></i> Tanpa Koordinat
+                    </span>
+                  )}
                 </div>
-                <div className="h-64 w-full rounded-2xl overflow-hidden border border-slate-200 shadow-inner">
+                <div className="h-64 w-full rounded-2xl overflow-hidden border border-slate-200 shadow-inner relative">
                   <div id="map"></div>
+                  {!hasCoords && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-slate-50 text-slate-400 px-6 text-center">
+                      <i className="fas fa-map-location-dot text-3xl"></i>
+                      <p className="text-xs font-medium">Pelapor tidak mengirim titik lokasi (GPS nonaktif / ditolak).</p>
+                    </div>
+                  )}
                 </div>
                 <div className="mt-4 flex items-start gap-3 text-sm text-slate-600 bg-slate-50/50 p-3 rounded-xl border border-slate-100">
                   <i className="fas fa-location-dot text-rose-500 mt-1"></i>
@@ -326,17 +368,36 @@ export default function DetailPage() {
 
               <div className="glass-panel rounded-3xl p-8 shadow-glass glass-card-hover">
                 <div className="flex items-center gap-4 mb-6">
-                  <div className="w-12 h-12 rounded-2xl bg-orange-50 text-orange-500 flex items-center justify-center text-xl shadow-sm border border-orange-100">
-                    <i className="fas fa-robot"></i>
+                  <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl shadow-sm border ${
+                    noFinding
+                      ? "bg-slate-50 text-slate-400 border-slate-200"
+                      : needsReview
+                        ? "bg-amber-50 text-amber-500 border-amber-100"
+                        : "bg-orange-50 text-orange-500 border-orange-100"
+                  }`}>
+                    <i className={`fas ${noFinding ? "fa-circle-check" : needsReview ? "fa-magnifying-glass" : "fa-robot"}`}></i>
                   </div>
                   <div>
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Kategori Masalah</span>
-                    <p className="text-lg font-display font-bold text-slate-800 capitalize">{String(data?.issue_class || "-").replace(/_/g, " ")}</p>
+                    <p className="text-lg font-display font-bold text-slate-800 capitalize">
+                      {noFinding
+                        ? "Aman / Tidak Ada Temuan"
+                        : `${String(data?.issue_class || "-").replace(/_/g, " ")}${needsReview ? " (perlu verifikasi)" : ""}`}
+                    </p>
                   </div>
                 </div>
                 <div className="space-y-4">
                   <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wide border-b border-slate-100 pb-2">Analisis AI</h3>
                   <p className="text-sm text-slate-600 leading-relaxed text-justify">{desc}</p>
+                  {needsReview && (
+                    <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50/70 p-3 text-xs text-amber-800">
+                      <i className="fas fa-triangle-exclamation mt-0.5"></i>
+                      <span className="leading-relaxed">
+                        Model hanya menemukan kandidat dengan keyakinan rendah, jadi skor keparahan belum dihitung.
+                        Admin perlu memeriksa foto aslinya sebelum laporan ini ditindaklanjuti.
+                      </span>
+                    </div>
+                  )}
                 </div>
                 <div className="mt-8 grid grid-cols-2 gap-3 print:hidden">
                   <button onClick={shareReport} className="py-2.5 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-xs transition-colors flex items-center justify-center gap-2">
