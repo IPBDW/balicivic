@@ -35,9 +35,23 @@ function AdminContent() {
   const [loginLoading, setLoginLoading] = useState(false);
   const [loginError, setLoginError] = useState("");
 
-  // Navigation State
-  const [activeView, setActiveView] = useState("queue"); // "queue" | "detail"
-  const [selectedId, setSelectedId] = useState(null);
+  // Navigation State derived directly from URL (Single Source of Truth)
+  const selectedId = urlId ? Number(urlId) || urlId : null;
+  const activeView = selectedId ? "detail" : "queue";
+
+  // URL Navigation Helpers (Push to browser history so Back/Forward buttons work properly)
+  const openDetail = useCallback((id) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("id", String(id));
+    router.push(`/admin?${params.toString()}`);
+  }, [router, searchParams]);
+
+  const closeDetail = useCallback(() => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("id");
+    const qs = params.toString();
+    router.push(qs ? `/admin?${qs}` : "/admin");
+  }, [router, searchParams]);
 
   // Queue State
   const [issues, setIssues] = useState([]);
@@ -87,10 +101,6 @@ function AdminContent() {
           sessionStorage.setItem(STORAGE_KEY, urlToken);
           setAuthToken(urlToken);
           setAuthStatus("authenticated");
-          if (urlId) {
-            setSelectedId(Number(urlId) || urlId);
-            setActiveView("detail");
-          }
           return;
         }
       }
@@ -102,10 +112,6 @@ function AdminContent() {
         if (isValid) {
           setAuthToken(stored);
           setAuthStatus("authenticated");
-          if (urlId) {
-            setSelectedId(Number(urlId) || urlId);
-            setActiveView("detail");
-          }
           return;
         } else {
           sessionStorage.removeItem(STORAGE_KEY);
@@ -142,10 +148,6 @@ function AdminContent() {
       setAuthToken(loginInput.trim());
       setAuthStatus("authenticated");
       showToast("Berhasil Masuk", "Sesi administrasi dinas telah aktif.");
-      if (urlId) {
-        setSelectedId(Number(urlId) || urlId);
-        setActiveView("detail");
-      }
     } else {
       setLoginError("Token tidak valid. Pastikan token sesuai dengan konfigurasi admin dinas.");
     }
@@ -156,9 +158,7 @@ function AdminContent() {
     sessionStorage.removeItem(STORAGE_KEY);
     setAuthToken("");
     setAuthStatus("login");
-    setSelectedId(null);
     setData(null);
-    setActiveView("queue");
     router.replace("/admin");
     showToast("Keluar", "Sesi administrasi Anda telah ditutup.");
   }
@@ -199,11 +199,11 @@ function AdminContent() {
     } catch (e) {
       console.error("Gagal memuat detail laporan:", e);
       showToast("Gagal Memuat", "Laporan tidak ditemukan.", true);
-      setActiveView("queue");
+      closeDetail();
     } finally {
       setDataLoading(false);
     }
-  }, []);
+  }, [closeDetail]);
 
   useEffect(() => {
     if (authStatus === "authenticated" && selectedId) {
@@ -241,9 +241,7 @@ function AdminContent() {
       });
       showToast("Laporan Dihapus", `Laporan #${targetId} telah dihapus permanen.`);
       if (selectedId === targetId) {
-        setSelectedId(null);
-        setActiveView("queue");
-        router.replace("/admin");
+        closeDetail();
       }
       fetchQueueData();
     } catch (e) {
@@ -512,11 +510,7 @@ function AdminContent() {
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={() => {
-                setActiveView("queue");
-                setSelectedId(null);
-                router.replace("/admin");
-              }}
+              onClick={closeDetail}
               className={`px-3 py-1.5 rounded-lg font-semibold transition-colors ${
                 activeView === "queue"
                   ? "bg-slate-900 text-white"
@@ -531,7 +525,7 @@ function AdminContent() {
                 <span className="text-slate-400">/</span>
                 <button
                   type="button"
-                  onClick={() => setActiveView("detail")}
+                  onClick={() => openDetail(selectedId)}
                   className={`px-3 py-1.5 rounded-lg font-semibold transition-colors ${
                     activeView === "detail"
                       ? "bg-slate-900 text-white"
@@ -779,10 +773,7 @@ function AdminContent() {
                           <td className="px-4 py-2.5 text-right">
                             <button
                               type="button"
-                              onClick={() => {
-                                setSelectedId(item.id);
-                                setActiveView("detail");
-                              }}
+                              onClick={() => openDetail(item.id)}
                               className="px-2.5 py-1 rounded bg-slate-900 hover:bg-slate-800 text-white font-medium text-xs transition-colors"
                             >
                               Buka Lembar Kerja
@@ -808,10 +799,7 @@ function AdminContent() {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <button
               type="button"
-              onClick={() => {
-                setActiveView("queue");
-                router.replace("/admin");
-              }}
+              onClick={closeDetail}
               className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-700 hover:text-slate-900 bg-white border border-slate-300 px-3 py-1.5 rounded-lg transition-colors"
             >
               &larr; Kembali ke Antrean
