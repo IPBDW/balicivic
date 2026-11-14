@@ -59,7 +59,6 @@ export default function LaporPage() {
   });
   const [activity, setActivity] = useState([]);
   const [formError, setFormError] = useState(null);
-  const [allowNoLocation, setAllowNoLocation] = useState(false);
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -112,7 +111,7 @@ export default function LaporPage() {
         if (pLat < -9.0 || pLat > -8.0 || pLng < 114.4 || pLng > 115.8) {
           setGpsStatus({ text: "GPS Terkunci (Di Luar Bali)", cls: "text-[10px] text-amber-500 font-bold" });
           setFormError(
-            "GPS terdeteksi di luar Provinsi Bali. Untuk pengujian, masukkan koordinat di Bali (misal: Denpasar -8.67, 115.21) atau centang 'Kirim tanpa lokasi'."
+            "GPS terdeteksi di luar Provinsi Bali. Masukkan koordinat di dalam wilayah Bali (misal: Denpasar -8.67, 115.21)."
           );
         } else {
           setGpsStatus({ text: "GPS Terkunci (Bali)", cls: "text-[10px] text-accentGreen font-bold" });
@@ -156,26 +155,28 @@ export default function LaporPage() {
       return;
     }
 
-    // Lokasi boleh kosong: backend menyimpan null dan laporan tetap masuk.
-    // Ini penting untuk pengguna yang menolak GPS atau memakai perangkat tanpa GPS.
-    const hasCoords = lat !== "" && lng !== "";
-    if (!hasCoords && !allowNoLocation) {
+    const trimmedLat = String(lat || "").trim();
+    const trimmedLng = String(lng || "").trim();
+    if (!trimmedLat || !trimmedLng) {
       setFormError(
-        "Lokasi belum terisi. Klik \"Deteksi Lokasi Saya\", isi koordinat manual, atau centang izin kirim tanpa lokasi."
+        "Lokasi kerusakan wajib diisi agar Dinas PUPR dapat menindaklanjuti. Klik \"Deteksi Lokasi Saya\" atau masukkan koordinat manual."
       );
       return;
     }
 
-    if (hasCoords) {
-      const numLat = parseFloat(lat);
-      const numLng = parseFloat(lng);
-      const isOutsideBali = numLat < -9.0 || numLat > -8.0 || numLng < 114.4 || numLng > 115.8;
-      if (isOutsideBali) {
-        setFormError(
-          "Koordinat berada di luar wilayah Provinsi Bali. Masukkan koordinat di Bali (misal: Denpasar -8.67, 115.21) atau centang 'Kirim tanpa lokasi'."
-        );
-        return;
-      }
+    const numLat = parseFloat(trimmedLat);
+    const numLng = parseFloat(trimmedLng);
+    if (isNaN(numLat) || isNaN(numLng)) {
+      setFormError("Format koordinat latitude dan longitude tidak valid.");
+      return;
+    }
+
+    const isOutsideBali = numLat < -9.0 || numLat > -8.0 || numLng < 114.4 || numLng > 115.8;
+    if (isOutsideBali) {
+      setFormError(
+        "Koordinat berada di luar wilayah Provinsi Bali. Masukkan koordinat di dalam wilayah Bali (misal: Denpasar -8.67, 115.21)."
+      );
+      return;
     }
 
     setModal({
@@ -190,8 +191,8 @@ export default function LaporPage() {
 
     const formData = new FormData();
     formData.append("file", fileRef.current.files[0]);
-    formData.append("lat", hasCoords ? lat : "0");
-    formData.append("long", hasCoords ? lng : "0");
+    formData.append("lat", trimmedLat);
+    formData.append("long", trimmedLng);
 
     let issueId = null;
     try {
@@ -358,7 +359,7 @@ export default function LaporPage() {
                 <div className="space-y-2">
                   <div className="flex justify-between items-end">
                     <label htmlFor="input-lat" className="text-sm font-bold text-textDark">
-                      Lokasi <span className="text-[10px] font-normal text-textSecondary">(opsional)</span>
+                      Lokasi Kerusakan <span className="text-[10px] font-semibold text-red-500">* (Wajib)</span>
                     </label>
                     <span className={gpsStatus.cls} id="gpsStatus" role="status" aria-live="polite">{gpsStatus.text}</span>
                   </div>
@@ -368,6 +369,7 @@ export default function LaporPage() {
                       type="number"
                       step="any"
                       name="lat"
+                      required
                       value={lat}
                       onChange={(e) => setLat(e.target.value)}
                       placeholder="Latitude"
@@ -379,6 +381,7 @@ export default function LaporPage() {
                       type="number"
                       step="any"
                       name="long"
+                      required
                       value={lng}
                       onChange={(e) => setLng(e.target.value)}
                       placeholder="Longitude"
@@ -387,7 +390,7 @@ export default function LaporPage() {
                     />
                   </div>
                   <p className="text-[10px] text-textSecondary">
-                    Contoh: -8.5069 / 115.2625. Klik tombol di bawah untuk mengisi otomatis.
+                    Contoh: -8.5069 / 115.2625. Klik tombol di bawah untuk mengisi otomatis via GPS.
                   </p>
                   <button
                     type="button"
@@ -400,18 +403,6 @@ export default function LaporPage() {
                       Deteksi Lokasi Saya
                     </span>
                   </button>
-
-                  <label className="flex items-start gap-2 pt-1 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={allowNoLocation}
-                      onChange={(e) => setAllowNoLocation(e.target.checked)}
-                      className="mt-0.5 accent-primary"
-                    />
-                    <span className="text-[11px] text-textSecondary leading-snug">
-                      Kirim tanpa lokasi presisi (laporan tetap masuk, tapi tidak muncul di peta).
-                    </span>
-                  </label>
                 </div>
 
                 {formError && (
