@@ -430,3 +430,15 @@ def test_scene_guard_allows_road_photo():
     h, w = img.shape[:2]
     is_indoor, evidence = detect_indoor_scene(path, w, h)
     assert not is_indoor, f"foto jalan salah ditolak: {evidence}"
+
+
+def test_scene_guard_classes_configured():
+    """Scene guard harus memuat kelas indoor, makanan, hewan, dan barang besar."""
+    from utils import _INDOOR_CLASSES, _ANIMAL_CLASSES, _LARGE_PORTABLE_CLASSES, _SCENE_LABELS_ID
+
+    assert "laptop" in _INDOOR_CLASSES
+    assert "banana" in _INDOOR_CLASSES
+    assert "dog" in _ANIMAL_CLASSES
+    assert "bird" in _ANIMAL_CLASSES
+    assert "person" in _SCENE_LABELS_ID
+    assert "backpack" in _LARGE_PORTABLE_CLASSES
