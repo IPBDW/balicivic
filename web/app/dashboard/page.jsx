@@ -383,7 +383,12 @@ export default function DashboardPage() {
                     <h4 className="font-bold text-slate-800 capitalize text-sm mb-1">{String(item.issue_class || "-").replace("_", " ")}</h4>
                     <div className="flex items-center gap-1.5 text-xs text-slate-500">
                       <i className="fas fa-map-marker-alt text-primary/60"></i>
-                      <span className="truncate">{item.kecamatan || "Unknown"}, {item.kabupaten || "Bali"}</span>
+                      <span className="truncate">
+                        {[item.kecamatan, item.kabupaten].filter(Boolean).join(", ")
+                          || (item.latitude != null && item.longitude != null
+                            ? `${Number(item.latitude).toFixed(4)}, ${Number(item.longitude).toFixed(4)}`
+                            : "Lokasi tidak tersedia")}
+                      </span>
                     </div>
                   </div>
                   <Link href={`/detail/${item.id}`} className="w-full mt-1 bg-slate-50 text-slate-600 hover:bg-primary hover:text-white transition-all py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-2">
@@ -441,7 +446,10 @@ export default function DashboardPage() {
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2 text-slate-500 text-xs">
                           <i className="fas fa-map-marker-alt"></i>
-                          <span className="truncate max-w-[150px]">{item.kecamatan || "Unknown"}</span>
+                          <span className="truncate max-w-[150px]">
+                            {item.kecamatan || item.kabupaten
+                              || (item.latitude != null && item.longitude != null ? "Koordinat" : "Tidak tersedia")}
+                          </span>
                         </div>
                       </td>
                       <td className="px-6 py-4">

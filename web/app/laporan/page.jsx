@@ -215,7 +215,10 @@ export default function LaporanPage() {
                       </h4>
                       <div className="flex items-center gap-1.5 text-xs text-textSecondary mt-1">
                         <i className="fas fa-map-marker-alt text-primary/60 w-4 text-center"></i>
-                        <span className="truncate">{item.kecamatan || "Lokasi Unknown"}</span>
+                        <span className="truncate">
+                          {item.kecamatan || item.kabupaten
+                            || (item.latitude != null && item.longitude != null ? "Koordinat" : "Lokasi tidak tersedia")}
+                        </span>
                       </div>
                     </div>
                     <Link href={`/detail/${item.id}`} className="w-full mt-1 bg-white border border-lightBorder text-textDark hover:bg-primary hover:text-white hover:border-primary transition-all py-2.5 rounded-lg text-xs font-bold flex items-center justify-center gap-2 group-hover:border-primary/30">
@@ -284,7 +287,10 @@ export default function LaporanPage() {
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-2 text-textSecondary text-xs">
                             <i className="fas fa-map-marker-alt text-gray-400"></i>
-                            <span className="truncate max-w-[150px] font-medium text-gray-600">{item.kecamatan || "Lokasi Unknown"}</span>
+                            <span className="truncate max-w-[150px] font-medium text-gray-600">
+                              {item.kecamatan || item.kabupaten
+                                || (item.latitude != null && item.longitude != null ? "Koordinat" : "Lokasi tidak tersedia")}
+                            </span>
                           </div>
                         </td>
                         <td className="px-6 py-4">
