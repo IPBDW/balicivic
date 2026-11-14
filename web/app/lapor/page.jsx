@@ -70,7 +70,8 @@ export default function LaporPage() {
         const data = await res.json();
         if (isMountedRef.current) setActivity(data.slice(0, 3));
       } catch (error) {
-        console.error("Gagal load aktivitas:", error);
+        // Gunakan warn agar error polling di background tidak memunculkan overlay modal merah di Next.js dev
+        console.warn("Gagal load aktivitas:", error?.message || error);
       }
     }
 
